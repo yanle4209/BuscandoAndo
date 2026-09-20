@@ -1,8 +1,9 @@
 """
 Management command: python manage.py load_initial_data
 Clears existing data and loads everything fresh from fixture.
+All IDs are explicit to match the fixture exactly.
 """
-import os, json
+import os
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
 from django.db import connection
@@ -14,7 +15,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("=== Clearing existing data ===")
         with connection.cursor() as cursor:
-            # Disable FK checks temporarily
             cursor.execute("SET CONSTRAINTS ALL DEFERRED")
             for table in [
                 'business_images_businessimage',
@@ -22,57 +22,42 @@ class Command(BaseCommand):
                 'business_contacts_businesscontact',
                 'business_locations_businesslocation',
                 'businesses_business',
+                'categories_category',
+                'publication_status_publicationstatus',
+                'operational_status_operationalstatus',
             ]:
                 cursor.execute(f"DELETE FROM {table}")
                 self.stdout.write(f"  Cleared {table}")
             cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
 
-        # Now delete categories, statuses
-        from businesses.models import Business
-        from categories.models import Category
-        from publication_status.models import PublicationStatus
-        from operational_status.models import OperationalStatus
-        from business_images.models import BusinessImage
-        from business_hours.models import BusinessHours
-        from business_contacts.models import BusinessContact
-        from business_locations.models import BusinessLocation
-
-        BusinessImage.objects.all().delete()
-        BusinessHours.objects.all().delete()
-        BusinessContact.objects.all().delete()
-        BusinessLocation.objects.all().delete()
-        Business.objects.all().delete()
-        Category.objects.all().delete()
-        PublicationStatus.objects.all().delete()
-        OperationalStatus.objects.all().delete()
-        self.stdout.write("  All data cleared!")
-
-        # Recreate publication statuses
+        # Recreate publication statuses with explicit IDs
         self.stdout.write("\n=== Creating publication statuses ===")
         from publication_status.models import PublicationStatus
         statuses = [
-            ('en-revision', 'En Revision'),
-            ('publicado', 'Publicado'),
-            ('cancelado', 'Cancelado'),
+            (1, 'en-revision', 'En Revision'),
+            (2, 'publicado', 'Publicado'),
+            (3, 'cancelado', 'Cancelado'),
         ]
-        for slug, name in statuses:
-            PublicationStatus.objects.create(slug=slug, name=name)
-            self.stdout.write(f'  Created: {name}')
+        for sid, slug, name in statuses:
+            PublicationStatus.objects.create(id=sid, slug=slug, name=name)
+            self.stdout.write(f'  Created: {name} (id={sid})')
 
-        # Recreate operational statuses
+        # Recreate operational statuses with explicit IDs
         self.stdout.write("\n=== Creating operational statuses ===")
+        from operational_status.models import OperationalStatus
         op_statuses = [
-            ('abierto', 'Abierto', '#22c55e'),
-            ('cerrado', 'Cerrado', '#ef4444'),
-            ('por-horario', 'Por Horario', '#f59e0b'),
-            ('cerrado-permanente', 'Cerrado Permanente', '#6b7280'),
+            (1, 'abierto', 'Abierto', '#22c55e'),
+            (2, 'cerrado', 'Cerrado', '#ef4444'),
+            (3, 'por-horario', 'Por Horario', '#f59e0b'),
+            (4, 'cerrado-permanente', 'Cerrado Permanente', '#6b7280'),
         ]
-        for slug, name, color in op_statuses:
-            OperationalStatus.objects.create(slug=slug, name=name, color=color)
-            self.stdout.write(f'  Created: {name}')
+        for sid, slug, name, color in op_statuses:
+            OperationalStatus.objects.create(id=sid, slug=slug, name=name, color=color)
+            self.stdout.write(f'  Created: {name} (id={sid})')
 
         # Recreate categories with explicit IDs matching the fixture
         self.stdout.write("\n=== Creating categories ===")
+        from categories.models import Category
         categories_data = [
             (1, 'restaurantes', 'Restaurantes', 'utensils'),
             (2, 'salones-de-belleza', 'Salones de Belleza', 'scissors'),
@@ -94,9 +79,18 @@ class Command(BaseCommand):
             Category.objects.create(id=cat_id, slug=slug, name=name, icon=icon)
             self.stdout.write(f'  Created: {name} (id={cat_id})')
 
-        # Reset category sequence so next auto-id is correct
+        # Reset all sequences to correct values
+        self.stdout.write("\n=== Resetting sequences ===")
         with connection.cursor() as cursor:
-            cursor.execute("SELECT setval(pg_get_serial_sequence('categories_category', 'id'), (SELECT MAX(id) FROM categories_category))")
+            sequences = [
+                ('publication_status_publicationstatus', 'id'),
+                ('operational_status_operationalstatus', 'id'),
+                ('categories_category', 'id'),
+            ]
+            for table, column in sequences:
+                seq = f"{table}_{column}_seq"
+                cursor.execute(f"SELECT setval('{seq}', (SELECT COALESCE(MAX({column}), 1) FROM {table}))")
+                self.stdout.write(f"  Reset {seq}")
 
         # Load businesses from fixture
         self.stdout.write("\n=== Loading businesses from fixture ===")
@@ -111,6 +105,12 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('Fixture loaded successfully!'))
         else:
             self.stdout.write(self.style.WARNING(f'Fixture not found at {fixture_path}'))
+
+        from businesses.models import Business
+        from business_images.models import BusinessImage
+        from business_hours.models import BusinessHours
+        from business_contacts.models import BusinessContact
+        from business_locations.models import BusinessLocation
 
         self.stdout.write(self.style.SUCCESS(
             f'\nDone! Statuses: {PublicationStatus.objects.count()}, '
