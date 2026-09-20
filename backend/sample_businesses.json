@@ -1,0 +1,101 @@
+[
+    {
+        "name": "Restaurante La Buena Mesa",
+        "slug": "restaurante-la-buena-mesa",
+        "description": "Restaurante familiar con tradicion de mas de 20 anos. Cocina criolla e internacional. Ambiente acogedor para toda la familia.",
+        "short_description": "Cocina criolla e internacional, ambiente familiar",
+        "category": "restaurantes",
+        "operational_status": "abierto",
+        "is_featured": true,
+        "location": {
+            "address": "Av. Winston Churchill #12, Santo Domingo",
+            "city": "Santo Domingo",
+            "state": "Distrito Nacional",
+            "postal_code": "10100",
+            "country": "República Dominicana",
+            "latitude": 18.4861,
+            "longitude": -69.9312
+        },
+        "contact": {
+            "phone": "+18095551234",
+            "whatsapp": "+18095551234",
+            "email": "info@labuenamesa.com",
+            "website": "https://labuenamesa.com"
+        },
+        "hours": [
+            {"day": "Lunes", "open_time": "11:00", "close_time": "22:00", "is_closed": false},
+            {"day": "Martes", "open_time": "11:00", "close_time": "22:00", "is_closed": false},
+            {"day": "Miércoles", "open_time": "11:00", "close_time": "22:00", "is_closed": false},
+            {"day": "Jueves", "open_time": "11:00", "close_time": "22:00", "is_closed": false},
+            {"day": "Viernes", "open_time": "11:00", "close_time": "23:00", "is_closed": false},
+            {"day": "Sábado", "open_time": "11:00", "close_time": "23:00", "is_closed": false},
+            {"day": "Domingo", "open_time": "11:00", "close_time": "20:00", "is_closed": false}
+        ]
+    },
+    {
+        "name": "Barberia El Corte",
+        "slug": "barberia-el-corte",
+        "description": "Barberia moderna con los mejores estilistas de la zona. Cortes de cabello, barba y tratamiento capilar.",
+        "short_description": "Cortes modernos, barba y tratamiento capilar",
+        "category": "salones-de-belleza",
+        "operational_status": "abierto",
+        "is_featured": false,
+        "location": {
+            "address": "Calle El Conde #42, Zona Colonial, Santo Domingo",
+            "city": "Santo Domingo",
+            "state": "Distrito Nacional",
+            "postal_code": "10200",
+            "country": "República Dominicana",
+            "latitude": 18.4724,
+            "longitude": -69.9112
+        },
+        "contact": {
+            "phone": "+18095559876",
+            "whatsapp": "+18095559876",
+            "email": "",
+            "website": ""
+        },
+        "hours": [
+            {"day": "Lunes", "open_time": "09:00", "close_time": "19:00", "is_closed": false},
+            {"day": "Martes", "open_time": "09:00", "close_time": "19:00", "is_closed": false},
+            {"day": "Miércoles", "open_time": "09:00", "close_time": "19:00", "is_closed": false},
+            {"day": "Jueves", "open_time": "09:00", "close_time": "19:00", "is_closed": false},
+            {"day": "Viernes", "open_time": "09:00", "close_time": "20:00", "is_closed": false},
+            {"day": "Sábado", "open_time": "09:00", "close_time": "18:00", "is_closed": false},
+            {"day": "Domingo", "open_time": null, "close_time": null, "is_closed": true}
+        ]
+    },
+    {
+        "name": "Taller Mecanico Los Hermanos",
+        "slug": "taller-mecanico-los-hermanos",
+        "description": "Taller mecanico con mas de 15 anos de experiencia. Reparacion de vehiculos, latoneria, pintura y mantenimiento preventivo.",
+        "short_description": "Reparacion, latoneria, pintura y mantenimiento",
+        "category": "talleres-mecanicos",
+        "operational_status": "abierto",
+        "is_featured": true,
+        "location": {
+            "address": "Autopista Duarte km 9, Santiago de los Caballeros",
+            "city": "Santiago de los Caballeros",
+            "state": "Santiago",
+            "postal_code": "51000",
+            "country": "República Dominicana",
+            "latitude": 19.4517,
+            "longitude": -70.6970
+        },
+        "contact": {
+            "phone": "+18095555123",
+            "whatsapp": "+18095555123",
+            "email": "taller@loshermanos.com",
+            "website": ""
+        },
+        "hours": [
+            {"day": "Lunes", "open_time": "07:00", "close_time": "18:00", "is_closed": false},
+            {"day": "Martes", "open_time": "07:00", "close_time": "18:00", "is_closed": false},
+            {"day": "Miércoles", "open_time": "07:00", "close_time": "18:00", "is_closed": false},
+            {"day": "Jueves", "open_time": "07:00", "close_time": "18:00", "is_closed": false},
+            {"day": "Viernes", "open_time": "07:00", "close_time": "18:00", "is_closed": false},
+            {"day": "Sábado", "open_time": "08:00", "close_time": "13:00", "is_closed": false},
+            {"day": "Domingo", "open_time": null, "close_time": null, "is_closed": true}
+        ]
+    }
+]

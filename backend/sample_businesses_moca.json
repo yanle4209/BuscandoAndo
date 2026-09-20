@@ -1,0 +1,512 @@
+[
+  {
+    "name": "Farmacia La Salud",
+    "slug": "farmacia-la-salud",
+    "description": "Farmacia con medicamentos, productos de higiene y laboratorio clínico. Entrega a domicilio disponible.",
+    "short_description": "Medicamentos, laboratorio y entrega a domicilio",
+    "category": "Farmacias",
+    "publication_status": "Publicado",
+    "operational_status": "Abierto",
+    "is_featured": true,
+    "location": {
+      "street": "Av. Moca #45",
+      "sector": "Juan López",
+      "municipality": "Moca",
+      "district": "Moca",
+      "province": "Espaillat",
+      "postal_code": "56000",
+      "latitude": 19.3833,
+      "longitude": -70.5267
+    },
+    "contact": {
+      "phone": "809-353-1001",
+      "whatsapp": "809-353-1001",
+      "email": "info@lafarmaciasalud.com"
+    },
+    "hours": [
+      {"day": "L", "open_time": "07:00", "close_time": "21:00", "is_closed": false},
+      {"day": "M", "open_time": "07:00", "close_time": "21:00", "is_closed": false},
+      {"day": "X", "open_time": "07:00", "close_time": "21:00", "is_closed": false},
+      {"day": "J", "open_time": "07:00", "close_time": "21:00", "is_closed": false},
+      {"day": "V", "open_time": "07:00", "close_time": "22:00", "is_closed": false},
+      {"day": "S", "open_time": "08:00", "close_time": "20:00", "is_closed": false},
+      {"day": "D", "open_time": "08:00", "close_time": "14:00", "is_closed": false}
+    ]
+  },
+  {
+    "name": "Super Colmado El Abacerito",
+    "slug": "colmado-el-abacerito",
+    "description": "Abacería con productos frescos, carnes, frutas y verduras. Los mejores precios del barrio.",
+    "short_description": "Productos frescos, carnes y verduras",
+    "category": "Restaurantes",
+    "publication_status": "Publicado",
+    "operational_status": "Abierto",
+    "is_featured": false,
+    "location": {
+      "street": "Calle Principal #12",
+      "sector": "Juan López",
+      "municipality": "Moca",
+      "district": "Moca",
+      "province": "Espaillat",
+      "postal_code": "56000",
+      "latitude": 19.3820,
+      "longitude": -70.5250
+    },
+    "contact": {
+      "phone": "809-353-2002",
+      "whatsapp": "809-353-2002",
+      "email": ""
+    },
+    "hours": [
+      {"day": "L", "open_time": "06:00", "close_time": "20:00", "is_closed": false},
+      {"day": "M", "open_time": "06:00", "close_time": "20:00", "is_closed": false},
+      {"day": "X", "open_time": "06:00", "close_time": "20:00", "is_closed": false},
+      {"day": "J", "open_time": "06:00", "close_time": "20:00", "is_closed": false},
+      {"day": "V", "open_time": "06:00", "close_time": "21:00", "is_closed": false},
+      {"day": "S", "open_time": "06:00", "close_time": "20:00", "is_closed": false},
+      {"day": "D", "open_time": "07:00", "close_time": "15:00", "is_closed": false}
+    ]
+  },
+  {
+    "name": "Taller Mecánico Don Pepe",
+    "slug": "taller-mecanico-don-pepe",
+    "description": "Reparación general de vehículos, cambio de aceite, latonería y pintura. 20 años de experiencia.",
+    "short_description": "Mecánica general, latonería y pintura",
+    "category": "Talleres Mecánicos",
+    "publication_status": "Publicado",
+    "operational_status": "Abierto",
+    "is_featured": false,
+    "location": {
+      "street": "Carretera Moca-Santiago km 3",
+      "sector": "La Villa",
+      "municipality": "Moca",
+      "district": "Moca",
+      "province": "Espaillat",
+      "postal_code": "56000",
+      "latitude": 19.3870,
+      "longitude": -70.5300
+    },
+    "contact": {
+      "phone": "809-353-3003",
+      "whatsapp": "809-353-3003",
+      "email": "donpepe.taller@gmail.com"
+    },
+    "hours": [
+      {"day": "L", "open_time": "08:00", "close_time": "17:00", "is_closed": false},
+      {"day": "M", "open_time": "08:00", "close_time": "17:00", "is_closed": false},
+      {"day": "X", "open_time": "08:00", "close_time": "17:00", "is_closed": false},
+      {"day": "J", "open_time": "08:00", "close_time": "17:00", "is_closed": false},
+      {"day": "V", "open_time": "08:00", "close_time": "17:00", "is_closed": false},
+      {"day": "S", "open_time": "08:00", "close_time": "13:00", "is_closed": false},
+      {"day": "D", "open_time": "", "close_time": "", "is_closed": true}
+    ]
+  },
+  {
+    "name": "Peluquería Glamour",
+    "slug": "peluqueria-glamour",
+    "description": "Corte de cabello, tintura, alisado, manicure y pedicure. Atención personalizada para damas y caballeros.",
+    "short_description": "Corte, tintura, manicure y pedicure",
+    "category": "Salones de Belleza",
+    "publication_status": "Publicado",
+    "operational_status": "Abierto",
+    "is_featured": true,
+    "location": {
+      "street": "Calle Duarte #28",
+      "sector": "Centro",
+      "municipality": "Moca",
+      "district": "Moca",
+      "province": "Espaillat",
+      "postal_code": "56000",
+      "latitude": 19.3845,
+      "longitude": -70.5280
+    },
+    "contact": {
+      "phone": "809-353-4004",
+      "whatsapp": "809-353-4004",
+      "email": "glamour.peluqueria@hotmail.com"
+    },
+    "hours": [
+      {"day": "L", "open_time": "09:00", "close_time": "19:00", "is_closed": false},
+      {"day": "M", "open_time": "09:00", "close_time": "19:00", "is_closed": false},
+      {"day": "X", "open_time": "09:00", "close_time": "19:00", "is_closed": false},
+      {"day": "J", "open_time": "09:00", "close_time": "19:00", "is_closed": false},
+      {"day": "V", "open_time": "09:00", "close_time": "20:00", "is_closed": false},
+      {"day": "S", "open_time": "09:00", "close_time": "18:00", "is_closed": false},
+      {"day": "D", "open_time": "", "close_time": "", "is_closed": true}
+    ]
+  },
+  {
+    "name": "Restaurante La Cosecha",
+    "slug": "restaurante-la-cosecha",
+    "description": "Comida típica dominicana: mangú, mofongo, pollo guisado y更多 platos criollos. Ambiente familiar.",
+    "short_description": "Comida típica dominicana, ambiente familiar",
+    "category": "Restaurantes",
+    "publication_status": "Publicado",
+    "operational_status": "Abierto",
+    "is_featured": true,
+    "location": {
+      "street": "Av. 26 de Enero #10",
+      "sector": "Centro",
+      "municipality": "Moca",
+      "district": "Moca",
+      "province": "Espaillat",
+      "postal_code": "56000",
+      "latitude": 19.3855,
+      "longitude": -70.5260
+    },
+    "contact": {
+      "phone": "809-353-5005",
+      "whatsapp": "809-353-5005",
+      "email": "lacosecha.restaurant@gmail.com"
+    },
+    "hours": [
+      {"day": "L", "open_time": "07:00", "close_time": "22:00", "is_closed": false},
+      {"day": "M", "open_time": "07:00", "close_time": "22:00", "is_closed": false},
+      {"day": "X", "open_time": "07:00", "close_time": "22:00", "is_closed": false},
+      {"day": "J", "open_time": "07:00", "close_time": "22:00", "is_closed": false},
+      {"day": "V", "open_time": "07:00", "close_time": "23:00", "is_closed": false},
+      {"day": "S", "open_time": "07:00", "close_time": "23:00", "is_closed": false},
+      {"day": "D", "open_time": "08:00", "close_time": "16:00", "is_closed": false}
+    ]
+  },
+  {
+    "name": "Minimarket Los Hermanos",
+    "slug": "minimarket-los-hermanos",
+    "description": "Productos de cotidianidad, bebidas, snacks y artículos de limpieza. Precios accesibles.",
+    "short_description": "Productos de cotidianidad y bebidas",
+    "category": "Restaurantes",
+    "publication_status": "Publicado",
+    "operational_status": "Abierto",
+    "is_featured": false,
+    "location": {
+      "street": "Calle 19 de Marzo #5",
+      "sector": "Juan López",
+      "municipality": "Moca",
+      "district": "Moca",
+      "province": "Espaillat",
+      "postal_code": "56000",
+      "latitude": 19.3825,
+      "longitude": -70.5245
+    },
+    "contact": {
+      "phone": "809-353-6006",
+      "whatsapp": "809-353-6006",
+      "email": ""
+    },
+    "hours": [
+      {"day": "L", "open_time": "07:00", "close_time": "22:00", "is_closed": false},
+      {"day": "M", "open_time": "07:00", "close_time": "22:00", "is_closed": false},
+      {"day": "X", "open_time": "07:00", "close_time": "22:00", "is_closed": false},
+      {"day": "J", "open_time": "07:00", "close_time": "22:00", "is_closed": false},
+      {"day": "V", "open_time": "07:00", "close_time": "23:00", "is_closed": false},
+      {"day": "S", "open_time": "07:00", "close_time": "22:00", "is_closed": false},
+      {"day": "D", "open_time": "08:00", "close_time": "20:00", "is_closed": false}
+    ]
+  },
+  {
+    "name": "Papelería El Estudiante",
+    "slug": "papeleria-el-estudiante",
+    "description": "Útiles escolares, impresiones, fotocopias, encuadernación y artículos de oficina.",
+    "short_description": "Útiles escolares, impresiones y encuadernación",
+    "category": "Tiendas",
+    "publication_status": "Publicado",
+    "operational_status": "Abierto",
+    "is_featured": false,
+    "location": {
+      "street": "Calle Mella #22",
+      "sector": "Centro",
+      "municipality": "Moca",
+      "district": "Moca",
+      "province": "Espaillat",
+      "postal_code": "56000",
+      "latitude": 19.3850,
+      "longitude": -70.5275
+    },
+    "contact": {
+      "phone": "809-353-7007",
+      "whatsapp": "809-353-7007",
+      "email": "elestudiante.papeleria@gmail.com"
+    },
+    "hours": [
+      {"day": "L", "open_time": "08:00", "close_time": "18:00", "is_closed": false},
+      {"day": "M", "open_time": "08:00", "close_time": "18:00", "is_closed": false},
+      {"day": "X", "open_time": "08:00", "close_time": "18:00", "is_closed": false},
+      {"day": "J", "open_time": "08:00", "close_time": "18:00", "is_closed": false},
+      {"day": "V", "open_time": "08:00", "close_time": "18:00", "is_closed": false},
+      {"day": "S", "open_time": "09:00", "close_time": "14:00", "is_closed": false},
+      {"day": "D", "open_time": "", "close_time": "", "is_closed": true}
+    ]
+  },
+  {
+    "name": "Veterinaria Patitas Felices",
+    "slug": "veterinaria-patitas-felices",
+    "description": "Consulta veterinaria, vacunas, desparasitación, cirugías y tienda de mascotas.",
+    "short_description": "Consulta, vacunas y cirugías para mascotas",
+    "category": "Servicios Profesionales",
+    "publication_status": "Publicado",
+    "operational_status": "Abierto",
+    "is_featured": true,
+    "location": {
+      "street": "Av. Independencia #56",
+      "sector": "Villa Progreso",
+      "municipality": "Moca",
+      "district": "Moca",
+      "province": "Espaillat",
+      "postal_code": "56000",
+      "latitude": 19.3865,
+      "longitude": -70.5230
+    },
+    "contact": {
+      "phone": "809-353-8008",
+      "whatsapp": "809-353-8008",
+      "email": "patitasfelices.vet@gmail.com"
+    },
+    "hours": [
+      {"day": "L", "open_time": "08:00", "close_time": "18:00", "is_closed": false},
+      {"day": "M", "open_time": "08:00", "close_time": "18:00", "is_closed": false},
+      {"day": "X", "open_time": "08:00", "close_time": "18:00", "is_closed": false},
+      {"day": "J", "open_time": "08:00", "close_time": "18:00", "is_closed": false},
+      {"day": "V", "open_time": "08:00", "close_time": "18:00", "is_closed": false},
+      {"day": "S", "open_time": "09:00", "close_time": "14:00", "is_closed": false},
+      {"day": "D", "open_time": "", "close_time": "", "is_closed": true}
+    ]
+  },
+  {
+    "name": "Colmado Doña Berta",
+    "slug": "colmado-dona-berta",
+    "description": "Colmado con bebidas frías, snacks, productos básicos y recargas eléctricas.",
+    "short_description": "Bebidas, snacks y productos básicos",
+    "category": "Restaurantes",
+    "publication_status": "Publicado",
+    "operational_status": "Abierto",
+    "is_featured": false,
+    "location": {
+      "street": "Calle Esperanza #8",
+      "sector": "La Ermita",
+      "municipality": "Moca",
+      "district": "Moca",
+      "province": "Espaillat",
+      "postal_code": "56000",
+      "latitude": 19.3810,
+      "longitude": -70.5290
+    },
+    "contact": {
+      "phone": "809-353-9009",
+      "whatsapp": "809-353-9009",
+      "email": ""
+    },
+    "hours": [
+      {"day": "L", "open_time": "06:30", "close_time": "22:00", "is_closed": false},
+      {"day": "M", "open_time": "06:30", "close_time": "22:00", "is_closed": false},
+      {"day": "X", "open_time": "06:30", "close_time": "22:00", "is_closed": false},
+      {"day": "J", "open_time": "06:30", "close_time": "22:00", "is_closed": false},
+      {"day": "V", "open_time": "06:30", "close_time": "23:00", "is_closed": false},
+      {"day": "S", "open_time": "06:30", "close_time": "22:00", "is_closed": false},
+      {"day": "D", "open_time": "07:00", "close_time": "21:00", "is_closed": false}
+    ]
+  },
+  {
+    "name": "Barbería El Corte 2.0",
+    "slug": "barberia-el-corte-2",
+    "description": "Cortes modernos, barba, diseño de cejas y tratamiento capilar. Ambiente juvenil.",
+    "short_description": "Cortes modernos, barba y diseño de cejas",
+    "category": "Salones de Belleza",
+    "publication_status": "Publicado",
+    "operational_status": "Abierto",
+    "is_featured": false,
+    "location": {
+      "street": "Calle San Luis #14",
+      "sector": "Juan López",
+      "municipality": "Moca",
+      "district": "Moca",
+      "province": "Espaillat",
+      "postal_code": "56000",
+      "latitude": 19.3838,
+      "longitude": -70.5255
+    },
+    "contact": {
+      "phone": "809-353-1010",
+      "whatsapp": "809-353-1010",
+      "email": ""
+    },
+    "hours": [
+      {"day": "L", "open_time": "09:00", "close_time": "20:00", "is_closed": false},
+      {"day": "M", "open_time": "09:00", "close_time": "20:00", "is_closed": false},
+      {"day": "X", "open_time": "09:00", "close_time": "20:00", "is_closed": false},
+      {"day": "J", "open_time": "09:00", "close_time": "20:00", "is_closed": false},
+      {"day": "V", "open_time": "09:00", "close_time": "21:00", "is_closed": false},
+      {"day": "S", "open_time": "09:00", "close_time": "19:00", "is_closed": false},
+      {"day": "D", "open_time": "", "close_time": "", "is_closed": true}
+    ]
+  },
+  {
+    "name": "Taller de Costura Mary",
+    "slug": "taller-costura-mary",
+    "description": "Confección a medida, arreglos de ropa, bordados y uniformes escolares.",
+    "short_description": "Confección a medida, arreglos y bordados",
+    "category": "Tiendas",
+    "publication_status": "Publicado",
+    "operational_status": "Abierto",
+    "is_featured": false,
+    "location": {
+      "street": "Calle Luna #7",
+      "sector": "La Ermita",
+      "municipality": "Moca",
+      "district": "Moca",
+      "province": "Espaillat",
+      "postal_code": "56000",
+      "latitude": 19.3818,
+      "longitude": -70.5285
+    },
+    "contact": {
+      "phone": "809-353-1111",
+      "whatsapp": "809-353-1111",
+      "email": "tallermary.costura@gmail.com"
+    },
+    "hours": [
+      {"day": "L", "open_time": "08:00", "close_time": "17:00", "is_closed": false},
+      {"day": "M", "open_time": "08:00", "close_time": "17:00", "is_closed": false},
+      {"day": "X", "open_time": "08:00", "close_time": "17:00", "is_closed": false},
+      {"day": "J", "open_time": "08:00", "close_time": "17:00", "is_closed": false},
+      {"day": "V", "open_time": "08:00", "close_time": "17:00", "is_closed": false},
+      {"day": "S", "open_time": "08:00", "close_time": "12:00", "is_closed": false},
+      {"day": "D", "open_time": "", "close_time": "", "is_closed": true}
+    ]
+  },
+  {
+    "name": "Academia Futuro Brillante",
+    "slug": "academia-futuro-brillante",
+    "description": "Clases de matemáticas, español, inglés y preparación para exámenes. Educación personalizada.",
+    "short_description": "Clases particulares y preparación de exámenes",
+    "category": "Escuelas",
+    "publication_status": "Publicado",
+    "operational_status": "Abierto",
+    "is_featured": true,
+    "location": {
+      "street": "Av. Bolívar #33",
+      "sector": "Centro",
+      "municipality": "Moca",
+      "district": "Moca",
+      "province": "Espaillat",
+      "postal_code": "56000",
+      "latitude": 19.3848,
+      "longitude": -70.5270
+    },
+    "contact": {
+      "phone": "809-353-1212",
+      "whatsapp": "809-353-1212",
+      "email": "futurobrillante.academia@gmail.com"
+    },
+    "hours": [
+      {"day": "L", "open_time": "15:00", "close_time": "20:00", "is_closed": false},
+      {"day": "M", "open_time": "15:00", "close_time": "20:00", "is_closed": false},
+      {"day": "X", "open_time": "15:00", "close_time": "20:00", "is_closed": false},
+      {"day": "J", "open_time": "15:00", "close_time": "20:00", "is_closed": false},
+      {"day": "V", "open_time": "15:00", "close_time": "20:00", "is_closed": false},
+      {"day": "S", "open_time": "09:00", "close_time": "14:00", "is_closed": false},
+      {"day": "D", "open_time": "", "close_time": "", "is_closed": true}
+    ]
+  },
+  {
+    "name": "Carnicería La Parrilla",
+    "slug": "carniceria-la-parrilla",
+    "description": "Carnes frescas de res, cerdo y pollo. Cortes especiales para parrilla y asados.",
+    "short_description": "Carnes frescas y cortes especiales para parrilla",
+    "category": "Restaurantes",
+    "publication_status": "Publicado",
+    "operational_status": "Abierto",
+    "is_featured": false,
+    "location": {
+      "street": "Calle Haina #9",
+      "sector": "Villa Progreso",
+      "municipality": "Moca",
+      "district": "Moca",
+      "province": "Espaillat",
+      "postal_code": "56000",
+      "latitude": 19.3860,
+      "longitude": -70.5240
+    },
+    "contact": {
+      "phone": "809-353-1313",
+      "whatsapp": "809-353-1313",
+      "email": ""
+    },
+    "hours": [
+      {"day": "L", "open_time": "06:00", "close_time": "18:00", "is_closed": false},
+      {"day": "M", "open_time": "06:00", "close_time": "18:00", "is_closed": false},
+      {"day": "X", "open_time": "06:00", "close_time": "18:00", "is_closed": false},
+      {"day": "J", "open_time": "06:00", "close_time": "18:00", "is_closed": false},
+      {"day": "V", "open_time": "06:00", "close_time": "19:00", "is_closed": false},
+      {"day": "S", "open_time": "06:00", "close_time": "18:00", "is_closed": false},
+      {"day": "D", "open_time": "", "close_time": "", "is_closed": true}
+    ]
+  },
+  {
+    "name": "Pizzería Don Mario",
+    "slug": "pizzeria-don-mario",
+    "description": "Pizzas artesanales, pastas, ensaladas y postres. Delivery gratis en Moca.",
+    "short_description": "Pizzas artesanales y pastas con delivery gratis",
+    "category": "Restaurantes",
+    "publication_status": "Publicado",
+    "operational_status": "Abierto",
+    "is_featured": true,
+    "location": {
+      "street": "Av. Magistral #21",
+      "sector": "Centro",
+      "municipality": "Moca",
+      "district": "Moca",
+      "province": "Espaillat",
+      "postal_code": "56000",
+      "latitude": 19.3852,
+      "longitude": -70.5268
+    },
+    "contact": {
+      "phone": "809-353-1414",
+      "whatsapp": "809-353-1414",
+      "email": "donmario.pizza@gmail.com"
+    },
+    "hours": [
+      {"day": "L", "open_time": "11:00", "close_time": "23:00", "is_closed": false},
+      {"day": "M", "open_time": "11:00", "close_time": "23:00", "is_closed": false},
+      {"day": "X", "open_time": "11:00", "close_time": "23:00", "is_closed": false},
+      {"day": "J", "open_time": "11:00", "close_time": "23:00", "is_closed": false},
+      {"day": "V", "open_time": "11:00", "close_time": "00:00", "is_closed": false},
+      {"day": "S", "open_time": "11:00", "close_time": "00:00", "is_closed": false},
+      {"day": "D", "open_time": "11:00", "close_time": "22:00", "is_closed": false}
+    ]
+  },
+  {
+    "name": "Electricidad Solís",
+    "slug": "electricidad-solis",
+    "description": "Instalaciones eléctricas, reparaciones, cableado, tableros y paneles solares.",
+    "short_description": "Instalaciones eléctricas y paneles solares",
+    "category": "Talleres Mecánicos",
+    "publication_status": "Publicado",
+    "operational_status": "Abierto",
+    "is_featured": false,
+    "location": {
+      "street": "Calle Ambar #3",
+      "sector": "La Villa",
+      "municipality": "Moca",
+      "district": "Moca",
+      "province": "Espaillat",
+      "postal_code": "56000",
+      "latitude": 19.3875,
+      "longitude": -70.5295
+    },
+    "contact": {
+      "phone": "809-353-1515",
+      "whatsapp": "809-353-1515",
+      "email": "electricidadsolis@gmail.com"
+    },
+    "hours": [
+      {"day": "L", "open_time": "08:00", "close_time": "17:00", "is_closed": false},
+      {"day": "M", "open_time": "08:00", "close_time": "17:00", "is_closed": false},
+      {"day": "X", "open_time": "08:00", "close_time": "17:00", "is_closed": false},
+      {"day": "J", "open_time": "08:00", "close_time": "17:00", "is_closed": false},
+      {"day": "V", "open_time": "08:00", "close_time": "17:00", "is_closed": false},
+      {"day": "S", "open_time": "", "close_time": "", "is_closed": true},
+      {"day": "D", "open_time": "", "close_time": "", "is_closed": true}
+    ]
+  }
+]

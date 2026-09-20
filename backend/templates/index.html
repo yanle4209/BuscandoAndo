@@ -1,0 +1,19 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BuscandoAndo - Encuentra negocios en Republica Dominicana</title>
+    <meta name="description" content="BuscandoAndo - Directorio de negocios y servicios en Republica Dominicana. Encuentra restaurantes, tiendas, servicios y mas en Moca, Espaillat." />
+    {% for css in css_files %}
+    <link rel="stylesheet" href="{% static 'css/' %}{{ css }}" />
+    {% endfor %}
+</head>
+<body>
+    <div id="root"></div>
+    {% for js in js_files %}
+    <script type="module" src="{% static 'assets/' %}{{ js }}"></script>
+    {% endfor %}
+</body>
+</html>

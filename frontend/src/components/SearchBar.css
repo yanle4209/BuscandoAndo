@@ -1,0 +1,135 @@
+.search-bar-container {
+  padding: 8px 24px 14px;
+}
+
+.search-form {
+  width: 100%;
+}
+
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  background: var(--dark-card);
+  border: 2px solid #444;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.search-input-wrapper:focus-within {
+  border-color: var(--yellow);
+}
+
+.search-icon {
+  width: 18px;
+  height: 18px;
+  margin-left: 12px;
+  color: var(--grey);
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--white);
+  font-size: 14px;
+  padding: 10px 12px;
+  font-family: var(--font);
+}
+
+.search-input::placeholder {
+  color: #666;
+}
+
+.search-btn {
+  background: var(--yellow);
+  color: var(--dark);
+  border: none;
+  padding: 10px 20px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.search-btn:hover {
+  background: var(--yellow-light);
+}
+
+.search-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.filter-toggle,
+.geo-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid #444;
+  color: var(--grey);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all 0.2s;
+}
+
+.filter-toggle:hover,
+.geo-btn:hover {
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+
+.filters-panel {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--dark-card);
+  border: 1px solid #333;
+  border-radius: 8px;
+}
+
+.filter-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-group label {
+  font-size: 11px;
+  color: var(--grey);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.filter-group select,
+.filter-group input[type="text"] {
+  background: var(--dark);
+  border: 1px solid #444;
+  color: var(--white);
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: var(--font);
+}
+
+.filter-group select:focus,
+.filter-group input[type="text"]:focus {
+  border-color: var(--yellow);
+  outline: none;
+}
+
+.filter-group input[type="range"] {
+  accent-color: var(--yellow);
+}

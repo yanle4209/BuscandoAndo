@@ -1,0 +1,36 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block object-tools %}
+<ul class="object-tools">
+  <li>
+    <a href="{% url 'import_json' %}" class="addlink" style="background: #417690; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; margin-right: 5px; font-weight: bold;">
+      Importar JSON
+    </a>
+  </li>
+  <li>
+    <a href="{% url 'export_json' %}" class="viewlink" style="background: #79aec8; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold;">
+      Exportar JSON
+    </a>
+  </li>
+  {% block object-tools-items %}{% endblock %}
+</ul>
+
+{% if featured_stats %}
+<div class="featured-stats-banner">
+  <strong>Destacados:</strong>
+  {% for tier, s in featured_stats.items %}
+    {% if tier != 'total' %}
+      <span style="margin-left:12px;padding:3px 10px;border-radius:4px;font-weight:bold;font-size:12px;background:{% if s.count < s.limit %}rgba(34,197,94,0.15){% else %}rgba(220,53,69,0.15){% endif %};color:{% if s.count < s.limit %}#22c55e{% else %}#ef4444{% endif %};">
+        {{ s.label }}: {{ s.count }}/{{ s.limit }}
+      </span>
+    {% endif %}
+  {% endfor %}
+  {% with t=featured_stats.total %}
+    <span style="margin-left:12px;padding:3px 10px;border-radius:4px;font-weight:bold;font-size:12px;background:{% if t.count < t.limit %}rgba(34,197,94,0.15){% else %}rgba(220,53,69,0.15){% endif %};color:{% if t.count < t.limit %}#22c55e{% else %}#ef4444{% endif %};">
+      {{ t.label }}: {{ t.count }}/{{ t.limit }}
+    </span>
+  {% endwith %}
+</div>
+{% endif %}
+{% endblock %}

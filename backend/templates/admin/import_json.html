@@ -1,0 +1,103 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | BuscandoAndo Admin{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <div class="module">
+    <h2>{{ title }}</h2>
+    
+    <p style="margin: 10px 0; color: #666;">
+      Sube un archivo <strong>.json</strong> con negocios para importarlos al sistema.<br>
+      Los negocios con un slug que ya exista serán omitidos.
+    </p>
+
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      
+      {% for field in form %}
+      <div class="form-row" style="margin: 10px 0;">
+        <label for="{{ field.id_for_label }}">
+          <strong>{{ field.label }}</strong>
+        </label>
+        <div style="margin-top: 5px;">
+          {{ field }}
+          {% if field.help_text %}
+          <p class="help" style="color: #999; font-size: 12px; margin-top: 3px;">
+            {{ field.help_text }}
+          </p>
+          {% endif %}
+          {% if field.errors %}
+          <ul class="errorlist" style="color: #ba2121; margin-top: 3px;">
+            {% for error in field.errors %}
+            <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+
+      <div class="submit-row" style="margin-top: 20px;">
+        <input type="submit" value="Importar Negocios" 
+               class="default" 
+               style="background: #417690; color: white; padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+        
+        <a href="{% url 'admin:businesses_business_changelist' %}" 
+           style="margin-left: 10px; color: #417690;">
+          ← Volver a Negocios
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <div class="module" style="margin-top: 20px;">
+    <h2>Formato Esperado del JSON</h2>
+    <pre style="background: #f8f8f8; padding: 15px; border: 1px solid #ddd; border-radius: 4px; overflow-x: auto; font-size: 13px;">
+[
+  {
+    "name": "Mi Negocio",
+    "slug": "mi-negocio",
+    "description": "Descripción del negocio",
+    "short_description": "Descripción corta",
+    "category": "restaurantes",
+    "operational_status": "abierto",
+    "is_featured": false,
+    "location": {
+      "address": "Calle 123 #45-67",
+      "city": "Bogotá",
+      "state": "Bogotá D.C.",
+      "postal_code": "110111",
+      "country": "Colombia",
+      "latitude": 4.711,
+      "longitude": -74.072
+    },
+    "contact": {
+      "phone": "+57 300 1234567",
+      "whatsapp": "+57 300 1234567",
+      "email": "info@minegocio.com",
+      "website": "https://minegocio.com"
+    },
+    "hours": [
+      {"day": "Lunes", "open_time": "08:00", "close_time": "18:00", "is_closed": false},
+      {"day": "Martes", "open_time": "08:00", "close_time": "18:00", "is_closed": false}
+    ]
+  }
+]
+    </pre>
+  </div>
+
+  <div class="module" style="margin-top: 20px;">
+    <h2>Acciones Rápidas</h2>
+    <ul style="list-style: none; padding: 0;">
+      <li style="margin: 8px 0;">
+        <a href="{% url 'export_json' %}" 
+           style="color: #417690; text-decoration: none; padding: 5px 10px; border: 1px solid #417690; border-radius: 4px;">
+          📥 Exportar todos los negocios a JSON
+        </a>
+      </li>
+    </ul>
+  </div>
+</div>
+{% endblock %}
