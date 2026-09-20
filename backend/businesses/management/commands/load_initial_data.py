@@ -1,15 +1,17 @@
 """
 Management command: python manage.py load_initial_data
-Creates publication statuses, operational statuses, and default categories.
+Creates statuses, categories, and loads businesses from fixture.
 """
+import os
 from django.core.management.base import BaseCommand
+from django.core.management import call_command
 from publication_status.models import PublicationStatus
 from operational_status.models import OperationalStatus
 from categories.models import Category
 
 
 class Command(BaseCommand):
-    help = 'Load initial data: statuses and categories'
+    help = 'Load initial data: statuses, categories, and businesses from fixture'
 
     def handle(self, *args, **options):
         # Publication statuses
@@ -59,8 +61,25 @@ class Command(BaseCommand):
             if created:
                 self.stdout.write(f'  Created: {name}')
 
+        # Load businesses from fixture
+        fixture_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))))),
+            'initial_data.json'
+        )
+
+        if os.path.exists(fixture_path):
+            self.stdout.write(f'Loading fixture from {fixture_path}...')
+            call_command('loaddata', fixture_path, verbosity=1)
+            self.stdout.write(self.style.SUCCESS('Fixture loaded successfully.'))
+        else:
+            self.stdout.write(self.style.WARNING(
+                f'Fixture not found at {fixture_path}. Only statuses/categories created.'
+            ))
+
         self.stdout.write(self.style.SUCCESS(
             f'Done! Statuses: {PublicationStatus.objects.count()}, '
             f'Op Statuses: {OperationalStatus.objects.count()}, '
-            f'Categories: {Category.objects.count()}'
+            f'Categories: {Category.objects.count()}, '
+            f'Businesses: {__import__("businesses.models", fromlist=["Business"]).Business.objects.count()}'
         ))
