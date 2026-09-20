@@ -3,14 +3,30 @@ BuscandoAndo - Backend Configuration
 """
 import os
 from pathlib import Path
-from decouple import config, Csv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def env(key, default=''):
+    return os.environ.get(key, default)
+
+
+def env_bool(key, default=False):
+    val = os.environ.get(key, '')
+    if val == '':
+        return default
+    return val.lower() in ('true', '1', 'yes')
+
+
+def env_csv(key, default=''):
+    val = os.environ.get(key, default)
+    return [s.strip() for s in val.split(',') if s.strip()]
+
+
 # --- Core Settings ---
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-cambiar-en-produccion')
-DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+SECRET_KEY = env('SECRET_KEY', 'django-insecure-cambiar-en-produccion')
+DEBUG = env_bool('DEBUG', False)
+ALLOWED_HOSTS = env_csv('ALLOWED_HOSTS', 'localhost,127.0.0.1')
 
 # --- Application Definition ---
 DJANGO_APPS = [
@@ -73,13 +89,11 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # --- Database ---
-USE_POSTGRES = config('USE_POSTGRES', default=False, cast=bool)
+USE_POSTGRES = env_bool('USE_POSTGRES', False)
 
 if USE_POSTGRES:
-    # Support DATABASE_URL from Neon/Render or individual vars
-    DATABASE_URL = config('DATABASE_URL', default='')
+    DATABASE_URL = env('DATABASE_URL', '')
     if DATABASE_URL:
-        # Parse DATABASE_URL (postgres://user:pass@host:port/dbname)
         import urllib.parse
         url = urllib.parse.urlparse(DATABASE_URL)
         DATABASES = {
@@ -96,11 +110,11 @@ if USE_POSTGRES:
         DATABASES = {
             'default': {
                 'ENGINE': 'django.db.backends.postgresql',
-                'NAME': config('DB_NAME', default='buscandoando'),
-                'USER': config('DB_USER', default='postgres'),
-                'PASSWORD': config('DB_PASSWORD', default='postgres'),
-                'HOST': config('DB_HOST', default='localhost'),
-                'PORT': config('DB_PORT', default='5432'),
+                'NAME': env('DB_NAME', 'buscandoando'),
+                'USER': env('DB_USER', 'postgres'),
+                'PASSWORD': env('DB_PASSWORD', 'postgres'),
+                'HOST': env('DB_HOST', 'localhost'),
+                'PORT': env('DB_PORT', '5432'),
             }
         }
 else:
@@ -137,7 +151,7 @@ REACT_BUILD_DIR = BASE_DIR.parent / 'frontend' / 'dist'
 if REACT_BUILD_DIR.exists():
     STATICFILES_DIRS.append(REACT_BUILD_DIR)
 
-# WhiteNoise for serving static files in production
+# WhiteNoise
 STORAGES = {
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
@@ -157,11 +171,11 @@ REST_FRAMEWORK = {
 }
 
 # --- CORS ---
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:5173',
-    cast=Csv()
-)
+CORS_ALLOWED_ORIGINS = [
+    origin.strip().rstrip('/')
+    for origin in env_csv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173')
+    if origin.strip()
+]
 CORS_ALLOW_CREDENTIALS = True
 
 # --- Production Security ---
