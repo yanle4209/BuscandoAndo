@@ -96,9 +96,16 @@ export default function Home() {
     }
   }, []);
 
-  // Load all featured for homepage grid
+  // Load all featured for homepage grid; if none, load recent businesses as fallback
   useEffect(() => {
     api.get('/businesses/', { params: { featured: 'true', page_size: 50 } })
+      .then(({ data }) => {
+        let results = data.results || [];
+        if (results.length === 0) {
+          return api.get('/businesses/', { params: { page_size: 9 } });
+        }
+        return { data: { results } };
+      })
       .then(({ data }) => {
         const results = data.results || [];
         setAllFeatured(results);
