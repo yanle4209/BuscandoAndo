@@ -41,22 +41,29 @@ class Command(BaseCommand):
             if created:
                 self.stdout.write(f'  Created: {name}')
 
-        # Categories
+        # Categories - all 16 that exist in the local database
+        from django.utils.text import slugify
         categories = [
-            ('Restaurantes', 'utensils'),
-            ('Tiendas', 'store'),
-            ('Salones de Belleza', 'scissors'),
-            ('Talleres Mecanicos', 'wrench'),
-            ('Servicios', 'briefcase'),
-            ('Salud', 'heart-pulse'),
-            ('Educacion', 'graduation-cap'),
-            ('Deporte', 'dumbbell'),
+            (1, 'Restaurantes', 'utensils'),
+            (2, 'Salones de Belleza', 'scissors'),
+            (3, 'Talleres Mecanicos', 'wrench'),
+            (4, 'Clinicas', 'stethoscope'),
+            (5, 'Tiendas', 'store'),
+            (6, 'Gimnasios', 'dumbbell'),
+            (7, 'Escuelas', 'school'),
+            (8, 'Hoteles', 'hotel'),
+            (9, 'Servicios Profesionales', 'briefcase'),
+            (10, 'Tecnologia', 'laptop'),
+            (11, 'Servicios', 'tools'),
+            (13, 'Salud', 'heart-pulse'),
+            (14, 'Otros', 'ellipsis'),
+            (15, 'Deporte', 'football'),
+            (16, 'Educacion', 'graduation-cap'),
         ]
-        for name, icon in categories:
-            from django.utils.text import slugify
+        for cat_id, name, icon in categories:
             slug = slugify(name, allow_unicode=True)
             obj, created = Category.objects.get_or_create(
-                name=name, defaults={'slug': slug, 'icon': icon}
+                id=cat_id, defaults={'name': name, 'slug': slug, 'icon': icon}
             )
             if created:
                 self.stdout.write(f'  Created: {name}')
@@ -77,9 +84,10 @@ class Command(BaseCommand):
                 f'Fixture not found at {fixture_path}. Only statuses/categories created.'
             ))
 
+        from businesses.models import Business
         self.stdout.write(self.style.SUCCESS(
             f'Done! Statuses: {PublicationStatus.objects.count()}, '
             f'Op Statuses: {OperationalStatus.objects.count()}, '
             f'Categories: {Category.objects.count()}, '
-            f'Businesses: {__import__("businesses.models", fromlist=["Business"]).Business.objects.count()}'
+            f'Businesses: {Business.objects.count()}'
         ))
