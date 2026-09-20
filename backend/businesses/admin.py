@@ -94,6 +94,9 @@ class BusinessAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         """Validate featured limits before saving."""
         if obj.is_featured and obj.featured_tier:
+            # Auto-set defaults if not provided
+            if not obj.featured_permanent and not obj.featured_weeks:
+                obj.featured_permanent = True
             try:
                 obj.full_clean()
             except Exception as e:
