@@ -111,6 +111,10 @@ class Business(models.Model):
         if not tier:
             return
 
+        # Auto-set defaults for duration if not provided (e.g. from list_editable)
+        if not self.featured_permanent and not self.featured_weeks:
+            self.featured_permanent = True
+
         # Validate per-CATEGORY limit (exclude self on update)
         cat_id = self.category_id
         if cat_id:
@@ -132,12 +136,6 @@ class Business(models.Model):
                         f'Actualmente hay {current_count}.'
                     ),
                 })
-
-        # Validate duration is set
-        if not self.featured_permanent and not self.featured_weeks:
-            raise ValidationError({
-                'featured_weeks': 'Selecciona la duracion o marca como permanente.',
-            })
 
     def save(self, *args, **kwargs):
         """Auto-calculate featured_end_date based on weeks."""
