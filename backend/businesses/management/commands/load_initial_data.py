@@ -1,34 +1,66 @@
 """
 Management command: python manage.py load_initial_data
-Creates statuses, categories, and loads businesses from fixture.
-Uses slug as lookup to avoid duplicate key errors from partial previous runs.
+Clears existing data and loads everything fresh from fixture.
 """
-import os
+import os, json
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
-from publication_status.models import PublicationStatus
-from operational_status.models import OperationalStatus
-from categories.models import Category
+from django.db import connection
 
 
 class Command(BaseCommand):
-    help = 'Load initial data: statuses, categories, and businesses from fixture'
+    help = 'Clear and reload all initial data from fixture'
 
     def handle(self, *args, **options):
-        # Publication statuses
+        self.stdout.write("=== Clearing existing data ===")
+        with connection.cursor() as cursor:
+            # Disable FK checks temporarily
+            cursor.execute("SET CONSTRAINTS ALL DEFERRED")
+            for table in [
+                'business_images_businessimage',
+                'business_hours_businesshours',
+                'business_contacts_businesscontact',
+                'business_locations_businesslocation',
+                'businesses_business',
+            ]:
+                cursor.execute(f"DELETE FROM {table}")
+                self.stdout.write(f"  Cleared {table}")
+            cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+
+        # Now delete categories, statuses
+        from businesses.models import Business
+        from categories.models import Category
+        from publication_status.models import PublicationStatus
+        from operational_status.models import OperationalStatus
+        from business_images.models import BusinessImage
+        from business_hours.models import BusinessHours
+        from business_contacts.models import BusinessContact
+        from business_locations.models import BusinessLocation
+
+        BusinessImage.objects.all().delete()
+        BusinessHours.objects.all().delete()
+        BusinessContact.objects.all().delete()
+        BusinessLocation.objects.all().delete()
+        Business.objects.all().delete()
+        Category.objects.all().delete()
+        PublicationStatus.objects.all().delete()
+        OperationalStatus.objects.all().delete()
+        self.stdout.write("  All data cleared!")
+
+        # Recreate publication statuses
+        self.stdout.write("\n=== Creating publication statuses ===")
+        from publication_status.models import PublicationStatus
         statuses = [
             ('en-revision', 'En Revision'),
             ('publicado', 'Publicado'),
             ('cancelado', 'Cancelado'),
         ]
         for slug, name in statuses:
-            obj, created = PublicationStatus.objects.get_or_create(
-                slug=slug, defaults={'name': name}
-            )
-            if created:
-                self.stdout.write(f'  Created: {name}')
+            PublicationStatus.objects.create(slug=slug, name=name)
+            self.stdout.write(f'  Created: {name}')
 
-        # Operational statuses
+        # Recreate operational statuses
+        self.stdout.write("\n=== Creating operational statuses ===")
         op_statuses = [
             ('abierto', 'Abierto', '#22c55e'),
             ('cerrado', 'Cerrado', '#ef4444'),
@@ -36,43 +68,38 @@ class Command(BaseCommand):
             ('cerrado-permanente', 'Cerrado Permanente', '#6b7280'),
         ]
         for slug, name, color in op_statuses:
-            obj, created = OperationalStatus.objects.get_or_create(
-                slug=slug, defaults={'name': name, 'color': color}
-            )
-            if created:
-                self.stdout.write(f'  Created: {name}')
+            OperationalStatus.objects.create(slug=slug, name=name, color=color)
+            self.stdout.write(f'  Created: {name}')
 
-        # Categories - use slug as lookup to avoid duplicates from previous partial runs
-        from django.utils.text import slugify
+        # Recreate categories with explicit IDs matching the fixture
+        self.stdout.write("\n=== Creating categories ===")
         categories_data = [
-            ('restaurantes', 'Restaurantes', 'utensils'),
-            ('salones-de-belleza', 'Salones de Belleza', 'scissors'),
-            ('talleres-mecanicos', 'Talleres Mecanicos', 'wrench'),
-            ('clinicas', 'Clinicas', 'stethoscope'),
-            ('tiendas', 'Tiendas', 'store'),
-            ('gimnasios', 'Gimnasios', 'dumbbell'),
-            ('escuelas', 'Escuelas', 'school'),
-            ('hoteles', 'Hoteles', 'hotel'),
-            ('servicios-profesionales', 'Servicios Profesionales', 'briefcase'),
-            ('tecnologia', 'Tecnologia', 'laptop'),
-            ('servicios', 'Servicios', 'tools'),
-            ('salud', 'Salud', 'heart-pulse'),
-            ('otros', 'Otros', 'ellipsis'),
-            ('deporte', 'Deporte', 'football'),
-            ('educacion', 'Educacion', 'graduation-cap'),
+            (1, 'restaurantes', 'Restaurantes', 'utensils'),
+            (2, 'salones-de-belleza', 'Salones de Belleza', 'scissors'),
+            (3, 'talleres-mecanicos', 'Talleres Mecanicos', 'wrench'),
+            (4, 'clinicas', 'Clinicas', 'stethoscope'),
+            (5, 'tiendas', 'Tiendas', 'store'),
+            (6, 'gimnasios', 'Gimnasios', 'dumbbell'),
+            (7, 'escuelas', 'Escuelas', 'school'),
+            (8, 'hoteles', 'Hoteles', 'hotel'),
+            (9, 'servicios-profesionales', 'Servicios Profesionales', 'briefcase'),
+            (10, 'tecnologia', 'Tecnologia', 'laptop'),
+            (11, 'servicios', 'Servicios', 'tools'),
+            (13, 'salud', 'Salud', 'heart-pulse'),
+            (14, 'otros', 'Otros', 'ellipsis'),
+            (15, 'deporte', 'Deporte', 'football'),
+            (16, 'educacion', 'Educacion', 'graduation-cap'),
         ]
-        for slug, name, icon in categories_data:
-            obj, created = Category.objects.get_or_create(
-                slug=slug, defaults={'name': name, 'icon': icon}
-            )
-            if created:
-                self.stdout.write(f'  Created: {name}')
+        for cat_id, slug, name, icon in categories_data:
+            Category.objects.create(id=cat_id, slug=slug, name=name, icon=icon)
+            self.stdout.write(f'  Created: {name} (id={cat_id})')
 
-        # Build a mapping of slug -> id for the fixture
-        slug_to_id = {c.slug: c.id for c in Category.objects.all()}
-        self.stdout.write(f'  Category mapping: {slug_to_id}')
+        # Reset category sequence so next auto-id is correct
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT setval(pg_get_serial_sequence('categories_category', 'id'), (SELECT MAX(id) FROM categories_category))")
 
         # Load businesses from fixture
+        self.stdout.write("\n=== Loading businesses from fixture ===")
         fixture_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(
                 os.path.dirname(os.path.abspath(__file__))))),
@@ -80,54 +107,18 @@ class Command(BaseCommand):
         )
 
         if os.path.exists(fixture_path):
-            self.stdout.write(f'Loading fixture from {fixture_path}...')
-            # Pre-process fixture to remap category IDs if needed
-            import json
-            with open(fixture_path, 'r', encoding='utf-8') as f:
-                fixture_data = json.load(f)
-
-            # Remap category_id in businesses to match production IDs
-            local_slug_to_local_id = {}
-            for item in fixture_data:
-                if item['model'] == 'categories.category':
-                    local_slug_to_local_id[item['fields']['slug']] = item['pk']
-
-            # Build local_id -> production_id mapping
-            id_remap = {}
-            for slug, local_id in local_slug_to_local_id.items():
-                if slug in slug_to_id:
-                    id_remap[local_id] = slug_to_id[slug]
-
-            if id_remap:
-                remapped = 0
-                for item in fixture_data:
-                    if item['model'] == 'businesses.business':
-                        old_id = item['fields'].get('category')
-                        if old_id in id_remap:
-                            item['fields']['category'] = id_remap[old_id]
-                            remapped += 1
-                self.stdout.write(f'  Remapped {remapped} business category IDs')
-
-            # Write temporary fixed fixture
-            tmp_fixture = fixture_path + '.tmp'
-            with open(tmp_fixture, 'w', encoding='utf-8') as f:
-                json.dump(fixture_data, f, ensure_ascii=False, indent=2)
-
-            call_command('loaddata', tmp_fixture, verbosity=1)
-
-            # Clean up temp file
-            os.remove(tmp_fixture)
-
-            self.stdout.write(self.style.SUCCESS('Fixture loaded successfully.'))
+            call_command('loaddata', fixture_path, verbosity=1)
+            self.stdout.write(self.style.SUCCESS('Fixture loaded successfully!'))
         else:
-            self.stdout.write(self.style.WARNING(
-                f'Fixture not found at {fixture_path}. Only statuses/categories created.'
-            ))
+            self.stdout.write(self.style.WARNING(f'Fixture not found at {fixture_path}'))
 
-        from businesses.models import Business
         self.stdout.write(self.style.SUCCESS(
-            f'Done! Statuses: {PublicationStatus.objects.count()}, '
+            f'\nDone! Statuses: {PublicationStatus.objects.count()}, '
             f'Op Statuses: {OperationalStatus.objects.count()}, '
             f'Categories: {Category.objects.count()}, '
-            f'Businesses: {Business.objects.count()}'
+            f'Businesses: {Business.objects.count()}, '
+            f'Locations: {BusinessLocation.objects.count()}, '
+            f'Contacts: {BusinessContact.objects.count()}, '
+            f'Hours: {BusinessHours.objects.count()}, '
+            f'Images: {BusinessImage.objects.count()}'
         ))
