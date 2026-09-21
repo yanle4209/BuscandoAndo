@@ -96,16 +96,19 @@
   color: #25d366;
 }
 
+.biz-card__map-row {
+  display: none;
+}
+
 .biz-card__map-link {
   color: var(--yellow) !important;
   font-weight: 700;
   text-decoration: underline !important;
-  display: none;
 }
 
 @media (max-width: 768px) {
-  .biz-card__map-link {
-    display: inline;
+  .biz-card__map-row {
+    display: flex;
   }
 }
 
