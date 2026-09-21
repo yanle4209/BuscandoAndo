@@ -96,6 +96,12 @@
   color: #25d366;
 }
 
+.biz-card__map-link {
+  color: var(--yellow) !important;
+  font-weight: 700;
+  text-decoration: underline !important;
+}
+
 .biz-card__footer {
   display: flex;
   align-items: center;

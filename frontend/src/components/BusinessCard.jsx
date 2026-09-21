@@ -45,6 +45,23 @@ export default function BusinessCard({ business, tier, gridStyle, onClick }) {
         </div>
       )}
 
+      {(business.latitude && business.longitude) && (
+        <div className="biz-card__row">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+          </svg>
+          <a
+            href={`https://www.google.com/maps?q=${business.latitude},${business.longitude}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="biz-card__map-link"
+          >
+            Ver en mapa
+          </a>
+        </div>
+      )}
+
       {phone && (
         <div className="biz-card__row">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
