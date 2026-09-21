@@ -21,9 +21,6 @@ def serve_react(request, path=''):
         if file_path.exists() and file_path.is_file():
             content_type, _ = mimetypes.guess_type(str(file_path))
             response = FileResponse(open(file_path, 'rb'), content_type=content_type)
-            # Cache static assets for performance
-            if any(path.endswith(ext) for ext in ['.js', '.css', '.png', '.jpg', '.svg', '.woff', '.woff2']):
-                response['Cache-Control'] = 'public, max-age=31536000, immutable'
             return response
 
     # For all other routes, serve index.html (SPA)
