@@ -26,8 +26,8 @@
 }
 
 .sidebar-brand-title {
-  font-size: 22px;
-  font-weight: 800;
+  font-size: 24px;
+  font-weight: 900;
   color: var(--yellow);
   letter-spacing: 1px;
   text-shadow: 0 0 10px rgba(179, 179, 52, 0.3);
@@ -42,10 +42,10 @@
   background: transparent;
   border: 1px solid var(--yellow);
   color: var(--yellow);
-  padding: 5px 14px;
+  padding: 6px 16px;
   border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
   font-family: var(--font);
   transition: all 0.2s;
@@ -112,9 +112,9 @@
 }
 
 .right-section-header h2 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #888;
+  font-size: 17px;
+  font-weight: 700;
+  color: #aaa;
   margin: 0;
 }
 
@@ -153,15 +153,15 @@
 }
 
 .no-results p:first-child {
-  font-size: 16px;
-  color: #999;
+  font-size: 18px;
+  color: #ccc;
   margin-bottom: 8px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .no-results-hint {
-  font-size: 13px;
-  color: #555;
+  font-size: 14px;
+  color: #888;
 }
 
 /* ===== BENTO GRID (Featured: 3 cols x 6 rows) ===== */
@@ -306,12 +306,12 @@
 
 .pagination-btn {
   background: #2a2a2a;
-  color: #ccc;
+  color: #ddd;
   border: 1px solid #444;
-  padding: 8px 20px;
+  padding: 8px 22px;
   border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -328,7 +328,7 @@
 }
 
 .pagination-info {
-  color: #888;
-  font-size: 13px;
-  font-weight: 600;
+  color: #aaa;
+  font-size: 14px;
+  font-weight: 700;
 }
