@@ -48,9 +48,9 @@ export default function MapView({ businesses, selected, center, onMarkerClick, o
 
       L.control.zoom({ position: 'topright' }).addTo(mapInstance.current);
 
-      // OpenStreetMap tiles (free, no API key)
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      // OpenStreetMap via CDN (free, no API key)
+      L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, Tiles: <a href="https://hot.openstreetmap.org/">Humanitarian OSM Team</a>',
         maxZoom: 19,
       }).addTo(mapInstance.current);
 
