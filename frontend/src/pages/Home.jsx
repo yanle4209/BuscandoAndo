@@ -222,6 +222,21 @@ export default function Home() {
           <h1 className="right-brand-title" onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>Buscando<span className="right-brand-accent">Ando</span></h1>
         </div>
 
+        {/* Mobile search bar */}
+        <div className="mobile-search">
+          <SearchBar
+            filters={filters}
+            onSearch={handleSearch}
+            hasSearched={hasSearched}
+            onGeolocate={() => {
+              if (userLocation) {
+                setFilters(prev => ({ ...prev, lat: userLocation.lat, lng: userLocation.lng }));
+                setHasSearched(true);
+              }
+            }}
+          />
+        </div>
+
         {hasSearched ? (
           <>
             <div className="right-section-header">
