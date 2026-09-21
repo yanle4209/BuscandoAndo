@@ -333,7 +333,7 @@
   font-weight: 700;
 }
 
-/* ===== MOBILE: Hide sidebar + map, full-width cards ===== */
+/* ===== MOBILE: Hide sidebar + map, equal-size cards ===== */
 @media (max-width: 768px) {
   .home-layout {
     flex-direction: column;
@@ -362,13 +362,29 @@
     font-size: 20px;
   }
 
+  /* Bento grid: all cards same size */
   .right-bento-grid {
+    display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto;
+    grid-auto-rows: 220px;
     gap: 10px;
     padding: 12px;
+    overflow-y: auto;
   }
 
+  .right-bento-grid .biz-card {
+    grid-column: auto !important;
+    grid-row: auto !important;
+    min-height: 0;
+  }
+
+  .right-bento-grid .biz-card--large,
+  .right-bento-grid .biz-card--medium {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  /* Search results: single column */
   .right-results-scroll {
     padding: 12px;
   }
