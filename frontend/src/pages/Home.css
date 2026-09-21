@@ -333,7 +333,11 @@
   font-weight: 700;
 }
 
-/* ===== MOBILE: Hide sidebar + map, equal-size cards ===== */
+/* ===== MOBILE: Hide sidebar/map, show mobile search ===== */
+.mobile-search {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .home-layout {
     flex-direction: column;
@@ -343,6 +347,10 @@
 
   .left-panel {
     display: none;
+  }
+
+  .mobile-search {
+    display: block;
   }
 
   .right-panel {
