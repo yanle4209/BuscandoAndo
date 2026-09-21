@@ -25,6 +25,5 @@ if settings.DEBUG:
 # Serve React frontend in production
 if not settings.DEBUG:
     urlpatterns += [
-        re_path(r'^(?!api/|admin/|static/|media/).*(?:\.js|\.css|\.ico|\.png|\.jpg|\.svg|\.woff|\.woff2|\.map)$', serve_react),
-        re_path(r'^(?!api/|admin/|static/|media/).*$', serve_react),
+        re_path(r'^(?!api/|admin/|static/|media/)(?P<path>.*)$', serve_react),
     ]
