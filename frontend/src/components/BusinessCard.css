@@ -240,63 +240,8 @@
 
 /* ===== MOBILE: All cards same size ===== */
 @media (max-width: 768px) {
-  .biz-card--large,
-  .biz-card--medium {
-    padding: 14px 16px;
-  }
-
-  .biz-card--large .biz-card__name,
-  .biz-card--medium .biz-card__name {
-    font-size: 15px;
-  }
-
-  .biz-card--large .biz-card__desc,
-  .biz-card--medium .biz-card__desc {
-    font-size: 13px;
-    line-height: 1.4;
-    margin-bottom: 8px;
-  }
-
-  .biz-card--large .biz-card__category,
-  .biz-card--medium .biz-card__category {
-    font-size: 11px;
-    padding: 2px 8px;
-    margin-bottom: 6px;
-  }
-
-  .biz-card--large .biz-card__row,
-  .biz-card--medium .biz-card__row {
-    font-size: 12px;
-    gap: 5px;
-    margin-bottom: 4px;
-  }
-
-  .biz-card--large .biz-card__row svg,
-  .biz-card--medium .biz-card__row svg {
-    width: 14px;
-    height: 14px;
-  }
-
-  .biz-card--large .biz-card__status,
-  .biz-card--medium .biz-card__status {
-    font-size: 11px;
-    padding: 3px 10px;
-  }
-
-  .biz-card--large .biz-card__badge,
-  .biz-card--medium .biz-card__badge {
-    font-size: 10px;
-    padding: 2px 8px;
-  }
-
   .biz-card--large .biz-card__images-track img,
   .biz-card--medium .biz-card__images-track img {
     height: 120px;
-  }
-
-  /* Hide images carousel on mobile bento */
-  .biz-card--large .biz-card__images,
-  .biz-card--medium .biz-card__images {
-    display: none;
   }
 }
