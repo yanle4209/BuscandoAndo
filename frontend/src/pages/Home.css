@@ -332,3 +332,58 @@
   font-size: 14px;
   font-weight: 700;
 }
+
+/* ===== MOBILE: Hide sidebar + map, full-width cards ===== */
+@media (max-width: 768px) {
+  .home-layout {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .left-panel {
+    display: none;
+  }
+
+  .right-panel {
+    width: 100%;
+    background: #111111;
+  }
+
+  .right-brand {
+    padding: 16px 16px 12px;
+  }
+
+  .right-brand-title {
+    font-size: 28px;
+  }
+
+  .right-brand--compact .right-brand-title {
+    font-size: 20px;
+  }
+
+  .right-bento-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .right-results-scroll {
+    padding: 12px;
+  }
+
+  .right-results-list {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .search-featured-top {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .pagination {
+    padding: 16px 0 8px;
+  }
+}
