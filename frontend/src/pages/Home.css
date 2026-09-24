@@ -306,7 +306,7 @@
 }
 
 .pagination-btn {
-  background: #2a2a2a;
+  background: var(--dark);
   color: #ddd;
   border: 1px solid #444;
   padding: 8px 22px;
@@ -356,7 +356,7 @@
 
   .right-panel {
     width: 100%;
-    background: #111111;
+    background: var(--dark);
   }
 
   .right-brand {
