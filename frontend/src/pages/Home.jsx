@@ -164,9 +164,6 @@ export default function Home() {
     <div className="home-layout">
       <div className="left-panel">
         <div className="sidebar-top">
-          <div className="sidebar-brand">
-            <h1 className="sidebar-brand-title" onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>Buscando<span className="sidebar-brand-accent">Ando</span></h1>
-          </div>
           <button className="contact-link" onClick={() => setShowContact(true)}>Contactanos</button>
         </div>
         <SearchBar
