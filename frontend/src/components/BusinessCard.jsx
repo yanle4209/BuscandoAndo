@@ -1,7 +1,7 @@
 import ImageCarousel from './ImageCarousel';
 import './BusinessCard.css';
 
-export default function BusinessCard({ business, tier, gridStyle, onClick }) {
+export default function BusinessCard({ business, highlighted, onClick }) {
   const loc = business.location || {};
   const contact = business.contact || {};
   const hours = business.hours || [];
@@ -15,12 +15,11 @@ export default function BusinessCard({ business, tier, gridStyle, onClick }) {
     business.province || loc.province,
   ].filter(Boolean).join(', ');
 
-  const hasImages = (tier === 'large' || tier === 'medium') && images.length > 0;
+  const hasImages = images.length > 0;
 
   return (
     <div
-      className={`biz-card ${tier ? `biz-card--${tier}` : ''}`}
-      style={gridStyle}
+      className={`biz-card ${highlighted ? 'biz-card--highlighted' : ''}`}
       onClick={onClick}
     >
       <div className="biz-card__header">
