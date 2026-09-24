@@ -62,7 +62,7 @@ class BusinessAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Informacion Basica', {
-            'fields': ('name', 'slug', 'category', 'description', 'short_description')
+            'fields': ('name', 'category', 'description', 'short_description')
         }),
         ('Estados', {
             'fields': ('publication_status', 'operational_status')
