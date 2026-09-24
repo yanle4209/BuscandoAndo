@@ -413,10 +413,16 @@
   /* Mobile overlay replaces bento grid */
   .mobile-overlay-wrapper {
     position: relative;
-    min-height: 400px;
+    width: 100%;
+    min-height: 500px;
     border-radius: 8px;
     margin: 0 12px 12px 0;
     overflow: hidden;
+  }
+
+  .mobile-overlay-wrapper .map-overlay {
+    position: absolute;
+    inset: 0;
   }
 
   .right-bento-grid {
