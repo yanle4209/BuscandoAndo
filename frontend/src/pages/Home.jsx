@@ -3,6 +3,7 @@ import SearchBar from '../components/SearchBar';
 import MapView from '../components/MapView';
 import BusinessCard from '../components/BusinessCard';
 import BusinessModal from '../components/BusinessModal';
+import MapOverlay from '../components/MapOverlay';
 import api from '../api/axios';
 import './Home.css';
 
@@ -180,6 +181,7 @@ export default function Home() {
           }}
         />
         <div className="sidebar-map">
+          <MapOverlay visible={!hasSearched} />
           <MapView
             businesses={mapBusinesses}
             selected={selected}
