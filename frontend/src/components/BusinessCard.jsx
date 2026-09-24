@@ -19,7 +19,7 @@ export default function BusinessCard({ business, highlighted, level, onClick }) 
 
   return (
     <div
-      className={`biz-card ${highlighted ? 'biz-card--highlighted' : ''}`}
+      className={`biz-card ${highlighted ? 'biz-card--highlighted' : ''} ${level ? `biz-card--level-${level}` : ''}`}
       onClick={onClick}
     >
       <div className="biz-card__header">
