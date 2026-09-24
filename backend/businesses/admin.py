@@ -109,6 +109,41 @@ class BusinessAdmin(admin.ModelAdmin):
                 return
         super().save_model(request, obj, form, change)
 
+    def save_related(self, request, form, formsets, change):
+        """Auto-detect holidays when saving hours."""
+        super().save_related(request, form, formsets, change)
+
+        from business_hours.holidays import is_holiday
+        from datetime import date
+
+        today = date.today()
+        today_idx = today.weekday()  # 0=Lunes
+        day_name_to_idx = {'Lunes': 0, 'Martes': 1, 'Miércoles': 2,
+                           'Jueves': 3, 'Viernes': 4, 'Sábado': 5, 'Domingo': 6}
+
+        for formset in formsets:
+            if formset.model.__name__ == 'BusinessHours':
+                for f in formset.forms:
+                    day_name = f.cleaned_data.get('day')
+                    if not day_name:
+                        continue
+                    day_idx = day_name_to_idx.get(day_name)
+                    if day_idx is None:
+                        continue
+                    # Calcular fecha de ese día en la semana actual
+                    diff = day_idx - today_idx
+                    target_date = date.fromordinal(today.toordinal() + diff)
+                    holiday_name = is_holiday(target_date)
+                    if holiday_name:
+                        instance = f.save(commit=False)
+                        if not instance.is_holiday:
+                            instance.is_holiday = True
+                            instance.save()
+                            messages.info(
+                                request,
+                                f'🎉 {day_name} ({holiday_name}) marcado como Dia de Fiesta automaticamente.'
+                            )
+
     def _get_featured_stats(self):
         """Get current featured counts per tier per category."""
         stats = {}

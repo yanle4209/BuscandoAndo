@@ -137,6 +137,8 @@ export default function BusinessModal({ business, onClose }) {
                         <span className="modal-hour-day">{DAY_NAMES[h.day] || h.day}</span>
                         {h.is_closed ? (
                           <span className="modal-hour-closed">Cerrado</span>
+                        ) : h.is_holiday ? (
+                          <span className="modal-hour-closed">Fiesta</span>
                         ) : (
                           <span className="modal-hour-time">{h.open_time} - {h.close_time}</span>
                         )}

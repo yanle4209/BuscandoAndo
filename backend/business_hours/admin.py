@@ -10,15 +10,15 @@ DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado',
 class BusinessHoursForm(forms.ModelForm):
     class Meta:
         model = BusinessHours
-        fields = ['day', 'open_time', 'close_time', 'is_closed']
+        fields = ['day', 'open_time', 'close_time', 'is_closed', 'is_holiday']
         widgets = {
             'day': forms.Select(attrs={'style': 'width: 100%;'}),
             'open_time': forms.TimeInput(
-                attrs={'type': 'time', 'style': 'width: 100%;', 'step': '1'},
+                attrs={'type': 'time', 'style': 'width: 100%;', 'step': '60'},
                 format='%H:%M',
             ),
             'close_time': forms.TimeInput(
-                attrs={'type': 'time', 'style': 'width: 100%;', 'step': '1'},
+                attrs={'type': 'time', 'style': 'width: 100%;', 'step': '60'},
                 format='%H:%M',
             ),
         }
@@ -42,13 +42,13 @@ class BusinessHoursInline(admin.TabularInline):
     formset = PrePopulatedHoursFormSet
     extra = 7
     max_num = 7
-    fields = ['day', 'open_time', 'close_time', 'is_closed']
+    fields = ['day', 'open_time', 'close_time', 'is_closed', 'is_holiday']
     ordering = ['day']
 
 
 class BusinessHoursAdmin(admin.ModelAdmin):
-    list_display = ['business', 'day', 'open_time', 'close_time', 'is_closed']
-    list_filter = ['day', 'is_closed']
+    list_display = ['business', 'day', 'open_time', 'close_time', 'is_closed', 'is_holiday']
+    list_filter = ['day', 'is_closed', 'is_holiday']
     raw_id_fields = ['business']
     list_per_page = 25
     ordering = ['business', 'day']
