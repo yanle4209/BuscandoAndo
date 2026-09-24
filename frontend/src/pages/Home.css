@@ -422,4 +422,8 @@
   .right-bento-grid {
     display: none;
   }
+
+  .right-bento-grid + .pagination {
+    display: none;
+  }
 }
