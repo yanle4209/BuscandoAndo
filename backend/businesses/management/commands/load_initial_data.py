@@ -1,7 +1,7 @@
 """
 Management command: python manage.py load_initial_data
-Clears existing data and loads everything fresh from fixture.
-All IDs are explicit to match the fixture exactly.
+Only loads data if DB is empty (safe for deploys).
+Use --force to reload anyway.
 """
 import os
 from django.core.management.base import BaseCommand
@@ -10,9 +10,28 @@ from django.db import connection
 
 
 class Command(BaseCommand):
-    help = 'Clear and reload all initial data from fixture'
+    help = 'Load initial data from fixture (only if DB is empty)'
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--force', action='store_true',
+            help='Force reload even if data exists',
+        )
 
     def handle(self, *args, **options):
+        from businesses.models import Business
+        from categories.models import Category
+
+        # Skip if data already exists (avoid wiping admin edits on deploy)
+        if not options['force'] and (Business.objects.exists() or Category.objects.exists()):
+            self.stdout.write(self.style.WARNING(
+                'DB already has data. Skipping. Use --force to reload.'
+            ))
+            return
+
+        self._clear_and_load()
+
+    def _clear_and_load(self):
         self.stdout.write("=== Clearing existing data ===")
         with connection.cursor() as cursor:
             cursor.execute("SET CONSTRAINTS ALL DEFERRED")
@@ -30,35 +49,33 @@ class Command(BaseCommand):
                 self.stdout.write(f"  Cleared {table}")
             cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
 
-        # Recreate publication statuses with explicit IDs
+        # Recreate publication statuses
         self.stdout.write("\n=== Creating publication statuses ===")
         from publication_status.models import PublicationStatus
-        statuses = [
+        for sid, slug, name in [
             (1, 'en-revision', 'En Revision'),
             (2, 'publicado', 'Publicado'),
             (3, 'cancelado', 'Cancelado'),
-        ]
-        for sid, slug, name in statuses:
+        ]:
             PublicationStatus.objects.create(id=sid, slug=slug, name=name)
             self.stdout.write(f'  Created: {name} (id={sid})')
 
-        # Recreate operational statuses with explicit IDs
+        # Recreate operational statuses
         self.stdout.write("\n=== Creating operational statuses ===")
         from operational_status.models import OperationalStatus
-        op_statuses = [
+        for sid, slug, name, color in [
             (1, 'abierto', 'Abierto', '#22c55e'),
             (2, 'cerrado', 'Cerrado', '#ef4444'),
             (3, 'por-horario', 'Por Horario', '#f59e0b'),
             (4, 'cerrado-permanente', 'Cerrado Permanente', '#6b7280'),
-        ]
-        for sid, slug, name, color in op_statuses:
+        ]:
             OperationalStatus.objects.create(id=sid, slug=slug, name=name, color=color)
             self.stdout.write(f'  Created: {name} (id={sid})')
 
-        # Recreate categories with explicit IDs matching the fixture
+        # Recreate categories
         self.stdout.write("\n=== Creating categories ===")
         from categories.models import Category
-        categories_data = [
+        for cat_id, slug, name, icon in [
             (1, 'restaurantes', 'Restaurantes', 'utensils'),
             (2, 'salones-de-belleza', 'Salones de Belleza', 'scissors'),
             (3, 'talleres-mecanicos', 'Talleres Mecanicos', 'wrench'),
@@ -74,20 +91,18 @@ class Command(BaseCommand):
             (14, 'otros', 'Otros', 'ellipsis'),
             (15, 'deporte', 'Deporte', 'football'),
             (16, 'educacion', 'Educacion', 'graduation-cap'),
-        ]
-        for cat_id, slug, name, icon in categories_data:
+        ]:
             Category.objects.create(id=cat_id, slug=slug, name=name, icon=icon)
             self.stdout.write(f'  Created: {name} (id={cat_id})')
 
-        # Reset all sequences to correct values
+        # Reset sequences
         self.stdout.write("\n=== Resetting sequences ===")
         with connection.cursor() as cursor:
-            sequences = [
+            for table, column in [
                 ('publication_status_publicationstatus', 'id'),
                 ('operational_status_operationalstatus', 'id'),
                 ('categories_category', 'id'),
-            ]
-            for table, column in sequences:
+            ]:
                 seq = f"{table}_{column}_seq"
                 cursor.execute(f"SELECT setval('{seq}', (SELECT COALESCE(MAX({column}), 1) FROM {table}))")
                 self.stdout.write(f"  Reset {seq}")
@@ -102,9 +117,9 @@ class Command(BaseCommand):
 
         if os.path.exists(fixture_path):
             call_command('loaddata', fixture_path, verbosity=1)
-            self.stdout.write(self.style.SUCCESS('Fixture loaded successfully!'))
+            self.stdout.write(self.style.SUCCESS('Fixture loaded!'))
         else:
-            self.stdout.write(self.style.WARNING(f'Fixture not found at {fixture_path}'))
+            self.stdout.write(self.style.WARNING(f'Fixture not found: {fixture_path}'))
 
         from businesses.models import Business
         from business_images.models import BusinessImage
@@ -113,10 +128,7 @@ class Command(BaseCommand):
         from business_locations.models import BusinessLocation
 
         self.stdout.write(self.style.SUCCESS(
-            f'\nDone! Statuses: {PublicationStatus.objects.count()}, '
-            f'Op Statuses: {OperationalStatus.objects.count()}, '
-            f'Categories: {Category.objects.count()}, '
-            f'Businesses: {Business.objects.count()}, '
+            f'\nDone! Businesses: {Business.objects.count()}, '
             f'Locations: {BusinessLocation.objects.count()}, '
             f'Contacts: {BusinessContact.objects.count()}, '
             f'Hours: {BusinessHours.objects.count()}, '
