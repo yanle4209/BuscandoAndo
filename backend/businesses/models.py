@@ -25,7 +25,7 @@ FEATURED_WEEKS_CHOICES = [
 class Business(models.Model):
     """Nucleo del negocio/servicio."""
     name = models.CharField(max_length=200, verbose_name='Nombre')
-    slug = models.SlugField(max_length=220, unique=True)
+    slug = models.SlugField(max_length=220, unique=True, blank=True)
     description = models.TextField(verbose_name='Descripcion')
     short_description = models.CharField(
         max_length=300, blank=True, default='', verbose_name='Descripcion corta'
