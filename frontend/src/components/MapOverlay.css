@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at center, rgba(0,6,0,0.85) 0%, rgba(0,6,0,0.95) 100%);
+  background: radial-gradient(ellipse at center, rgba(26,26,26,0.92) 0%, rgba(26,26,26,0.97) 100%);
   pointer-events: none;
 }
 
