@@ -6,11 +6,12 @@ from publication_status.models import PublicationStatus
 from operational_status.models import OperationalStatus
 
 
-# Featured tier limits PER CATEGORY: 3 large + 3 medium + 3 small = 9
+# Featured tier limits PER CATEGORY
 FEATURED_LIMITS = {
-    'large': 3,
-    'medium': 3,
-    'small': 3,
+    '1': 3,
+    '2': 3,
+    '3': 3,
+    '4': 3,
 }
 
 FEATURED_WEEKS_CHOICES = [
@@ -55,9 +56,10 @@ class Business(models.Model):
     # === DESTACADOS ===
     is_featured = models.BooleanField(default=False, verbose_name='Destacado')
     FEATURED_TIERS = [
-        ('large', 'Grande'),
-        ('medium', 'Mediano'),
-        ('small', 'Pequeno'),
+        ('1', 'Nivel 1 - Principal'),
+        ('2', 'Nivel 2 - Alto'),
+        ('3', 'Nivel 3 - Medio'),
+        ('4', 'Nivel 4 - Basico'),
     ]
     featured_tier = models.CharField(
         max_length=10,
@@ -65,7 +67,7 @@ class Business(models.Model):
         blank=True,
         null=True,
         verbose_name='Nivel de destacado',
-        help_text='Grande = tarjeta grande, Mediano = tarjeta media, Pequeno = tarjeta pequena',
+        help_text='Nivel de relevancia del destacado (1=principal, 4=basico)',
     )
     featured_permanent = models.BooleanField(
         default=False,

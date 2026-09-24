@@ -37,6 +37,12 @@
   margin-bottom: 8px;
 }
 
+.biz-card__badges {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .biz-card__name {
   font-size: 16px;
   font-weight: 800;
@@ -56,6 +62,17 @@
   padding: 2px 8px;
   border-radius: 10px;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.biz-card__level {
+  background: #543335;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
   letter-spacing: 0.5px;
   flex-shrink: 0;
 }

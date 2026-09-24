@@ -1,7 +1,7 @@
 import ImageCarousel from './ImageCarousel';
 import './BusinessCard.css';
 
-export default function BusinessCard({ business, highlighted, onClick }) {
+export default function BusinessCard({ business, highlighted, level, onClick }) {
   const loc = business.location || {};
   const contact = business.contact || {};
   const hours = business.hours || [];
@@ -24,7 +24,10 @@ export default function BusinessCard({ business, highlighted, onClick }) {
     >
       <div className="biz-card__header">
         <h3 className="biz-card__name">{business.name}</h3>
-        {business.is_featured && <span className="biz-card__badge">Destacado</span>}
+        <div className="biz-card__badges">
+          {level && <span className="biz-card__level">Nivel {level}</span>}
+          {business.is_featured && <span className="biz-card__badge">Destacado</span>}
+        </div>
       </div>
 
       {business.category_name && (
