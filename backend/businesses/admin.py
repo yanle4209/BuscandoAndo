@@ -34,7 +34,7 @@ class BusinessAdmin(admin.ModelAdmin):
     change_form_template = 'admin/businesses/business/change_form.html'
 
     list_display = [
-        'name', 'get_category', 'get_publication_status',
+        'name', 'get_category', 'publication_status',
         'get_operational_status', 'is_featured', 'featured_tier',
         'get_featured_duration', 'get_city', 'created_at',
     ]
@@ -49,7 +49,7 @@ class BusinessAdmin(admin.ModelAdmin):
     ]
     search_fields = ['name', 'description', 'short_description']
     prepopulated_fields = {'slug': ('name',)}
-    list_editable = ['is_featured', 'featured_tier']
+    list_editable = ['publication_status', 'is_featured', 'featured_tier']
     list_per_page = 25
     ordering = ['-is_featured', '-created_at']
     readonly_fields = ['created_at', 'updated_at', 'get_featured_stats', 'featured_start_date', 'featured_end_date']

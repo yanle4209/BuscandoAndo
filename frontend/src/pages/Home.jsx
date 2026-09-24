@@ -8,57 +8,23 @@ import './Home.css';
 
 const DR_CENTER = [18.7357, -70.1627];
 
-// Bento grid: 1 large (2x3) + 1 medium (1x2) + 7 small (1x1) = 9 cards
-const GRID_POSITIONS = [
-  { gridColumn: '1 / 3', gridRow: '1 / 4' },   // 0: Large 2x3
-  { gridColumn: '1 / 2', gridRow: '4 / 6' },   // 1: Medium 1x2
-  { gridColumn: '3 / 4', gridRow: '1 / 2' },   // 2: small
-  { gridColumn: '3 / 4', gridRow: '2 / 3' },   // 3: small
-  { gridColumn: '3 / 4', gridRow: '3 / 4' },   // 4: small
-  { gridColumn: '2 / 3', gridRow: '4 / 5' },   // 5: small
-  { gridColumn: '3 / 4', gridRow: '4 / 5' },   // 6: small
-  { gridColumn: '2 / 3', gridRow: '5 / 6' },   // 7: small
-  { gridColumn: '3 / 4', gridRow: '5 / 6' },   // 8: small
-];
+// Grid: 5 cols x 3 rows = 15 cards per page
+// Positions 1, 2, 5, 8 (1-indexed) are highlighted with yellow shadow
+const HIGHLIGHTED_POSITIONS = [0, 1, 4, 7]; // 0-indexed: pos 1, 2, 5, 8
 
-// Split all featured into pages of 9: 1 large + 1 medium + 7 small
 function paginateFeatured(allFeatured) {
-  const larges = allFeatured.filter(b => b.featured_tier === 'large');
-  const mediums = allFeatured.filter(b => b.featured_tier === 'medium');
-  const smalls = allFeatured.filter(b => b.featured_tier === 'small' || !b.featured_tier);
-
   const pages = [];
-  let li = 0, mi = 0, si = 0;
-
-  while (li < larges.length || mi < mediums.length || si < smalls.length) {
-    const page = [];
-    if (li < larges.length) page.push(larges[li++]);
-    if (mi < mediums.length) page.push(mediums[mi++]);
-    while (page.length < 9 && si < smalls.length) {
-      page.push(smalls[si++]);
-    }
-    // Fill remaining with more mediums if needed
-    while (page.length < 9 && mi < mediums.length) {
-      page.push(mediums[mi++]);
-    }
-    // Fill remaining with more larges if needed
-    while (page.length < 9 && li < larges.length) {
-      page.push(larges[li++]);
-    }
-    if (page.length > 0) pages.push(page);
+  for (let i = 0; i < allFeatured.length; i += 15) {
+    pages.push(allFeatured.slice(i, i + 15));
   }
-  return pages;
+  return pages.length > 0 ? pages : [[]];
 }
 
 function assignGrid(businesses) {
-  const tierOrder = { large: 0, medium: 1, small: 2 };
-  const sorted = [...businesses].sort(
-    (a, b) => (tierOrder[a.featured_tier] ?? 2) - (tierOrder[b.featured_tier] ?? 2)
-  );
-  return sorted.map((biz, i) => ({
+  return businesses.map((biz, i) => ({
     ...biz,
-    _tier: biz.featured_tier || 'small',
-    _gridStyle: GRID_POSITIONS[i] || {},
+    _highlighted: HIGHLIGHTED_POSITIONS.includes(i),
+    _position: i + 1,
   }));
 }
 
@@ -102,7 +68,7 @@ export default function Home() {
       .then(({ data }) => {
         let results = data.results || [];
         if (results.length === 0) {
-          return api.get('/businesses/', { params: { page_size: 9 } });
+          return api.get('/businesses/', { params: { page_size: 15 } });
         }
         return { data: { results } };
       })
@@ -250,7 +216,6 @@ export default function Home() {
                     <BusinessCard
                       key={biz.id || biz.slug}
                       business={biz}
-                      tier={biz.featured_tier || 'small'}
                       onClick={() => setModalBiz(biz)}
                     />
                   ))}
@@ -263,7 +228,6 @@ export default function Home() {
                   <BusinessCard
                     key={biz.id || biz.slug}
                     business={biz}
-                    tier={null}
                     onClick={() => setModalBiz(biz)}
                   />
                 ))}
@@ -292,8 +256,7 @@ export default function Home() {
                 <BusinessCard
                   key={biz.id || biz.slug}
                   business={biz}
-                  tier={biz._tier || biz.featured_tier}
-                  gridStyle={biz._gridStyle || {}}
+                  highlighted={biz._highlighted}
                   onClick={() => setModalBiz(biz)}
                 />
               ))}
