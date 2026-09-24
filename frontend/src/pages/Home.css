@@ -68,7 +68,7 @@
 /* ===== RIGHT PANEL ===== */
 .right-panel {
   flex: 1;
-  background: #1e1e1e;
+  background: #2a2a2a;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -173,7 +173,7 @@
   grid-template-rows: repeat(3, auto);
   gap: 12px;
   overflow-y: auto;
-  background: #252525;
+  background: #333333;
 }
 
 .right-bento-grid::-webkit-scrollbar {
