@@ -12,7 +12,7 @@
   display: flex;
   flex-direction: column;
   background: var(--dark);
-  border-right: 2px solid var(--yellow);
+  border-right: none;
   overflow: hidden;
 }
 
