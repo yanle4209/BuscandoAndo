@@ -170,7 +170,7 @@
   padding: 16px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(3, minmax(280px, auto));
+  grid-template-rows: repeat(3, minmax(350px, auto));
   gap: 12px;
   overflow-y: auto;
   background: #333333;
