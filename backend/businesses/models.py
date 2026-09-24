@@ -140,7 +140,19 @@ class Business(models.Model):
                 })
 
     def save(self, *args, **kwargs):
-        """Auto-calculate featured_end_date based on weeks."""
+        """Auto-generate slug from name if not set, and calculate featured dates."""
+        from django.utils.text import slugify
+
+        if not self.slug and self.name:
+            base_slug = slugify(self.name, allow_unicode=True)
+            slug = base_slug
+            counter = 1
+            while Business.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
+
+        # Auto-calculate featured_end_date based on weeks.
         if self.is_featured and self.featured_permanent:
             self.featured_end_date = None
             if not self.featured_start_date:

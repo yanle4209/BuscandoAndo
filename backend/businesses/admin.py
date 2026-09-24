@@ -48,7 +48,9 @@ class BusinessAdmin(admin.ModelAdmin):
         'created_at',
     ]
     search_fields = ['name', 'description', 'short_description']
-    prepopulated_fields = {'slug': ('name',)}
+    # prepopulated_fields solo funciona en el form de agregar
+    # El slug se auto-genera en save() del modelo
+    prepopulated_fields = {}
     list_editable = ['publication_status', 'is_featured', 'featured_tier']
     list_per_page = 25
     ordering = ['-is_featured', '-created_at']
