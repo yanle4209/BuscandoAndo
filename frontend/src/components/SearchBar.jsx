@@ -50,6 +50,7 @@ export default function SearchBar({ filters, onSearch, onGeolocate, hasSearched 
             placeholder="Buscar negocio, categoría o dirección..."
             value={text}
             onChange={(e) => setText(e.target.value)}
+            autoFocus
           />
           <button type="submit" className="search-btn">Buscar</button>
         </div>
