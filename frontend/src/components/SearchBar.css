@@ -13,11 +13,21 @@
   border: 2px solid #444;
   border-radius: 8px;
   overflow: hidden;
-  transition: border-color 0.2s;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  animation: searchGlow 2s ease-in-out;
 }
 
 .search-input-wrapper:focus-within {
   border-color: var(--yellow);
+  box-shadow: 0 0 12px rgba(179, 179, 52, 0.25);
+}
+
+@keyframes searchGlow {
+  0% { box-shadow: 0 0 0 rgba(179, 179, 52, 0); border-color: #444; }
+  30% { box-shadow: 0 0 20px rgba(179, 179, 52, 0.5); border-color: var(--yellow); }
+  60% { box-shadow: 0 0 8px rgba(179, 179, 52, 0.2); border-color: #666; }
+  80% { box-shadow: 0 0 16px rgba(179, 179, 52, 0.4); border-color: var(--yellow); }
+  100% { box-shadow: 0 0 0 rgba(179, 179, 52, 0); border-color: #444; }
 }
 
 .search-icon {
