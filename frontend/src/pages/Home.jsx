@@ -182,6 +182,7 @@ export default function Home() {
         />
         <div className="sidebar-map">
           <MapOverlay visible={!hasSearched} />
+          {!hasSearched ? null : (
           <MapView
             businesses={mapBusinesses}
             selected={selected}
@@ -189,6 +190,7 @@ export default function Home() {
             onMarkerClick={(biz) => setModalBiz(biz)}
             onMapClick={(lat, lng) => setFilters(prev => ({ ...prev, lat, lng }))}
           />
+          )}
         </div>
       </div>
 
