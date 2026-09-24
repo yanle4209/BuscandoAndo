@@ -39,6 +39,11 @@ class BusinessHours(models.Model):
         default=False,
         verbose_name='Cerrado este día',
     )
+    is_holiday = models.BooleanField(
+        default=False,
+        verbose_name='Dia de fiesta',
+        help_text='Si se marca, el sistema mostrara "Cerrado (Fiesta)" este dia.',
+    )
 
     class Meta:
         verbose_name = 'Horario'
@@ -47,6 +52,8 @@ class BusinessHours(models.Model):
         unique_together = ['business', 'day']
 
     def __str__(self):
+        if self.is_holiday:
+            return f"{self.business.name} - {self.day}: Cerrado (Fiesta)"
         if self.is_closed:
             return f"{self.business.name} - {self.day}: Cerrado"
         return f"{self.business.name} - {self.day}: {self.open_time} - {self.close_time}"

@@ -336,11 +336,263 @@
         });
     }
 
+    // ========== COPIAR HORARIOS ==========
+    function initCopyHours() {
+        // Buscar el group del inline de horarios - probar varios selectores
+        let hoursGroup = document.getElementById('businesshours_set-group');
+        if (!hoursGroup) hoursGroup = document.getElementById('business_hours_businesshours_set-group');
+        if (!hoursGroup) {
+            // Fallback: buscar cualquier .inline-group que contenga selects de día
+            const groups = document.querySelectorAll('.inline-group');
+            for (let g = 0; g < groups.length; g++) {
+                if (groups[g].querySelector('select[name$="-day"]')) {
+                    hoursGroup = groups[g];
+                    break;
+                }
+            }
+        }
+        if (!hoursGroup) return;
+
+        const table = hoursGroup.querySelector('table');
+        if (!table) return;
+
+        const tbody = table.querySelector('tbody');
+        if (!tbody) return;
+
+        const rows = tbody.querySelectorAll('tr');
+        if (rows.length === 0) return;
+
+        // Agregar cabecera "Copiar" al thead
+        const thead = table.querySelector('thead');
+        if (thead) {
+            const headerRow = thead.querySelector('tr');
+            if (headerRow && !headerRow.querySelector('.copy-hours-th')) {
+                const th = document.createElement('th');
+                th.className = 'copy-hours-th';
+                th.style.cssText = 'text-align: center; padding: 4px;';
+                th.textContent = 'Copiar';
+                headerRow.appendChild(th);
+            }
+        }
+
+        rows.forEach(function(row, idx) {
+            // Skip empty/template rows
+            if (row.querySelector('.empty-form')) return;
+            const daySelect = row.querySelector('select[name$="-day"]');
+            if (!daySelect) return;
+            // Skip if already has copy button
+            if (row.querySelector('.copy-hours-btn')) return;
+
+            // Agregar celda con botón de copiar
+            const td = document.createElement('td');
+            td.style.cssText = 'text-align: center; vertical-align: middle;';
+
+            const copyBtn = document.createElement('button');
+            copyBtn.type = 'button';
+            copyBtn.textContent = '📋';
+            copyBtn.title = 'Copiar horario de otro día';
+            copyBtn.className = 'copy-hours-btn';
+            copyBtn.style.cssText = 'background: #B3B334; color: #1a1a1a; border: 2px solid #B3B334; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.2s;';
+
+            copyBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const allRows = tbody.querySelectorAll('tr');
+                const options = [];
+
+                allRows.forEach(function(r, i) {
+                    if (r.querySelector('.empty-form')) return;
+                    const sel = r.querySelector('select[name$="-day"]');
+                    const openTime = r.querySelector('input[name$="-open_time"]');
+                    const closeTime = r.querySelector('input[name$="-close_time"]');
+                    const isClosed = r.querySelector('input[name$="-is_closed"]');
+                    const isHoliday = r.querySelector('input[name$="-is_holiday"]');
+
+                    if (sel && sel.value) {
+                        const hasData = (openTime && openTime.value) || (closeTime && closeTime.value) || (isClosed && isClosed.checked) || (isHoliday && isHoliday.checked);
+                        if (hasData && i !== idx) {
+                            options.push({
+                                day: sel.value,
+                                open: openTime ? openTime.value : '',
+                                close: closeTime ? closeTime.value : '',
+                                closed: isClosed ? isClosed.checked : false,
+                                holiday: isHoliday ? isHoliday.checked : false,
+                            });
+                        }
+                    }
+                });
+
+                if (options.length === 0) {
+                    alert('No hay otros días con horarios definidos para copiar.');
+                    return;
+                }
+
+                const overlay = document.createElement('div');
+                overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;';
+
+                const popup = document.createElement('div');
+                popup.style.cssText = 'background:#1a1a1a;border:2px solid #B3B334;border-radius:10px;padding:20px;min-width:280px;color:#f3f3f3;';
+
+                const title = document.createElement('h3');
+                title.textContent = 'Copiar horario de:';
+                title.style.cssText = 'margin:0 0 12px 0;color:#B3B334;font-size:16px;';
+                popup.appendChild(title);
+
+                options.forEach(function(opt) {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    const timeInfo = opt.closed ? 'Cerrado' : (opt.holiday ? 'Fiesta' : (opt.open + ' - ' + opt.close));
+                    btn.textContent = opt.day + ' (' + timeInfo + ')';
+                    btn.style.cssText = 'display:block;width:100%;text-align:left;padding:10px 14px;margin-bottom:6px;background:#2a2a2a;color:#f3f3f3;border:1px solid #555;border-radius:6px;cursor:pointer;font-size:14px;transition:all 0.2s;';
+
+                    btn.addEventListener('mouseenter', function() { btn.style.borderColor = '#B3B334'; btn.style.background = '#333'; });
+                    btn.addEventListener('mouseleave', function() { btn.style.borderColor = '#555'; btn.style.background = '#2a2a2a'; });
+
+                    btn.addEventListener('click', function() {
+                        const openTime = row.querySelector('input[name$="-open_time"]');
+                        const closeTime = row.querySelector('input[name$="-close_time"]');
+                        const isClosed = row.querySelector('input[name$="-is_closed"]');
+                        const isHoliday = row.querySelector('input[name$="-is_holiday"]');
+
+                        if (openTime) openTime.value = opt.open;
+                        if (closeTime) closeTime.value = opt.close;
+                        if (isClosed) isClosed.checked = opt.closed;
+                        if (isHoliday) isHoliday.checked = opt.holiday;
+
+                        overlay.remove();
+                    });
+
+                    popup.appendChild(btn);
+                });
+
+                const cancelBtn = document.createElement('button');
+                cancelBtn.type = 'button';
+                cancelBtn.textContent = 'Cancelar';
+                cancelBtn.style.cssText = 'display:block;width:100%;padding:8px;margin-top:8px;background:transparent;color:#999;border:1px solid #555;border-radius:6px;cursor:pointer;font-size:13px;transition:all 0.2s;';
+                cancelBtn.addEventListener('click', function() { overlay.remove(); });
+                popup.appendChild(cancelBtn);
+
+                overlay.appendChild(popup);
+                overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+                document.body.appendChild(overlay);
+            });
+
+            td.appendChild(copyBtn);
+            row.appendChild(td);
+        });
+    }
+
+    // ========== DETECTAR FERIADOS ==========
+    function initHolidayDetection() {
+        // Buscar el inline group de horarios
+        let hoursGroup = document.getElementById('businesshours_set-group');
+        if (!hoursGroup) hoursGroup = document.getElementById('business_hours_businesshours_set-group');
+        if (!hoursGroup) {
+            const groups = document.querySelectorAll('.inline-group');
+            for (let g = 0; g < groups.length; g++) {
+                if (groups[g].querySelector('select[name$="-day"]')) {
+                    hoursGroup = groups[g];
+                    break;
+                }
+            }
+        }
+        if (!hoursGroup) return;
+
+        // Feriados fijos de RD (mes, día)
+        var HOLIDAYS = [
+            [1, 1, 'Año Nuevo'],
+            [1, 21, 'Próceres'],
+            [1, 26, 'Altagracia'],
+            [2, 27, 'Independencia'],
+            [5, 1, 'Trabajo'],
+            [8, 16, 'Restauración'],
+            [9, 24, 'Mercedes'],
+            [11, 6, 'Constitución'],
+            [12, 25, 'Navidad']
+        ];
+
+        var DAY_TO_INDEX = { 'Lunes': 0, 'Martes': 1, 'Miércoles': 2, 'Jueves': 3, 'Viernes': 4, 'Sábado': 5, 'Domingo': 6 };
+
+        function checkHolidays() {
+            var today = new Date();
+            var todayIdx = today.getDay() === 0 ? 6 : today.getDay() - 1; // 0=Lunes
+            var detected = [];
+
+            var table = hoursGroup.querySelector('table');
+            if (!table) return;
+            var tbody = table.querySelector('tbody');
+            if (!tbody) return;
+            var rows = tbody.querySelectorAll('tr');
+
+            rows.forEach(function(row) {
+                if (row.querySelector('.empty-form')) return;
+                var sel = row.querySelector('select[name$="-day"]');
+                if (!sel || !sel.value) return;
+
+                var dayIdx = DAY_TO_INDEX[sel.value];
+                if (dayIdx === undefined) return;
+
+                // Calcular la fecha de ese día en la semana actual
+                var diff = dayIdx - todayIdx;
+                var targetDate = new Date(today);
+                targetDate.setDate(today.getDate() + diff);
+
+                // Verificar si es feriado
+                var holidayName = null;
+                for (var h = 0; h < HOLIDAYS.length; h++) {
+                    if (targetDate.getMonth() + 1 === HOLIDAYS[h][0] && targetDate.getDate() === HOLIDAYS[h][1]) {
+                        holidayName = HOLIDAYS[h][2];
+                        break;
+                    }
+                }
+
+                var isHoliday = row.querySelector('input[name$="-is_holiday"]');
+                if (holidayName && isHoliday && !isHoliday.checked) {
+                    isHoliday.checked = true;
+                    detected.push(sel.value + ' (' + holidayName + ')');
+                }
+            });
+
+            if (detected.length > 0) {
+                alert('🎉 Feriados detectados y marcados:\n\n• ' + detected.join('\n• '));
+            } else {
+                alert('No se encontraron feriados esta semana.\n\nSolo se detectan feriados en la semana actual (7 días desde hoy).');
+            }
+        }
+
+        // Agregar botón al encabezado del inline
+        var titleEl = hoursGroup.querySelector('h3, h2, .inline-group-title');
+        if (!titleEl) {
+            // Buscar el header del inline
+            var header = hoursGroup.querySelector('.module');
+            if (header) titleEl = header.querySelector('h2, h3');
+        }
+
+        var detectBtn = document.createElement('button');
+        detectBtn.type = 'button';
+        detectBtn.textContent = '🎉 Detectar fiestas de esta semana';
+        detectBtn.style.cssText = 'margin: 8px 0 4px; background: #B3B334; color: #1a1a1a; border: 2px solid #B3B334; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; transition: all 0.2s;';
+        detectBtn.addEventListener('mouseenter', function() { detectBtn.style.background = '#9e9e2e'; });
+        detectBtn.addEventListener('mouseleave', function() { detectBtn.style.background = '#B3B334'; });
+        detectBtn.addEventListener('click', function(e) { e.preventDefault(); checkHolidays(); });
+
+        // Insertar el botón después del título del inline
+        if (titleEl && titleEl.parentNode) {
+            titleEl.parentNode.insertBefore(detectBtn, titleEl.nextSibling);
+        } else {
+            // Fallback: insertar al inicio del inline
+            hoursGroup.insertBefore(detectBtn, hoursGroup.firstChild);
+        }
+    }
+
     // ========== INICIALIZAR ==========
     document.addEventListener('DOMContentLoaded', function() {
         initMap();
         initPostalCode();
         initOperationalStatus();
+        initCopyHours();
+        initHolidayDetection();
     });
 
     if (typeof django !== 'undefined' && django.jQuery) {

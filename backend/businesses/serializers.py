@@ -42,7 +42,7 @@ class BusinessContactSerializer(serializers.ModelSerializer):
 class BusinessHoursSerializer(serializers.ModelSerializer):
     class Meta:
         model = BusinessHours
-        fields = ['day', 'open_time', 'close_time', 'is_closed']
+        fields = ['day', 'open_time', 'close_time', 'is_closed', 'is_holiday']
 
 
 class BusinessListSerializer(serializers.ModelSerializer):
