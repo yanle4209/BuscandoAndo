@@ -124,13 +124,14 @@ class BusinessAdmin(admin.ModelAdmin):
         """Display featured stats in the change form."""
         stats = self._get_featured_stats()
         lines = []
-        for tier in ['large', 'medium', 'small']:
-            s = stats[tier]
-            color = '#22c55e' if s['count'] < s['limit'] else '#ef4444'
-            lines.append(
-                f'<span style="color:{color};font-weight:bold">'
-                f'{s["label"]}: {s["count"]}/{s["limit"]} por categoria</span>'
-            )
+        for tier in ['1', '2', '3', '4']:
+            if tier in stats:
+                s = stats[tier]
+                color = '#22c55e' if s['count'] < s['limit'] else '#ef4444'
+                lines.append(
+                    f'<span style="color:{color};font-weight:bold">'
+                    f'{s["label"]}: {s["count"]}/{s["limit"]} por categoria</span>'
+                )
         total = stats['total']
         lines.append(
             f'<span style="color:#B3B334;font-weight:bold">'

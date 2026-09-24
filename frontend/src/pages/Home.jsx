@@ -9,8 +9,14 @@ import './Home.css';
 const DR_CENTER = [18.7357, -70.1627];
 
 // Grid: 5 cols x 3 rows = 15 cards per page
-// Positions 1, 2, 5, 8 (1-indexed) are highlighted with yellow shadow
-const HIGHLIGHTED_POSITIONS = [0, 1, 4, 7]; // 0-indexed: pos 1, 2, 5, 8
+// Positions 1, 2, 3, 8 (1-indexed) are highlighted with yellow shadow
+// Level mapping: Pos 1=Nivel 2, Pos 2=Nivel 4, Pos 3=Nivel 1, Pos 8=Nivel 3
+const POSITION_LEVEL_MAP = {
+  0: '2',  // Pos 1 → Nivel 2
+  1: '4',  // Pos 2 → Nivel 4
+  2: '1',  // Pos 3 → Nivel 1
+  7: '3',  // Pos 8 → Nivel 3
+};
 
 function paginateFeatured(allFeatured) {
   const pages = [];
@@ -23,7 +29,8 @@ function paginateFeatured(allFeatured) {
 function assignGrid(businesses) {
   return businesses.map((biz, i) => ({
     ...biz,
-    _highlighted: HIGHLIGHTED_POSITIONS.includes(i),
+    _highlighted: i in POSITION_LEVEL_MAP,
+    _level: POSITION_LEVEL_MAP[i] || null,
     _position: i + 1,
   }));
 }
@@ -257,6 +264,7 @@ export default function Home() {
                   key={biz.id || biz.slug}
                   business={biz}
                   highlighted={biz._highlighted}
+                  level={biz._level}
                   onClick={() => setModalBiz(biz)}
                 />
               ))}
