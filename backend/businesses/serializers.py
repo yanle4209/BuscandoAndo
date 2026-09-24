@@ -4,6 +4,55 @@ from business_locations.models import BusinessLocation
 from business_contacts.models import BusinessContact
 from business_hours.models import BusinessHours
 from business_images.models import BusinessImage
+from datetime import date, time as dt_time
+
+
+STATUS_NAMES = {
+    'abierto': 'Abierto',
+    'cerrado': 'Cerrado',
+    'por-horario': 'Por Horario',
+}
+
+
+def compute_operational_status(business):
+    """
+    Calcula el estado operativo real basado en horarios y feriados.
+    Retorna: 'abierto', 'cerrado', 'por-horario'
+    """
+    today = date.today()
+    day_index = today.weekday()  # 0=Lunes
+    day_names = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    today_name = day_names[day_index]
+
+    hours = business.hours.filter(day=today_name).first()
+    if not hours:
+        return business.operational_status.slug if business.operational_status else 'cerrado'
+
+    # Si es día de fiesta, cerrado
+    if hours.is_holiday:
+        return 'cerrado'
+
+    # Si está marcado como cerrado
+    if hours.is_closed:
+        return 'cerrado'
+
+    # Si no tiene horarios definidos
+    if not hours.open_time or not hours.close_time:
+        return 'cerrado'
+
+    # Verificar horario actual
+    import datetime as _dt
+    now = _dt.datetime.now().time()
+
+    if hours.open_time <= now < hours.close_time:
+        return 'abierto'
+    else:
+        return 'por-horario'
+
+
+def get_effective_status_name(business):
+    slug = compute_operational_status(business)
+    return STATUS_NAMES.get(slug, 'Sin estado')
 
 
 class BusinessImageSerializer(serializers.ModelSerializer):
@@ -67,6 +116,8 @@ class BusinessListSerializer(serializers.ModelSerializer):
     whatsapp = serializers.SerializerMethodField()
     email = serializers.SerializerMethodField()
     images = serializers.SerializerMethodField()
+    effective_status = serializers.SerializerMethodField()
+    effective_status_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Business
@@ -74,6 +125,7 @@ class BusinessListSerializer(serializers.ModelSerializer):
             'id', 'name', 'slug', 'short_description',
             'category', 'category_name', 'category_icon',
             'operational_status_name', 'operational_status_slug', 'operational_status_color',
+            'effective_status', 'effective_status_name',
             'is_featured', 'featured_tier',
             'latitude', 'longitude',
             'street', 'municipality', 'province',
@@ -118,6 +170,12 @@ class BusinessListSerializer(serializers.ModelSerializer):
         imgs = obj.images.all()[:5]
         return BusinessImageSerializer(imgs, many=True).data
 
+    def get_effective_status(self, obj):
+        return compute_operational_status(obj)
+
+    def get_effective_status_name(self, obj):
+        return get_effective_status_name(obj)
+
 
 class BusinessDetailSerializer(serializers.ModelSerializer):
     """Serializer completo para detalle."""
@@ -138,6 +196,8 @@ class BusinessDetailSerializer(serializers.ModelSerializer):
     images = BusinessImageSerializer(many=True, read_only=True)
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
+    effective_status = serializers.SerializerMethodField()
+    effective_status_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Business
@@ -146,6 +206,7 @@ class BusinessDetailSerializer(serializers.ModelSerializer):
             'category', 'category_name', 'category_icon',
             'publication_status', 'publication_status_name',
             'operational_status', 'operational_status_name', 'operational_status_color',
+            'effective_status', 'effective_status_name',
             'is_featured', 'featured_tier',
             'latitude', 'longitude',
             'location', 'contact', 'hours', 'images',
@@ -159,3 +220,9 @@ class BusinessDetailSerializer(serializers.ModelSerializer):
     def get_longitude(self, obj):
         loc = getattr(obj, 'location', None)
         return float(loc.longitude) if loc and loc.longitude else None
+
+    def get_effective_status(self, obj):
+        return compute_operational_status(obj)
+
+    def get_effective_status_name(self, obj):
+        return get_effective_status_name(obj)
