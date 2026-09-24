@@ -68,7 +68,7 @@
 /* ===== RIGHT PANEL ===== */
 .right-panel {
   flex: 1;
-  background: #2a2a2a;
+  background: var(--dark);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
