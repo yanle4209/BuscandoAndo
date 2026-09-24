@@ -148,9 +148,9 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 
 # Cloudinary (media storage)
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': 'g80nbqap',
-    'API_KEY': '943296261538392',
-    'API_SECRET': 'ho7D7dFMLyku0C6gtOMnpafdYy4',
+    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
+    'API_KEY': os.environ.get('CLOUDINARY_API_KEY', ''),
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', ''),
 }
 MEDIA_URL = '/media/'
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
