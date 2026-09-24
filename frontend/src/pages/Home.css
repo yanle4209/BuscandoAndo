@@ -167,7 +167,11 @@
   color: #888;
 }
 
-/* ===== BENTO GRID: 5 cols x 3 rows ===== */
+/* ===== BENTO GRID: 4 cols x 3 rows ===== */
+.mobile-overlay-wrapper {
+  display: none;
+}
+
 .right-bento-grid {
   flex: 1;
   padding: 16px;
@@ -404,5 +408,18 @@
 
   .pagination {
     padding: 16px 0 8px;
+  }
+
+  /* Mobile overlay replaces bento grid */
+  .mobile-overlay-wrapper {
+    position: relative;
+    min-height: 400px;
+    border-radius: 8px;
+    margin: 0 12px 12px 0;
+    overflow: hidden;
+  }
+
+  .right-bento-grid {
+    display: none;
   }
 }

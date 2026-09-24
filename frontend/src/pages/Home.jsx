@@ -259,6 +259,10 @@ export default function Home() {
           </>
         ) : (
           <>
+            {/* Mobile overlay - shows when not searched */}
+            <div className="mobile-overlay-wrapper">
+              <MapOverlay visible={true} />
+            </div>
             <div className="right-bento-grid">
               {displayedGrid.map((biz) => (
                 <BusinessCard
