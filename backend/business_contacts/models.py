@@ -18,6 +18,11 @@ class BusinessContact(models.Model):
     )
     email = models.EmailField(blank=True, default='', verbose_name='Correo')
     website = models.URLField(blank=True, default='', verbose_name='Sitio web')
+    contact_person = models.TextField(
+        blank=True, default='',
+        verbose_name='Contacto',
+        help_text='Nombre del responsable o persona de contacto cuando el negocio no tiene teléfono/correo propio.',
+    )
 
     class Meta:
         verbose_name = 'Contacto'
