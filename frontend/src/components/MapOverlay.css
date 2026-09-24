@@ -1,0 +1,127 @@
+.map-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, rgba(0,6,0,0.85) 0%, rgba(0,6,0,0.95) 100%);
+  pointer-events: none;
+}
+
+.map-overlay__content {
+  text-align: center;
+  padding: 20px;
+}
+
+/* ===== LOGO ===== */
+.map-overlay__logo {
+  margin-bottom: 20px;
+}
+
+.map-overlay__icon {
+  width: 100px;
+  height: 100px;
+  margin-bottom: 12px;
+}
+
+/* Spinning outer circle */
+.map-overlay__circle {
+  stroke-dasharray: 345;
+  stroke-dashoffset: 345;
+  animation: drawCircle 2s ease-out forwards, spinSlow 20s linear 2s infinite;
+  transform-origin: center;
+}
+
+/* Inner circle */
+.map-overlay__circle-inner {
+  animation: spinSlow 15s linear infinite reverse;
+  transform-origin: center;
+}
+
+/* Pin bounce */
+.map-overlay__pin {
+  animation: pinBounce 2s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+/* Pulse rings */
+.map-overlay__pulse {
+  animation: pulseRing 2s ease-out infinite;
+}
+.map-overlay__pulse--delay {
+  animation-delay: 1s;
+}
+
+/* Title */
+.map-overlay__title {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--yellow);
+  letter-spacing: 2px;
+  margin: 0;
+  text-shadow: 0 0 20px rgba(179, 179, 52, 0.4);
+}
+.map-overlay__title span {
+  color: #ffffff;
+}
+
+/* Rotating message */
+.map-overlay__message {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 16px 0 12px;
+  min-height: 20px;
+  transition: opacity 0.4s ease;
+  letter-spacing: 0.5px;
+}
+.map-overlay__message--fade {
+  opacity: 0;
+}
+
+/* Dots */
+.map-overlay__dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.map-overlay__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+.map-overlay__dot--active {
+  background: var(--yellow);
+  width: 18px;
+  border-radius: 3px;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes drawCircle {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pinBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes pulseRing {
+  0% {
+    r: 8;
+    opacity: 0.8;
+    stroke-width: 2;
+  }
+  100% {
+    r: 30;
+    opacity: 0;
+    stroke-width: 0.5;
+  }
+}
