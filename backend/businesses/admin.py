@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db import models
 from django.urls import reverse
 from django.utils.html import format_html
 from django.contrib import messages
@@ -21,6 +22,10 @@ class BusinessContactInline(admin.StackedInline):
     model = BusinessContact
     extra = 1
     max_num = 1
+    fields = ['contact_person', 'phone', 'whatsapp', 'email', 'website']
+    formfield_overrides = {
+        models.TextField: {'widget': admin.widgets.AdminTextareaWidget(attrs={'rows': 3})},
+    }
 
 
 @admin.register(Business)
