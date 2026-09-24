@@ -82,7 +82,7 @@ export default function BusinessCard({ business, highlighted, level, onClick }) 
         </div>
       )}
 
-      {hasImages && <ImageCarousel images={images} />}
+      {hasImages && <ImageCarousel images={images} autoplay={highlighted} />}
 
       <div className="biz-card__footer">
         <span className={`biz-card__status biz-card__status--${business.operational_status_slug || 'default'}`}>

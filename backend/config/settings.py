@@ -153,6 +153,9 @@ if REACT_BUILD_DIR.exists():
 
 # WhiteNoise
 STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
     },

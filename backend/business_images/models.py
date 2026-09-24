@@ -13,7 +13,7 @@ class BusinessImage(models.Model):
         related_name='images',
         verbose_name='Negocio',
     )
-    image = models.FileField(
+    image = models.ImageField(
         upload_to='business_images/%Y/%m/',
         verbose_name='Imagen',
     )
