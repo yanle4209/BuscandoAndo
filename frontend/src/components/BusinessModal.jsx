@@ -28,7 +28,7 @@ export default function BusinessModal({ business, onClose }) {
   const whatsapp = business.whatsapp || contact.whatsapp;
   const email = business.email || contact.email;
   const website = contact.website;
-  const contactPerson = contact.contact_person;
+  const contactPerson = business.contact_person || contact.contact_person;
   const address = [business.street || loc.street, business.sector || loc.sector, business.municipality || loc.municipality, business.province || loc.province]
     .filter(Boolean).join(', ');
 

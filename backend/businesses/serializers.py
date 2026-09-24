@@ -115,6 +115,7 @@ class BusinessListSerializer(serializers.ModelSerializer):
     phone = serializers.SerializerMethodField()
     whatsapp = serializers.SerializerMethodField()
     email = serializers.SerializerMethodField()
+    contact_person = serializers.SerializerMethodField()
     images = serializers.SerializerMethodField()
     effective_status = serializers.SerializerMethodField()
     effective_status_name = serializers.SerializerMethodField()
@@ -129,7 +130,7 @@ class BusinessListSerializer(serializers.ModelSerializer):
             'is_featured', 'featured_tier',
             'latitude', 'longitude',
             'street', 'municipality', 'province',
-            'phone', 'whatsapp', 'email',
+            'phone', 'whatsapp', 'email', 'contact_person',
             'images',
             'created_at',
         ]
@@ -165,6 +166,10 @@ class BusinessListSerializer(serializers.ModelSerializer):
     def get_email(self, obj):
         contact = getattr(obj, 'contact', None)
         return contact.email if contact else None
+
+    def get_contact_person(self, obj):
+        contact = getattr(obj, 'contact', None)
+        return contact.contact_person if contact else None
 
     def get_images(self, obj):
         imgs = obj.images.all()[:5]
