@@ -412,6 +412,7 @@
 
   /* Mobile overlay replaces bento grid */
   .mobile-overlay-wrapper {
+    display: block;
     position: relative;
     width: 100%;
     min-height: 500px;
