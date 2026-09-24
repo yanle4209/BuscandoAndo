@@ -41,6 +41,8 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     'rest_framework',
     'corsheaders',
+    'cloudinary_storage',
+    'cloudinary',
 ]
 
 LOCAL_APPS = [
@@ -143,8 +145,15 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# Cloudinary (media storage)
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'g80nbqap',
+    'API_KEY': '943296261538392',
+    'API_SECRET': 'ho7D7dFMLyku0C6gtOMnpafdYy4',
+}
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 # React build files (production)
 REACT_BUILD_DIR = BASE_DIR.parent / 'frontend' / 'dist'
@@ -154,7 +163,7 @@ if REACT_BUILD_DIR.exists():
 # WhiteNoise
 STORAGES = {
     'default': {
-        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage',
     },
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
