@@ -85,7 +85,7 @@ class BusinessLocationSerializer(serializers.ModelSerializer):
 class BusinessContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = BusinessContact
-        fields = ['phone', 'whatsapp', 'email', 'website']
+        fields = ['contact_person', 'phone', 'whatsapp', 'email', 'website']
 
 
 class BusinessHoursSerializer(serializers.ModelSerializer):
