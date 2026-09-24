@@ -61,8 +61,8 @@ export default function BusinessModal({ business, onClose }) {
               {business.category_name && (
                 <span className="modal-category">{business.category_name}</span>
               )}
-              <span className={`modal-status modal-status--${business.operational_status_slug || 'default'}`}>
-                {business.operational_status_name || 'Sin estado'}
+              <span className={`modal-status modal-status--${business.effective_status || business.operational_status_slug || 'default'}`}>
+                {business.effective_status_name || business.operational_status_name || 'Sin estado'}
               </span>
             </div>
           </div>

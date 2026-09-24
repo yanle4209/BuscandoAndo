@@ -18,9 +18,8 @@ urlpatterns = [
     path('api/', include('categories.urls')),
 ]
 
-# Media files
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Media files - always serve (including production)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # Serve React frontend in production
 if not settings.DEBUG:
