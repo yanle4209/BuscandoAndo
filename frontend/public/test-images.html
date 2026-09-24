@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test Images</title>
+<style>
+body { font-family: sans-serif; padding: 20px; background: #f0f0f0; }
+.card { background: white; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; max-width: 250px; border: 1px solid #e0e0e0; }
+.card img { width: 100%; min-width: 100%; height: 90px; object-fit: cover; border-radius: 8px; }
+.card p { margin: 4px 0; font-size: 12px; }
+.ok { color: green; } .fail { color: red; }
+</style>
+</head>
+<body>
+<h2>Test de imagenes en tarjeta</h2>
+<div class="card">
+  <p><b>Belleza Total Salon</b></p>
+  <div id="imgs"></div>
+</div>
+<script>
+const urls = [
+  '/media/business_images/2026/09/estadio_1.webp',
+  '/media/business_images/2026/09/estadio_2_hDIYY5c.webp',
+  '/media/business_images/2026/09/estadio_3_euoTw5L.webp',
+  '/media/business_images/2026/09/estadio_4_TpZ329r.webp',
+];
+const container = document.getElementById('imgs');
+urls.forEach((url, i) => {
+  const img = new Image();
+  img.onload = () => {
+    container.innerHTML += '<p class="ok">✅ Img ' + (i+1) + ': ' + img.naturalWidth + 'x' + img.naturalHeight + 'px</p>';
+    container.appendChild(img);
+  };
+  img.onerror = () => {
+    container.innerHTML += '<p class="fail">❌ Img ' + (i+1) + ': NO CARGA - ' + url + '</p>';
+  };
+  img.src = url;
+  img.style.cssText = 'width:100%;height:90px;object-fit:cover;border-radius:8px;margin:4px 0;display:block;';
+});
+</script>
+</body>
+</html>

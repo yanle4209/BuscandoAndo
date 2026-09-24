@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head><title>Carousel Diagnóstico</title>
+<style>body{font-family:sans-serif;padding:20px;} img{max-width:200px;margin:10px;border:2px solid #ccc;}</style>
+</head>
+<body>
+<h1>Diagnóstico de Carrusel</h1>
+<div id="results"></div>
+<h2>Vista previa:</h2>
+<div id="preview"></div>
+<script>
+const urls = [
+  '/media/business_images/2026/09/estadio_4.webp',
+  '/media/business_images/2026/09/estadio_3.webp',
+  '/media/business_images/2026/09/estadio_2.webp',
+  '/media/business_images/2026/09/estadio_4_RlLls3N.webp',
+  '/media/business_images/2026/09/estadio_3_qlRZClb.webp'
+];
+const div = document.getElementById('results');
+const preview = document.getElementById('preview');
+urls.forEach((url, i) => {
+  const img = new Image();
+  img.onload = () => {
+    div.innerHTML += '<p>✅ Imagen '+( i+1)+': '+url+' — '+img.naturalWidth+'x'+img.naturalHeight+'px ('+img.src+')</p>';
+    preview.appendChild(img);
+  };
+  img.onerror = () => {
+    div.innerHTML += '<p>❌ Imagen '+(i+1)+': '+url+' — FAILED TO LOAD</p>';
+  };
+  img.src = url;
+});
+</script>
+</body>
+</html>

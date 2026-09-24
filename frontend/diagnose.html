@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head><title>Carousel Diagnóstico</title></head>
+<body>
+<h1>Diagnóstico de Carrusel</h1>
+<div id="results"></div>
+<script>
+const urls = [
+  '/media/business_images/2026/09/estadio_4.webp',
+  '/media/business_images/2026/09/estadio_3.webp',
+  '/media/business_images/2026/09/estadio_2.webp',
+  '/media/business_images/2026/09/estadio_4_RlLls3N.webp',
+  '/media/business_images/2026/09/estadio_3_qlRZClb.webp'
+];
+const div = document.getElementById('results');
+urls.forEach((url, i) => {
+  const img = new Image();
+  img.onload = () => {
+    div.innerHTML += `<p>✅ Imagen ${i+1}: ${url} — ${img.naturalWidth}x${img.naturalHeight}px</p>`;
+  };
+  img.onerror = () => {
+    div.innerHTML += `<p>❌ Imagen ${i+1}: ${url} — FAILED TO LOAD</p>`;
+  };
+  img.src = url;
+});
+</script>
+</body>
+</html>
