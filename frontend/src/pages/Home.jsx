@@ -294,7 +294,10 @@ export default function Home() {
 
       {showContact && (
         <div className="modal-overlay" onClick={() => setShowContact(false)}>
-          <div className="modal-content modal-contact" onClick={e => e.stopPropagation()}>
+          {/* .modal-panel, NO .modal-content: esa clase no existe en ningún
+              CSS y el modal salía transparente con texto negro sobre el
+              overlay oscuro. Ver nota en Home.css. */}
+          <div className="modal-panel modal-contact" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowContact(false)}>&#10005;</button>
             <h2 className="modal-contact-title">Contactanos</h2>
             <p className="modal-contact-desc">Si quieres anunciarte o comunicarte para cualquier otra sugerencia</p>
