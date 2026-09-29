@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Business
+from .models import Business, Correction
 from business_locations.models import BusinessLocation
 from business_contacts.models import BusinessContact
 from business_hours.models import BusinessHours
@@ -92,6 +92,44 @@ class BusinessHoursSerializer(serializers.ModelSerializer):
     class Meta:
         model = BusinessHours
         fields = ['day', 'open_time', 'close_time', 'is_closed', 'is_holiday']
+
+
+class CorrectionCreateSerializer(serializers.ModelSerializer):
+    """Lo que manda el formulario del boton "Corregir".
+
+    Solo business + campo + mensaje. Quien avisa NO puede tocar el estado
+    ni la nota interna: ni siquiera estan en `fields`, asi que un POST que
+    los incluya los ignora en vez de aplicarlos.
+    """
+
+    class Meta:
+        model = Correction
+        fields = ['business', 'campo', 'mensaje']
+
+    def validate_mensaje(self, value):
+        value = value.strip()
+        if len(value) < 10:
+            raise serializers.ValidationError(
+                'Cuentanos un poco mas: al menos 10 caracteres.'
+            )
+        return value
+
+
+class CorrectionSerializer(serializers.ModelSerializer):
+    """Lectura (solo admin): incluye estado, nota interna y nombres legibles."""
+
+    business_name = serializers.CharField(source='business.name', read_only=True)
+    campo_display = serializers.CharField(source='get_campo_display', read_only=True)
+    estado_display = serializers.CharField(source='get_estado_display', read_only=True)
+
+    class Meta:
+        model = Correction
+        fields = [
+            'id', 'business', 'business_name', 'campo', 'campo_display',
+            'mensaje', 'estado', 'estado_display', 'nota_admin',
+            'created_at', 'resolved_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'resolved_at']
 
 
 class BusinessListSerializer(serializers.ModelSerializer):
