@@ -209,8 +209,27 @@
 }
 
 /* ===== CONTACT MODAL ===== */
-.modal-contact {
+/*
+ * IMPORTANTE: el panel necesita .modal-panel —la MISMA clase que usa el
+ * modal de negocio (BusinessModal.jsx)— para heredar fondo blanco,
+ * border-radius, sombra y position:relative.
+ *
+ * Bug real: aquí se usaba .modal-content, un selector que no existe en
+ * ningún CSS del proyecto. Consecuencias medidas en producción:
+ *   - background: rgba(0,0,0,0)  → transparente
+ *   - el título, en var(--dark) #1a1a1a, quedaba sobre el overlay
+ *     rgba(0,6,0,0.7) → negro sobre negro: ilegible
+ *   - position: static → .modal-close (absolute, top/right 14px) se
+ *     anclaba al overlay, dejando la ✕ en la esquina de la pantalla
+ *
+ * La especificidad .modal-panel.modal-contact (0,2,0) gana a
+ * .modal-panel (0,1,0) pase lo que pase con el orden de las hojas.
+ */
+.modal-panel.modal-contact {
   max-width: 420px;
+  /* .modal-panel no trae padding (el modal de negocio lo pone .modal-body),
+     así que aquí hay que ponerlo a mano o el contenido toca los bordes. */
+  padding: 32px 28px;
   text-align: center;
 }
 
