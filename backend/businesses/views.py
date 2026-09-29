@@ -3,7 +3,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from django.db.models import Q
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.utils import timezone
 from .models import Business
 from .serializers import BusinessListSerializer, BusinessDetailSerializer
@@ -118,10 +118,19 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
                 Q(featured_end_date__isnull=True) |
                 Q(featured_end_date__gt=now)
             )
-            tier_order = {'large': 0, 'medium': 1, 'small': 2}
-            all_featured = list(qs)
-            all_featured.sort(key=lambda b: tier_order.get(b.featured_tier or 'small', 2))
-            qs = Business.objects.filter(id__in=[b.id for b in all_featured])
+            # Ordenar por nivel: '1' = principal ... '4' = basico.
+            # OJO: hay que ordenar el QuerySet. Si se ordena una lista y luego se
+            # reconstruye con filter(id__in=...), Django vuelve a aplicar
+            # Meta.ordering ('-is_featured', '-created_at') y el orden se pierde.
+            tier_order = {'1': 0, '2': 1, '3': 2, '4': 3}
+            qs = qs.annotate(
+                tier_ord=Case(
+                    *[When(featured_tier=tier, then=Value(pos))
+                      for tier, pos in tier_order.items()],
+                    default=Value(len(tier_order)),
+                    output_field=IntegerField(),
+                )
+            ).order_by('tier_ord', '-created_at')
 
         # Filtrar por radio (haversine en Python)
         lat = params.get('lat')
@@ -155,7 +164,12 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='featured-by-search')
     def featured_by_search(self, request):
-        """Devuelve hasta 3 destacados activos (1 large, 1 medium, 1 small) que coincidan con la busqueda."""
+        """Devuelve hasta 3 destacados activos que coincidan con la busqueda.
+
+        Se recorren los niveles del 1 (principal) al 4 (basico), de modo que
+        siempre entra el mejor nivel disponible. Los niveles son los que define
+        ``Business.FEATURED_TIERS``: '1'..'4' (nunca 'large'/'medium'/'small').
+        """
         params = request.query_params
         search = params.get('text') or params.get('search')
         category = params.get('category')
@@ -197,9 +211,12 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
         if not search and not category and not city:
             return Response([])
 
-        # Pick 1 large, 1 medium, 1 small
+        # Escoger hasta 3 destacados, del mejor nivel al peor (1 -> 4).
+        # El queryset ya esta filtrado por is_featured=True y por no expirado.
         result = []
-        for tier in ['large', 'medium', 'small']:
+        for tier in ['1', '2', '3', '4']:
+            if len(result) >= 3:
+                break
             biz = qs.filter(featured_tier=tier).first()
             if biz:
                 result.append(biz)
