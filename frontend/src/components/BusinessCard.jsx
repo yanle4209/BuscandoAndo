@@ -1,7 +1,7 @@
 import ImageCarousel from './ImageCarousel';
 import './BusinessCard.css';
 
-export default function BusinessCard({ business, highlighted, level, onClick }) {
+export default function BusinessCard({ business, highlighted, level, onClick, onReport }) {
   const loc = business.location || {};
   const contact = business.contact || {};
   const hours = business.hours || [];
@@ -88,6 +88,18 @@ export default function BusinessCard({ business, highlighted, level, onClick }) 
         <span className={`biz-card__status biz-card__status--${business.effective_status || business.operational_status_slug || 'default'}`}>
           {business.effective_status_name || business.operational_status_name || 'Sin estado'}
         </span>
+        {/* stopPropagation OBLIGATORIO: toda la tarjeta es clicable y su
+            onClick abre BusinessModal. Sin esto, pulsar "Corregir" abriria
+            los DOS modales a la vez. */}
+        {onReport && (
+          <button
+            type="button"
+            className="biz-card__fix"
+            onClick={e => { e.stopPropagation(); onReport(); }}
+          >
+            Corregir
+          </button>
+        )}
       </div>
     </div>
   );

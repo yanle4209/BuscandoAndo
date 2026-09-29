@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django.contrib import messages
 from django.utils import timezone
-from .models import Business, FEATURED_LIMITS, FEATURED_WEEKS_CHOICES
+from .models import Business, Correction, FEATURED_LIMITS, FEATURED_WEEKS_CHOICES
 from business_locations.models import BusinessLocation
 from business_contacts.models import BusinessContact
 from business_hours.admin import BusinessHoursInline
@@ -26,6 +26,54 @@ class BusinessContactInline(admin.StackedInline):
     formfield_overrides = {
         models.TextField: {'widget': admin.widgets.AdminTextareaWidget(attrs={'rows': 3})},
     }
+
+
+@admin.register(Correction)
+class CorrectionAdmin(admin.ModelAdmin):
+    """Bandeja de avisos de datos incorrectos enviados desde el frontend."""
+
+    list_display = ['business', 'campo', 'estado', 'created_at', 'aviso']
+    list_filter = ['estado', 'campo', 'created_at']
+    search_fields = ['business__name', 'mensaje', 'nota_admin']
+    # El aviso es lo que dijo el visitante: no se edita, se RESUELVE
+    # cambiando el estado y dejando una nota interna.
+    readonly_fields = ['business', 'campo', 'mensaje', 'created_at']
+    list_editable = ['estado']
+    actions = [
+        'marcar_como_revisada',
+        'marcar_como_aplicada',
+        'marcar_como_descartada',
+    ]
+
+    def aviso(self, obj):
+        return f'{obj.mensaje[:60]}…' if len(obj.mensaje) > 60 else obj.mensaje
+    aviso.short_description = 'Aviso'
+
+    def _cambiar_estado(self, request, queryset, estado):
+        """Solo staff llega aqui (el admin ya lo garantiza)."""
+        total = queryset.count()
+        queryset.update(
+            estado=estado,
+            # resolved_at solo tiene sentido cuando el caso cierra.
+            resolved_at=timezone.now() if estado in ('aplicada', 'descartada') else None,
+        )
+        self.message_user(
+            request,
+            f'{total} correccion(es) marcada(s) como "{estado}".',
+            messages.SUCCESS,
+        )
+
+    def marcar_como_revisada(self, request, queryset):
+        self._cambiar_estado(request, queryset, 'revisada')
+    marcar_como_revisada.short_description = 'Marcar seleccionadas como revisadas'
+
+    def marcar_como_aplicada(self, request, queryset):
+        self._cambiar_estado(request, queryset, 'aplicada')
+    marcar_como_aplicada.short_description = 'Marcar seleccionadas como aplicadas'
+
+    def marcar_como_descartada(self, request, queryset):
+        self._cambiar_estado(request, queryset, 'descartada')
+    marcar_como_descartada.short_description = 'Marcar seleccionadas como descartadas'
 
 
 @admin.register(Business)

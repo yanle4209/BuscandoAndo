@@ -5,8 +5,8 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from django.db.models import Case, IntegerField, Q, Value, When
 from django.utils import timezone
-from .models import Business
-from .serializers import BusinessListSerializer, BusinessDetailSerializer
+from .models import Business, Correction
+from .serializers import BusinessListSerializer, BusinessDetailSerializer, CorrectionCreateSerializer, CorrectionSerializer
 
 
 def is_featured_active(biz):
@@ -40,6 +40,61 @@ def haversine_distance(lat1, lng1, lat2, lng2):
          math.sin(dlng / 2) ** 2)
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
+
+
+class CorrectionViewSet(viewsets.ModelViewSet):
+    """Avisos de datos incorrectos (boton "Corregir" del frontend).
+
+    POST /api/corrections/ -> PUBLICO: es un formulario abierto a cualquier
+    visitante, sin login.
+
+    Todo lo demas (list, retrieve, update, destroy) -> solo staff. Ahi
+    estan los avisos de otros usuarios y las notas internas del admin, y
+    sin este override saldria publico: el DEFAULT_PERMISSION_CLASSES del
+    proyecto es AllowAny (ver config/settings.py).
+    """
+
+    queryset = Correction.objects.select_related('business').all()
+
+    def _accion_en_ejecucion(self):
+        """La accion que esta atendiendo esta peticion ('create', 'list'...).
+
+        No se puede usar ``self.action`` a secas: ViewSetMixin lo asigna
+        DESPUES de llamar a super().initialize_request(), y es justo ahi
+        dentro donde DRF construye los autenticadores. A ese punto si ya
+        estan ``self.action_map`` y ``self.request`` (el request Django
+        crudo), que el ``view()`` del router pone antes de llamar a
+        dispatch() — ver rest_framework/viewsets.py, as_view().
+        """
+        if hasattr(self, 'action'):
+            return self.action
+        request = getattr(self, 'request', None)
+        if request is None:
+            return None
+        return getattr(self, 'action_map', {}).get(request.method.lower())
+
+    def get_authenticators(self):
+        """El POST publico va SIN autenticadores.
+
+        DRF usa SessionAuthentication por defecto. Si quien envia el
+        formulario tiene la sesion del admin abierta en el mismo dominio,
+        esa clase le exige token CSRF y el envio devolveria 403. Al ser
+        un endpoint AllowAny, no hacerse pasar por nadie es ademas lo
+        correcto. El listado y el resto siguen autenticando con normalidad.
+        """
+        if self._accion_en_ejecucion() == 'create':
+            return []
+        return super().get_authenticators()
+
+    def get_permissions(self):
+        if self._accion_en_ejecucion() == 'create':
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CorrectionCreateSerializer
+        return CorrectionSerializer
 
 
 class BusinessViewSet(viewsets.ReadOnlyModelViewSet):

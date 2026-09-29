@@ -207,3 +207,79 @@ class Business(models.Model):
         if self.pk:
             qs = qs.exclude(pk=self.pk)
         return max(0, FEATURED_LIMITS.get(self.featured_tier, 0) - qs.count())
+
+
+class Correction(models.Model):
+    """Aviso de un visitante de que un dato de un negocio esta mal.
+
+    Lo dispara el boton "Corregir" de las tarjetas del frontend, que abre
+    un formulario modal. NO requiere login: cualquiera puede avisar.
+
+    Por eso la separacion de lectura/escritura es el punto delicado de este
+    modelo: quien lo rellena solo puede crear uno, y el listado, el estado
+    y las notas quedan para el admin (ver CorrectionViewSet).
+    """
+
+    # Coincide 1:1 con las opciones del <select> del formulario, y con los
+    # datos que muestra BusinessCard: si anades un dato a la tarjeta,
+    # anadelo aqui para que se pueda reportar.
+    CAMPOS = [
+        ('nombre', 'Nombre del negocio'),
+        ('direccion', 'Direccion'),
+        ('telefono', 'Telefono / WhatsApp'),
+        ('categoria', 'Categoria'),
+        ('descripcion', 'Descripcion'),
+        ('estado', 'Estado (abierto/cerrado)'),
+        ('horario', 'Horario'),
+        ('otro', 'Otro'),
+    ]
+
+    ESTADOS = [
+        ('pendiente', 'Pendiente'),
+        ('revisada', 'Revisada'),
+        ('aplicada', 'Aplicada'),
+        ('descartada', 'Descartada'),
+    ]
+
+    business = models.ForeignKey(
+        Business,
+        on_delete=models.CASCADE,
+        related_name='corrections',
+        verbose_name='Negocio',
+    )
+    campo = models.CharField(
+        max_length=20,
+        choices=CAMPOS,
+        verbose_name='Dato incorrecto',
+    )
+    mensaje = models.TextField(
+        verbose_name='Que esta mal / cual es el dato correcto',
+        help_text='Texto que lee el admin.',
+    )
+    estado = models.CharField(
+        max_length=12,
+        choices=ESTADOS,
+        default='pendiente',
+        verbose_name='Estado',
+    )
+    nota_admin = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Nota interna del admin',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Creada el')
+    resolved_at = models.DateTimeField(
+        null=True, blank=True, verbose_name='Resuelta el'
+    )
+
+    class Meta:
+        verbose_name = 'Correccion'
+        verbose_name_plural = 'Correcciones'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.get_campo_display()} · {self.business.name}'
+
+    @property
+    def esta_resuelta(self):
+        return self.estado in ('aplicada', 'descartada')

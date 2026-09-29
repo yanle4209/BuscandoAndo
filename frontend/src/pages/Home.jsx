@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import SearchBar from '../components/SearchBar';
 import MapView from '../components/MapView';
 import BusinessCard from '../components/BusinessCard';
+import CorrectionModal from '../components/CorrectionModal';
 import BusinessModal from '../components/BusinessModal';
 import MapOverlay from '../components/MapOverlay';
 import api from '../api/axios';
@@ -44,6 +45,8 @@ export default function Home() {
   const [selected, setSelected] = useState(null);
   const [modalBiz, setModalBiz] = useState(null);
   const [showContact, setShowContact] = useState(false);
+  // Negocio del que el visitante ha pulsado "Corregir" (null = sin modal).
+  const [correctionBiz, setCorrectionBiz] = useState(null);
   const [loading, setLoading] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -225,6 +228,7 @@ export default function Home() {
                       key={biz.id || biz.slug}
                       business={biz}
                       onClick={() => setModalBiz(biz)}
+                      onReport={() => setCorrectionBiz(biz)}
                     />
                   ))}
                 </div>
@@ -237,6 +241,7 @@ export default function Home() {
                     key={biz.id || biz.slug}
                     business={biz}
                     onClick={() => setModalBiz(biz)}
+                    onReport={() => setCorrectionBiz(biz)}
                   />
                 ))}
                 {!loading && businesses.length === 0 && searchFeatured.length === 0 && (
@@ -271,6 +276,7 @@ export default function Home() {
                   highlighted={biz._highlighted}
                   level={biz._level}
                   onClick={() => setModalBiz(biz)}
+                  onReport={() => setCorrectionBiz(biz)}
                 />
               ))}
               {displayedGrid.length === 0 && (
@@ -291,6 +297,13 @@ export default function Home() {
       </div>
 
       {modalBiz && <BusinessModal business={modalBiz} onClose={() => setModalBiz(null)} />}
+
+      {/* Formulario "Corregir": se monta aqui, en la raiz y fuera de la
+          tarjeta, igual que los demas modales (el overlay es position:fixed,
+          y dentro de la tarjeta podria quedar atrapado por un transform). */}
+      {correctionBiz && (
+        <CorrectionModal business={correctionBiz} onClose={() => setCorrectionBiz(null)} />
+      )}
 
       {showContact && (
         <div className="modal-overlay" onClick={() => setShowContact(false)}>
