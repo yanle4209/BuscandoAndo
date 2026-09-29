@@ -21,7 +21,10 @@ services:
         generateValue: true
       - key: DJANGO_SUPERUSER_EMAIL
         value: "admin@buscandoando.com"
-    healthCheckPath: /admin/
+    # Health check: /api/health/ responde 200 sin tocar la base de datos
+    # y expone RENDER_GIT_COMMIT, asi que un curl basta para saber que
+    # commit esta en produccion (ver backend/config/health.py).
+    healthCheckPath: /api/health/
     autoDeploy: true
 
 databases:
