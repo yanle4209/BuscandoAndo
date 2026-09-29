@@ -6,7 +6,12 @@
  * sobre el overlay oscuro. (Bug real que ya vivimos con el modal de
  * contacto: ver .modal-panel.modal-contact en Home.css.) */
 
-.correction {
+/* Selector a 0,2,0 (y no .correction a secas): .modal-panel tambien define
+   max-width y, con la misma especificidad, gana el que vaya despues en el
+   bundle CSS. Sin el prefijo el formulario salia de 720px, tan ancho como
+   el modal de detalle, en vez de 460px. Es el mismo orden de magnitud que
+   el bug de .modal-content: la cascada no perdona selectores ambiguos. */
+.modal-panel.correction {
   max-width: 460px;
   /* .modal-panel no trae padding; el modal de negocio se lo pone
      .modal-body. Aqui hay que ponerlo a mano. */
@@ -136,7 +141,9 @@
 
 /* Pantallas estrechas: que no se salga del viewport. */
 @media (max-width: 520px) {
-  .correction {
+  /* Mismo selector 0,2,0 que arriba: con .correction a secas (0,1,0) la
+     regla base le ganaria y este padding movil nunca se aplicaria. */
+  .modal-panel.correction {
     padding: 24px 18px;
   }
 
