@@ -155,7 +155,7 @@ Principio rector: **si hay resultados disponibles, se enseñan — nunca tapados
 | # | Qué | Nota |
 |---|---|---|
 | 1 | ~~Fuente de cabeceras municipales~~ | ✅ **Resuelta** → `backend/data/cabeceras_municipales.csv` (158 filas). Ver §9. |
-| 2 | **Cobertura de datos por municipio** | Pospuesta al final. *Puede invalidar lo decidido.* |
+| 2 | **Cobertura de datos por municipio** | **En curso** → R5 (publicación automática) + R6 (correctores). Ver §10–§11. |
 | 3 | **Destacados** | Atada al 2: marcar más no sirve fuera de donde hay datos. |
 | 4 | Confirmación: destino elegido + reabrir **con GPS** → ¿se reanuda? | R3.6 literal → **no, vuelve a tu GPS**. |
 
@@ -261,3 +261,168 @@ el portal del Estado dice **158**, Wikipedia (2024) **158**, OSM modela **157**.
 Se usó Wikipedia (158) como canónica por venir con provincia ya asignada.
 OJO: `municipality` ≠ `distrito municipal` (235) — los distritos municipales
 **no** son cabeceras y no entran en este listado.
+
+---
+
+## 10. Publicación automática (R5)
+
+> Nueva decisión, nacida de la conversación sobre cobertura.
+> **Deja el flujo manual intacto y le añade una excepción marcada.**
+
+### La regla
+
+Un registro **importado** que cumpla el trío mínimo
+
+```
+nombre + teléfono + punto
+```
+
+→ **se publica solo**. El resto de campos (horario, WhatsApp, correo, estado,
+categoría fina…) → se marcan **pendientes** → entran en la cola de corrección.
+
+> **La dirección no se exige**: el punto geográfico la sustituye. En la RD la
+> dirección formal casi no existe — la gente dice *"detrás del parque"*.
+
+### Lo que NO cambia
+
+- Creación manual → sigue `En Revisión` → **el admin publica** (`VISION.md` intacto).
+- Nada se rellena por inventar: lo que falta **queda visible como pendiente**.
+
+### Procedencia
+
+| Marca | Quién llega así |
+|---|---|
+| `importado` | el automático — **visible, pero señalado** |
+| `verificado` | pasó por revisión humana |
+
+El usuario ve la calidad de la ficha sin que se pierda el control.
+
+### Cómo se modela lo "pendiente"
+
+**Calculado** — el campo está vacío → pendiente. **Cero estructura nueva.**
+
+**+ `procedencia`** — lo que viene del servicio entra marcado.
+
+Cubren los dos casos (*falta* y *entra sin verificar*) **sin campos nuevos**.
+
+### Derivadas
+
+- **La corrección deja de ser reactiva** (alguien ve un error) **y se vuelve
+  proactiva**: el sistema sabe qué le falta y lo pide → **R6, §11**.
+- **Dos canales**: el público **anónimo** corrige errores en fichas publicadas
+  (endpoint ya anónimo, ya existe); los **correctores contratados** rellenan
+  pendientes. → **§11.3**
+- **Alimenta el 5 km**: solo importa dentro de las circunferencias de las
+  cabeceras de §9 — importar lejos del centro no entra en ningún círculo.
+
+### Medición — 5 km sobre la cabecera de Moca (`19.3964, -70.5274`)
+
+**Fichas reales (producción — las 325)**
+
+| Radio | Fichas | % |
+|---|---|---|
+| **5 km** — lo que fija R1 | **131** | 40 % |
+| 10 km — default actual | 322 | 99 % |
+
+**Candidatos de OSM dentro de ese mismo círculo**
+
+| | |
+|---|---|
+| Candidatos | **101** (+5 sin nombre → descartados) |
+| Con **teléfono** | **17** ← el cuello de botella |
+| Con dirección formal (`addr:*`) | 50 |
+| Con horario | 9 |
+| Con web | 5 |
+| **Cumplen el trío** | **17** |
+
+**Lo que enseña**
+
+1. **La dirección no era el cuello de botella**: con `addr:*` salen 16, sin
+   exigirlo salen 17. **Manda el teléfono.**
+2. **OSM cubre el 77 % de lo que hay** en el círculo — 101 de 131. (Antes
+   parecía 31 % porque comparaba contra los 325 del municipio entero.)
+3. **Pero solo 17 de esos 101 traen teléfono → 13 % del círculo.**
+4. **En producción el teléfono es aún peor: 24 de 325 (7 %). WhatsApp: 0.**
+   → importar OSM **no duplicaría a ciegas: hay que cruzar** — OSM trae
+   teléfonos que en muchos casos nosotros no tenemos.
+
+### Estado real de las 325 fichas de Moca
+
+| Campo | Vacío | |
+|---|---|---|
+| `whatsapp` | 325 | **nadie lo usa** |
+| `short_description` | 324 | |
+| `images` | 324 | |
+| `contact_person` | 324 | |
+| `email` | 317 | |
+| **`phone`** | **301** | **solo 24 con teléfono** |
+| `street` | 168 | 48 % con dirección |
+| `featured_tier` | 321 | ✅ coherente con los 4 destacados |
+| `municipality` | 0 | ✅ las 325 dicen Moca |
+
+> **Escalado**: esto es **un solo municipio** y ya son ~2 000 campos vacíos.
+> Ahí el **reporte de §11.1** deja de ser un extra y pasa a ser la **única
+> forma** de que la cola sea manejable.
+
+### Pendientes que deja
+
+| # | Qué |
+|---|---|
+| a | ~~¿Cuántos candidatos cumplen el trío?~~ ✅ **Medido** → arriba. |
+| b | ~~¿La dirección se deriva de las coordenadas?~~ ✅ **Sí** → el trío es `nombre + teléfono + punto`. |
+| c | ~~Modelo de "pendiente"~~ ✅ **Calculado + `procedencia`**, sin campos nuevos. |
+| d | **Duplicados**: el automático publica antes → deduplicación obligatoria **antes** de publicar. |
+| e | **Teléfono equivocado publicado es peor que no publicarlo.** El trío es un mínimo, no una garantía. |
+| f | **¿El teléfono es obligatorio para publicar?** — ya no es teoría: sin exigirlo entran **101**, exigiéndolo entran **17**. |
+| g | **¿Qué pasa con los candidatos que NO cumplen el trío?** — ¿se importan en revisión o no entran? |
+| h | ~~Medición de producción~~ ✅ **Hecha** → **131 a 5 km, 322 a 10 km**. |
+| i | **El reporte de §11.1 no se puede generar hoy**: el serializer de lista **no expone `hours[]`** (solo sale en `/businesses/<slug>/`). Hay que **ampliar el serializer** o el reporte haría 325 llamadas de detalle. |
+| j | **⚠️ Lo que R1 cuesta, medido**: a un punto fijo **R1 descarta 194 de las 325 fichas (60 %)**. Correcto si el usuario está en el centro — **pero si el punto activo es la cabecera y él vive en las afueras, no ve ni un negocio de su barrio.** → ¿R1 tal cual, o el radio varía según el modo? |
+
+---
+
+## 11. Correctores (R6)
+
+> Aprobado junto con R5. **Dos piezas**: un **reporte de pendientes por
+> municipio** y un **formulario de corrector**.
+
+### 11.1 — Reporte de pendientes por municipio
+
+El sistema calcula, **municipio a municipio**, qué le falta a cada ficha, y lo
+sirve como **ficha de trabajo** para el corrector asignado.
+
+- **Sale de lo ya decidido**: §9 da el municipio y su cabecera; R5 da el trío y
+  los campos pendientes. **Es un cálculo — no hay que guardar nada nuevo.**
+- **Contenido**: municipio + cabecera + círculo de 5 km · fichas con pendientes
+  agrupadas por **campo faltante** · nombre, punto, procedencia.
+- **Formato**: en pantalla o exportable, para **pasárselo a los correctores**.
+
+**Implicación que no se ve a primera vista:** el reporte **por municipio**
+implica un **reparto** — si dos correctores toman el mismo municipio →
+duplicados (pendiente *d* de R5). Lo natural: **un municipio = un corrector**.
+
+### 11.2 — Formulario del corrector
+
+| | |
+|---|---|
+| **Quién** | corrector **contratado** — no el visitante anónimo |
+| **Qué hace** | abre su municipio → ve la lista de pendientes → rellena campo a campo |
+| **Adónde va** | **envía al admin** → el **admin aprueba y publica** |
+| **Alcance** | solo su municipio |
+
+### 11.3 — Dos canales, no uno
+
+| Canal | Quién | Qué hace | Publica |
+|---|---|---|---|
+| **Corrección pública** *(ya existe)* | visitante **anónimo** | reporta un **error** en una ficha publicada | admin |
+| **Formulario de corrector** *(nuevo)* | corrector **contratado** | **rellena lo que falta** | admin |
+
+Los dos caen en **la misma bandeja del admin**. `VISION.md` sigue intacto.
+
+### 11.4 — Decisiones que abre
+
+| # | Qué decidir |
+|---|---|
+| i | **Identificación del corrector.** La web es anónima; un contratado necesita identificarse. *«Sin login» era una decisión sobre la **experiencia pública**, no sobre los **trabajadores**.* |
+| j | **Sobre qué trabaja.** Si R5 publicó la ficha sola, el corrector aporta un **dato** → admin *aprueba el dato*. Si nunca cumplió trío, está **en revisión** → admin *publica la ficha*. **Son dos acciones distintas en el admin.** |
+| k | **Municipios sin corrector.** El reporte existe pero nadie lo toma → vacío → overlay. Cuántos correctores y cuántos municipios = decisión de cobertura. |
