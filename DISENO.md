@@ -169,7 +169,7 @@ web → `a9142b7` Android).
 | # | Qué | Nota |
 |---|---|---|
 | 1 | ~~Fuente de cabeceras municipales~~ | ✅ **Resuelta** → `backend/data/cabeceras_municipales.csv` (158 filas). Ver §9. |
-| 2 | **Cobertura de datos por municipio** | **En curso** → R5 (publicación automática) + R6 (correctores). Ver §10–§11. |
+| 2 | **Cobertura de datos por municipio** | **En curso** → R5 publica solo lo que cumple el trío **en todo el país**; lo que no cumple va al reporte por municipio. R6 queda como **canal de envío** (§11.5), con **correctores asignados: ninguno por ahora**. Ver §10–§11. |
 | 3 | **Destacados** | Atada al 2: marcar más no sirve fuera de donde hay datos. |
 | 4 | Confirmación: destino elegido + reabrir **con GPS** → ¿se reanuda? | R3.6 literal → **no, vuelve a tu GPS**. |
 
@@ -297,6 +297,16 @@ categoría fina…) → se marcan **pendientes** → entran en la cola de correc
 > **La dirección no se exige**: el punto geográfico la sustituye. En la RD la
 > dirección formal casi no existe — la gente dice *"detrás del parque"*.
 
+### Ámbito y umbrales (decidido)
+
+- **Todo el país**, no solo donde hoy hay fichas: poblar la base con
+  todos los negocios que encontremos **y que cumplan el trío**.
+- **El teléfono es obligatorio** — no es un extra: es el segundo
+  elemento del trío. Sin exigirlo entrarían candidatos a los que no se
+  puede llamar.
+- **Los que no cumplen no se descartan**: van al reporte de §11.1,
+  agrupados **por municipio**, para ir editándolos y publicándolos a mano.
+
 ### Lo que NO cambia
 
 - Creación manual → sigue `En Revisión` → **el admin publica** (`VISION.md` intacto).
@@ -387,11 +397,11 @@ Cubren los dos casos (*falta* y *entra sin verificar*) **sin campos nuevos**.
 | c | ~~Modelo de "pendiente"~~ ✅ **Calculado + `procedencia`**, sin campos nuevos. |
 | d | **Duplicados**: el automático publica antes → deduplicación obligatoria **antes** de publicar. |
 | e | **Teléfono equivocado publicado es peor que no publicarlo.** El trío es un mínimo, no una garantía. |
-| f | **¿El teléfono es obligatorio para publicar?** — ya no es teoría: sin exigirlo entran **101**, exigiéndolo entran **17**. |
-| g | **¿Qué pasa con los candidatos que NO cumplen el trío?** — ¿se importan en revisión o no entran? |
+| f | ~~¿El teléfono es obligatorio para publicar?~~ ✅ **Sí**, porque es el propio trío. En el círculo de Moca: exigiéndolo entran **17**, no exigiéndolo **101** de las que **84 no se podrían llamar**. |
+| g | ~~¿Los candidatos que NO cumplen el trío?~~ ✅ **No se descartan**: entran al reporte por municipio (§11.1) para editarlos y publicarlos a mano. |
 | h | ~~Medición de producción~~ ✅ **Hecha** → **131 a 5 km, 322 a 10 km**. |
-| i | **El reporte de §11.1 no se puede generar hoy**: el serializer de lista **no expone `hours[]`** (solo sale en `/businesses/<slug>/`). Hay que **ampliar el serializer** o el reporte haría 325 llamadas de detalle. |
-| j | **⚠️ Lo que R1 cuesta, medido**: a un punto fijo **R1 descarta 194 de las 325 fichas (60 %)**. Correcto si el usuario está en el centro — **pero si el punto activo es la cabecera y él vive en las afueras, no ve ni un negocio de su barrio.** → ¿R1 tal cual, o el radio varía según el modo? |
+| i | ~~El reporte de §11.1 no se puede generar hoy~~ ✅ **Endpoint de reporte en el backend**: una consulta, sin inflar el serializer de lista ni hacer 325 llamadas de detalle. |
+| j | ~~⚠️ Lo que R1 cuesta (194 de 325, 60 %)~~ ✅ **R1 tal cual: 5 km siempre.** Ese 60 % mide que solo hay datos en **un** municipio, no que el radio esté mal: al poblar los 158 cada uno se busca desde **su propia** cabecera y el descarte se derrumba solo. |
 
 ---
 
@@ -435,8 +445,49 @@ Los dos caen en **la misma bandeja del admin**. `VISION.md` sigue intacto.
 
 ### 11.4 — Decisiones que abre
 
-| # | Qué decidir |
-|---|---|
-| i | **Identificación del corrector.** La web es anónima; un contratado necesita identificarse. *«Sin login» era una decisión sobre la **experiencia pública**, no sobre los **trabajadores**.* |
-| j | **Sobre qué trabaja.** Si R5 publicó la ficha sola, el corrector aporta un **dato** → admin *aprueba el dato*. Si nunca cumplió trío, está **en revisión** → admin *publica la ficha*. **Son dos acciones distintas en el admin.** |
-| k | **Municipios sin corrector.** El reporte existe pero nadie lo toma → vacío → overlay. Cuántos correctores y cuántos municipios = decisión de cobertura. |
+| # | Qué decidir | Decisión |
+|---|---|---|
+| i | **Identificación del corrector.** | ✅ **No hay acceso: hay envío.** Herramienta de levantamiento que manda datos al backend. El colaborador no ve nada — ni fichas, ni admin, ni reportes ajenos. |
+| j | **Sobre qué trabaja.** | ✅ **Completa → envía → el sistema valida → publica.** La persona **nunca** publica: si el dato no está completo y correcto, no entra. |
+| k | **Municipios sin corrector.** | ✅ **Correctores asignados: ninguno por ahora.** El canal se construye completo hoy; el reparto, cuando haya con quién. |
+
+### 11.5 — El canal de envío (decidido)
+
+**Es un canal de escritura, no un acceso.** Quien lo usa no entra al
+sistema: nada de login, nada de admin, nada de lectura. Solo empuja.
+
+```
+Herramienta de levantamiento (el colaborador recoge los datos)
+        │  envía   ← única acción posible
+        ▼
+POST público validado  +  token que firma el envío
+        │
+        ├─ validación estructural FALLA
+        │    (teléfono malformado · coordenadas fuera del municipio
+        │     declarado · sin nombre · duplicado)
+        │        → RECHAZADO en la puerta, con el motivo
+        │          No llega a quedar "pendiente": no entra.
+        │
+        ├─ pasa la validación pero LE FALTA EL TRÍO
+        │        → queda PENDIENTE en el reporte de ese municipio
+        │          (§10-g: no se descarta, se edita a mano)
+        │
+        └─ pasa la validación Y cumple el trío
+                 → PUBLICADO solo
+```
+
+**Tres reglas:**
+
+1. **Token por colaborador, no login.** Cada quien recibe una clave que
+   **firma** el envío. No abre nada: dice *"esto lo mandó X"*. Sirve para
+   auditar y para bloquear a uno sin cerrar a los demás. **Firma ≠
+   acceso.**
+2. **Validar antes de aceptar, no después.** Un dato malformado no se
+   queda en ninguna cola: se rechaza en la puerta con el motivo.
+3. **El reporte de §11.1 es la bandeja de edición**, municipio a
+   municipio. Ahí se arregla y se publica a mano lo que no llegó a
+   cumplir el trío.
+
+**Y lo que NO es:** no hay endpoint de lectura para el colaborador, ni
+permiso que le deje consultar el admin. Si mañana hace falta ver cosas,
+eso es otro canal y otra decisión.
