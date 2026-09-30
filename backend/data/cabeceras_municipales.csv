@@ -1,0 +1,159 @@
+provincia,municipio,fuente,metodo,lat,lng,referencia,dist_centroide_km
+Puerto Plata,Altamira,ayuntamiento,nombre,19.6719544,-70.8307027,Ayuntamiento de Altamira,3.7
+Duarte,Arenoso,nodo_lugar,exacto,19.1881697,-69.8586956,town,9.5
+Azua,Azua,ayuntamiento,proximidad,18.4150272,-70.8271353,Proyecto 4,0.4
+Santiago,Baitoa,nodo_lugar,exacto,19.3279513,-70.7043458,town,2.6
+Peravia,Baní,ayuntamiento,nombre,18.2792977,-70.3329717,Ayuntamiento Municipal de Bani,11.2
+Elías Piña,Bánica,nodo_lugar,exacto,19.0810727,-71.7022318,town,8.5
+Barahona,Barahona,centroide,exacto,18.1869233,-71.1335773,,0
+Monte Plata,Bayaguana,nodo_lugar,exacto,18.7529093,-69.6365956,town,11
+Santo Domingo,Boca Chica,ayuntamiento,nombre,18.4485069,-69.6090293,Ayuntamiento Municipal de Boca Chica,0.9
+San Juan,Bohechío,nodo_lugar,exacto,18.775779,-70.988678,town,14.9
+Monseñor Nouel,Bonao,ayuntamiento,nombre,18.937696,-70.4131288,Ayuntamiento de Bonao,2.9
+Barahona,Cabral,nodo_lugar,exacto,18.2486759,-71.2200608,town,6.8
+María Trinidad Sánchez,Cabrera,ayuntamiento,nombre,19.6424094,-69.9037515,Ayuntamiento Municipal de Cabrera,9.4
+San Cristóbal,Cambita Garabitos,ayuntamiento,nombre,18.4556727,-70.2028894,Ayuduntamiento de Cambita Garabitos,3.9
+Monte Cristi,Castañuelas,gubernamental,proximidad,19.7171012,-71.5001086,Edenorte,2.5
+Duarte,Castillo,nodo_lugar,exacto,19.2095499,-70.0271483,town,3.5
+Espaillat,Cayetano Germosén,ayuntamiento,nombre,19.3438112,-70.4823008,Ayuntamiento de Cayetano Germosén,0.7
+Sánchez Ramírez,Cevicos,nodo_lugar,exacto,19.0043972,-69.9760577,town,0.3
+Elías Piña,Comendador,ayuntamiento,nombre,18.8770209,-71.7027795,Ayuntamiento de Comendador; Elías Piña,6.9
+La Vega,Constanza,nodo_lugar,exacto,18.9065153,-70.7450797,city,7.2
+San Pedro de Macorís,Consuelo,nodo_lugar,exacto,18.5544182,-69.3003206,town,6.1
+Sánchez Ramírez,Cotuí,nodo_lugar,exacto,19.0583371,-70.1529752,city,7.7
+Independencia,Cristóbal,nodo_lugar,exacto,18.2948918,-71.293915,town,5.3
+Dajabón,Dajabón,gubernamental,nombre,19.5508957,-71.7118794,Centro de Aduanas - Dajabón,9.6
+Independencia,Duvergé,gubernamental,proximidad,18.324822,-71.5688084,Cuartel Bombero Forestal Puerto Escondido,3
+San Juan,El Cercado,gubernamental,proximidad,18.7240084,-71.5123391,Junta central electoral,2.7
+María Trinidad Sánchez,El Factor,ayuntamiento,nombre,19.3085708,-69.8889734,Ayuntamiento de El Factor,4.8
+Elías Piña,El Llano,ayuntamiento,nombre,18.8495369,-71.6321463,Ayuntamiento de San Rafael del Llano,5.7
+Barahona,El Peñón,gubernamental,proximidad,18.293785,-71.189892,Junta Central Electoral,1.4
+Dajabón,El Pino,nodo_lugar,exacto,19.4350475,-71.4756547,town,4.3
+El Seibo,El Seibo,ayuntamiento,nombre,18.7675887,-69.0386982,Ayutamiento de El Seibo,4.1
+Hato Mayor,El Valle,ayuntamiento,nombre,18.9830613,-69.3811874,Alcaldia El Valle (En Construccion),4.4
+Barahona,Enriquillo,nodo_lugar,exacto,17.8988867,-71.2338426,town,12.4
+Valverde,Esperanza,ayuntamiento,nombre,19.5783855,-70.9905237,Ayuntamiento de Esperanza,6.1
+Azua,Estebanía,nodo_lugar,exacto,18.455649,-70.6441201,town,10.7
+Sánchez Ramírez,Fantino,nodo_lugar,exacto,19.1236929,-70.3006027,town,2.4
+Barahona,Fundación,nodo_lugar,exacto,18.2857737,-71.1832421,town,3.8
+Bahoruco,Galván,ayuntamiento,nombre,18.5015739,-71.343882,Ayuntamiento de Galván,3.4
+Espaillat,Gaspar Hernández,ayuntamiento,nombre,19.627461,-70.2780485,Ayuntamiento Municipal Gaspar Hernandez,3.5
+Puerto Plata,Guananico,ayuntamiento,nombre,19.725118,-70.9227057,Ayuntamiento de Guananico,3.1
+Azua,Guayabal,nodo_lugar,exacto,18.7490705,-70.8363251,town,8
+San Pedro de Macorís,Guayacanes,nodo_lugar,exacto,18.4213748,-69.4586695,village,4.3
+La Romana,Guaymate,ayuntamiento,proximidad,18.5860085,-68.9808913,Ayuntamiento,2.4
+Monte Cristi,Guayubín,gubernamental,nombre,19.668605,-71.3970983,Edenorte Guayubin,10.7
+San Cristóbal,Haina,ayuntamiento,proximidad,18.4470478,-70.0374045,Ayuntamiento de El Carril,1.7
+Hato Mayor,Hato Mayor,gubernamental,nombre,18.7650698,-69.2545114,Gobernacion Provincial de Hato Mayor del Rey,10.1
+La Altagracia,Higüey,nodo_lugar,exacto,18.6131313,-68.7114484,city,13.6
+Elías Piña,Hondo Valle,ayuntamiento,proximidad,18.7166116,-71.6937612,Ayuntamiento Municipal,1.4
+Duarte,Hostos,centroide,laxo,19.1406504,-70.0203923,,0
+Puerto Plata,Imbert,nodo_lugar,exacto,19.7543933,-70.8296624,town,3.5
+Espaillat,Jamao Al Norte,nodo_lugar,exacto,19.635534,-70.4470881,town,4.4
+Santiago,Jánico,gubernamental,nombre,19.3250533,-70.8169446,Oficialia De Jánico,8.7
+Barahona,Jaquimeyes,nodo_lugar,exacto,18.3131101,-71.1618606,town,10.8
+La Vega,Jarabacoa,ayuntamiento,nombre,19.1236117,-70.6419734,Ayuntamiento de Jarabacoa,10.5
+La Vega,Jima Abajo,ayuntamiento,nombre,19.1274878,-70.3740461,Ayuntamiento Jima Abajo,3.1
+Independencia,Jimaní,nodo_lugar,exacto,18.493703,-71.8504935,city,2.1
+San Juan,Juan de Herrera,nodo_lugar,exacto,18.8743555,-71.2387564,town,4
+Elías Piña,Juan Santiago,nodo_lugar,exacto,18.7044168,-71.5896893,town,3.5
+Barahona,La Ciénaga,nodo_lugar,exacto,18.0681382,-71.104351,town,4.2
+Independencia,La Descubierta,ayuntamiento,nombre,18.569443,-71.729991,Ayuntamiento de La Descubierta,3.3
+Sánchez Ramírez,La Mata,gubernamental,nombre,19.1032821,-70.1729788,Ayuntamiento Municipal de Villa La Mata,4.3
+La Romana,La Romana,ayuntamiento,nombre,18.4234254,-68.9668071,Ayuntamiento de La Romana,3.5
+La Vega,La Vega,ayuntamiento,nombre,19.2248053,-70.5319649,Ayuntamiento Municipal de La Vega,4.1
+Valverde,Laguna Salada,ayuntamiento,nombre,19.6502399,-71.0981432,Ayuntamiento Laguna Salada,2.1
+Azua,Las Charcas,nodo_lugar,exacto,18.4479159,-70.6190196,town,9.9
+Duarte,Las Guáranas,nodo_lugar,exacto,19.1928954,-70.2089898,town,2.2
+San Juan,Las Matas de Farfán,nodo_lugar,exacto,18.8732633,-71.5225895,town,9.3
+Monte Cristi,Las Matas de Santa Cruz,nodo_lugar,exacto,19.6630773,-71.5080864,town,5
+Barahona,Las Salinas,nodo_lugar,exacto,18.2742664,-71.3176883,town,5.4
+Samaná,Las Terrenas,nodo_lugar,exacto,19.3110142,-69.543067,town,3.5
+Azua,Las Yayas de Viajama,nodo_lugar,exacto,18.6052559,-70.9358773,town,6.6
+Santiago,Licey al Medio,nodo_lugar,exacto,19.4287376,-70.5969035,town,2
+Dajabón,Loma de Cabrera,nodo_lugar,exacto,19.4203766,-71.6131436,town,1.8
+Santo Domingo,Los Alcarrizos,ayuntamiento,nombre,18.5226998,-70.0387477,Ayintamiento Los Alcarrizos,0.9
+San Cristóbal,Los Cacaos,nodo_lugar,exacto,18.5273415,-70.2959982,town,9.3
+Puerto Plata,Los Hidalgos,ayuntamiento,nombre,19.7391926,-71.0291893,Ayuntamiento de Los Hidalgos,1.8
+San Pedro de Macorís,Los Llanos,nodo_lugar,exacto,18.6206167,-69.495594,town,3.1
+Bahoruco,Los Ríos,ayuntamiento,nombre,18.5197454,-71.5893895,Ayuntamiento de Los Ríos,5.3
+Puerto Plata,Luperón,ayuntamiento,nombre,19.8921457,-70.9609472,Ayuntamiento de Luperón,5.5
+Monseñor Nouel,Maimón,ayuntamiento,nombre,18.9096724,-70.2769144,Ayutamiento de Maimón,2.8
+Valverde,Mao,centroide,exacto,19.5338026,-71.0384318,,0
+Peravia,Matanzas,ayuntamiento,nombre,19.3538614,-69.8298027,Ayuntamiento de San José de Matanzas,
+Independencia,Mella,nodo_lugar,exacto,18.3596768,-71.416801,village,7
+El Seibo,Miches,nodo_lugar,exacto,18.9851034,-69.0498566,town,7.7
+Espaillat,Moca,ayuntamiento,nombre,19.3963978,-70.5274397,Ayuntamiento de Moca,9.3
+Santiago Rodríguez,Monción,ayuntamiento,nombre,19.4104223,-71.1498271,Ayuntamiento de Monción,3.1
+Monte Cristi,Monte Cristi,centroide,exacto,19.7600787,-71.6731796,,0
+Monte Plata,Monte Plata,nodo_lugar,exacto,18.8101455,-69.7845099,city,9.2
+María Trinidad Sánchez,Nagua,nodo_lugar,exacto,19.3769296,-69.8462589,city,10
+Bahoruco,Neiba,ayuntamiento,nombre,18.4825434,-71.4205313,Ayuntamiento de Neiba,6.9
+San Cristóbal,Nigua,gubernamental,nombre,18.3802534,-70.0517841,Junta Central Electoral de San Gregorio de Nigua,4.1
+Peravia,Nizao,nodo_lugar,exacto,18.2471883,-70.2120446,town,2.6
+Pedernales,Oviedo,nodo_lugar,exacto,17.7901489,-71.4129089,municipality,7.7
+Azua,Padre Las Casas,nodo_lugar,exacto,18.7340803,-70.9431325,town,11.4
+Barahona,Paraíso,gubernamental,nombre,17.9913018,-71.166471,Ayuntamiento de Paraiso,6.2
+Dajabón,Partido,gubernamental,proximidad,19.4821696,-71.5466559,Edenorte,4
+Pedernales,Pedernales,ayuntamiento,nombre,18.036676,-71.7457285,Ayuntamiento de Pedernales,26.8
+Santo Domingo,Pedro Brand,nodo_lugar,exacto,18.5675493,-70.0921191,town,6.5
+Elías Piña,Pedro Santana,gubernamental,nombre,19.1051534,-71.6926869,Puesto y Control Fronterizo Pedro Santana,20.4
+Monte Cristi,Pepillo Salcedo,ayuntamiento,nombre,19.7015649,-71.7525119,Ayuntamiento de Pepillo Salcedo,10.7
+Azua,Peralta,nodo_lugar,exacto,18.581599,-70.7694411,town,1.8
+Monte Plata,Peralvillo,nodo_lugar,exacto,18.8199015,-70.0320025,town,5.2
+Monseñor Nouel,Piedra Blanca,ayuntamiento,nombre,18.8465995,-70.3158404,Ayuntamiento de Piedra Blanca,3.9
+Duarte,Pimentel,ayuntamiento,nombre,19.1819442,-70.1098593,Ayuntamineto Pimentel,4.4
+Barahona,Polo,nodo_lugar,exacto,18.0910049,-71.2792025,town,4.9
+Independencia,Postrer Río,ayuntamiento,nombre,18.5434309,-71.6362423,Ayuntamiento de Postrer Río,3.9
+Azua,Pueblo Viejo,nodo_lugar,exacto,18.4017076,-70.7677006,town,1.7
+Puerto Plata,Puerto Plata,gubernamental,nombre,19.7972827,-70.6928181,AYUNTAMIENTO DE PUERTO PLATA,9.7
+Santiago,Puñal,gubernamental,proximidad,19.4247395,-70.6508984,Departamento Regional Norte,3
+San Pedro de Macorís,Quisqueya,nodo_lugar,exacto,18.5550355,-69.4060738,town,1.6
+San Pedro de Macorís,Ramón Santana,nodo_lugar,exacto,18.5453901,-69.1807933,village,5.8
+San José de Ocoa,Rancho Arriba,nodo_lugar,exacto,18.6970365,-70.4465103,town,2
+Dajabón,Restauración,ayuntamiento,nombre,19.315722,-71.6936264,Ayuntamiento de Restauración,5.3
+María Trinidad Sánchez,Río San Juan,nodo_lugar,exacto,19.6452076,-70.0790459,town,8.7
+Hato Mayor,Sabana de la Mar,ayuntamiento,nombre,19.0605009,-69.3882887,Alcaldia de Sabana de la Mar,6.1
+Monte Plata,Sabana Grande de Boyá,ayuntamiento,nombre,18.947595,-69.7922921,Ayuntamiento de Sabana Grande de Boyá,3.5
+San Cristóbal,Sabana Grande de Palenque,nodo_lugar,exacto,18.2531641,-70.1658321,town,1
+Santiago,Sabana Iglesia,gubernamental,proximidad,19.3245138,-70.7365032,Central Hidroeléctrica Taveras,2.1
+San José de Ocoa,Sabana Larga,nodo_lugar,exacto,18.5850726,-70.4980819,town,8.5
+Azua,Sabana Yegua,centroide,exacto,18.4194344,-70.8983545,,0
+Santiago Rodríguez,Sabaneta,centroide,laxo,19.3691297,-71.3225848,,0
+Hermanas Mirabal,Salcedo,gubernamental,nombre,19.379039,-70.4154426,Gobernacion de Salcedo,7.8
+Samaná,Samaná,nodo_lugar,exacto,19.2036865,-69.3389611,city,6.8
+Santo Domingo,San Antonio de Guerra,nodo_lugar,exacto,18.5582836,-69.6998081,town,4.6
+San Cristóbal,San Cristóbal,gubernamental,proximidad,18.4272228,-70.1252191,Ministerio de Educacion,2
+Duarte,San Francisco de Macorís,nodo_lugar,exacto,19.2974432,-70.2573332,city,8.2
+Santiago,San José de las Matas,ayuntamiento,nombre,19.3380115,-70.9375394,Ayuntamiento de San José de las Matas,13.8
+San José de Ocoa,San José de Ocoa,nodo_lugar,exacto,18.546405,-70.5056703,city,1.7
+San Juan,San Juan,centroide,laxo,18.8972445,-71.2516323,,0
+San Pedro de Macorís,San Pedro de Macorís,ayuntamiento,nombre,18.4521561,-69.3109111,Ayuntamiento de San Pedro de Macorís,6.7
+La Altagracia,San Rafael del Yuma,nodo_lugar,exacto,18.4313161,-68.6748409,town,7.1
+Espaillat,San Víctor,gubernamental,nombre,19.4515267,-70.533289,Edenorte San Víctor,6
+Samaná,Sánchez,ayuntamiento,nombre,19.2265071,-69.6140497,Ayuntamiento de Sánchez,9.4
+Santiago,Santiago de los Caballeros,nodo_lugar,exacto,19.4508468,-70.6947386,city,10.2
+Distrito Nacional,Santo Domingo,ayuntamiento,nombre,18.5208448,-69.9153714,Ayuntamiento de Santo Domingo Norte,4.6
+Santo Domingo,Santo Domingo Este,ayuntamiento,proximidad,18.5050884,-69.8154303,Mini Alcaldía Mendoza,2.9
+Santo Domingo,Santo Domingo Norte,centroide,exacto,18.6121957,-69.9137678,,0
+Santo Domingo,Santo Domingo Oeste,gubernamental,proximidad,18.4636707,-69.9969478,Ministerio de Salud Publica Area VII,2.5
+Puerto Plata,Sosúa,nodo_lugar,exacto,19.7650434,-70.5160548,town,11.6
+Azua,Tábara Arriba,nodo_lugar,exacto,18.5703149,-70.8791527,town,11.2
+Bahoruco,Tamayo,nodo_lugar,exacto,18.395103,-71.2031706,town,10.2
+Santiago,Tamboril,ayuntamiento,nombre,19.4861763,-70.6112715,Ayuntamiento De Tamboril,1.4
+Hermanas Mirabal,Tenares,ayuntamiento,nombre,19.3721461,-70.3519356,Ayuntamiento De Tenares,9.4
+San Juan,Vallejuelo,nodo_lugar,exacto,18.6541152,-71.3344629,town,2.3
+Barahona,Vicente Noble,ayuntamiento,nombre,18.3828844,-71.179991,Ayuntamiento de Vicente Noble,9.7
+San Cristóbal,Villa Altagracia,gubernamental,nombre,18.670014,-70.1745058,Palacio Municipal Villa Altagracia,5.1
+Santiago,Villa Bisonó (Navarrete),centroide,laxo,19.5827028,-70.8787764,,0
+Santiago,Villa González,nodo_lugar,exacto,19.5397664,-70.7893364,town,2.9
+La Romana,Villa Hermosa,nodo_lugar,exacto,18.4482646,-69.0157575,town,2.8
+Puerto Plata,Villa Isabela,ayuntamiento,nombre,19.8221815,-71.0551638,Ayuntamiento de Villa Isabela,9.4
+Bahoruco,Villa Jaragua,gubernamental,nombre,18.4877654,-71.4795314,Junta Municipal Electoral y Oficialía de Villa Jaragua,6.4
+Santiago Rodríguez,Villa Los Almácigos,nodo_lugar,exacto,19.4088036,-71.4420305,town,8.1
+Puerto Plata,Villa Montellano,nodo_lugar,exacto,19.7323313,-70.5996545,town,3
+Duarte,Villa Riva,nodo_lugar,exacto,19.1807471,-69.9130519,town,6.4
+Hermanas Mirabal,Villa Tapia,nodo_lugar,exacto,19.30105,-70.4229142,town,3.1
+Monte Cristi,Villa Vásquez,nodo_lugar,exacto,19.7413777,-71.4455503,town,7.5
+San Cristóbal,Yaguate,nodo_lugar,exacto,18.3365675,-70.1799883,town,2.9
+Monte Plata,Yamasá,nodo_lugar,exacto,18.7698357,-70.0248777,town,6.2
