@@ -13,6 +13,11 @@ import './Home.css';
 // acota por arriba, pero se manda explicito porque la portada tambien
 // filtra por distancia y no debe depender de un default.
 const RADIO_KM = 5;
+
+// Debe coincidir con SearchPagination.page_size del backend. Si no, el
+// total de páginas sale inflado y "Siguiente" deja llegar a una página
+// vacía que solo muestra el overlay.
+const POR_PAGINA = 12;
 // R1.a disparo 3: refrescar cuando el usuario se aleja >= 500 m del ultimo
 // punto consultado.
 const UMBRAL_MOV_KM = 0.5;
@@ -367,7 +372,7 @@ export default function Home() {
       if (!vigente()) return;
       setBusinesses(data.results || []);
       setTotalResults(data.count || 0);
-      setTotalPages(Math.ceil((data.count || 0) / 9));
+      setTotalPages(Math.ceil((data.count || 0) / POR_PAGINA));
 
       // Destacados del buscador: R1.2 entran en el MISMO filtro de 5 km.
       const searchParams = {

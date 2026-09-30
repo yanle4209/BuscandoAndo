@@ -194,13 +194,17 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
 
         params = self.request.query_params
 
-        # Busqueda por texto
+        # Busqueda por texto. Mismos campos que featured_by_search: si los
+        # destacados buscan en la categoria y el listado no, "restaurante"
+        # enseña 2 destacados sobre "0 resultados" (lo contrario de que
+        # siempre haya resultados si estan disponibles).
         search = params.get('text') or params.get('search')
         if search:
             qs = qs.filter(
                 Q(name__icontains=search) |
                 Q(description__icontains=search) |
-                Q(short_description__icontains=search)
+                Q(short_description__icontains=search) |
+                Q(category__name__icontains=search)
             )
 
         # Filtrar por categoria

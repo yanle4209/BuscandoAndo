@@ -134,19 +134,32 @@ Principio rector: **si hay resultados disponibles, se enseñan — nunca tapados
 
 ## 6. Trabajo que se desprende
 
-| # | Trabajo | Dónde |
-|---|---|---|
-| 1 | `featured-by-search` acepta `lat`/`lng`/`radius` | backend |
-| 2 | Acotar `radius` a 5 (hoy default 10) | backend |
-| 3 | `radius: 10` → `5` | `Home.jsx` |
-| 4 | Quitar slider de radio | `SearchBar.jsx` |
-| 5 | Filtro Ciudad → selector que fija el punto activo | `SearchBar.jsx` |
-| 6 | Eliminar fallback `DR_CENTER` | `Home.jsx` |
-| 7 | Guardar "último punto consultado" + timestamp (throttle 30 s) | ambas |
-| 8 | Persistir municipio base en `localStorage` | web |
-| 9 | Quitar chip de 2 km | Android |
-| 10 | **Lista de cabeceras municipales** | *dato* |
-| 11 | **Destacados** (4 hoy, niveles 2–4, ninguno nivel 1) | *dato* |
+Cerrado en los tres commits del 30-09-2026 (`651e327` backend → `a80abb3`
+web → `a9142b7` Android).
+
+| # | Trabajo | Dónde | Estado |
+|---|---|---|---|
+| 1 | `featured-by-search` acepta `lat`/`lng`/`radius` | backend | ✅ también en web y Android (R1.2) |
+| 2 | Acotar `radius` a 5 (antes default 10) | backend | ✅ `parse_radio`, tope 5 |
+| 3 | `radius: 10` → `5` | `Home.jsx` | ✅ slider fuera, `RADIO_KM = 5` |
+| 4 | Quitar slider de radio | `SearchBar.jsx` | ✅ |
+| 5 | Filtro Ciudad → selector que fija el punto activo | `SearchBar.jsx` | ✅ fuera de "Filtros", un toque |
+| 6 | Eliminar fallback `DR_CENTER` | `Home.jsx` | ✅ sin punto → solo overlay |
+| 7 | Guardar "último punto consultado" + timestamp (throttle 30 s) | ambas | ✅ `useReducer` + throttle con *trailing* |
+| 8 | Persistir municipio base en `localStorage` | web | ✅ `buscandoando.municipio`, solo si no hay GPS |
+| 9 | Quitar chip de 2 km | Android | ✅ `HomeUiState.RADIO_KM = 5` |
+| 10 | **Lista de cabeceras municipales** | *dato* | ✅ `backend/data/cabeceras_municipales.csv` + `GET /api/cabeceras/` |
+| 11 | **Destacados** (4 hoy, niveles 2–4, ninguno nivel 1) | *dato* | ⏳ ver §7 |
+
+### Añadido en el camino
+
+| Trabajo | Dónde |
+|---|---|
+| El overlay sustituye a "No se encontraron negocios" y a la portada sin punto (a1/m2) | `Home.jsx` |
+| Aviso "elige tu municipio o activa tu ubicación" cuando no hay punto (R1.1) | `MapOverlay.jsx` |
+| Las frases del overlay dejan de nombrar Moca/Espaillat: se ven en los 158 | `MapOverlay.jsx` |
+| Efecto de `center` después del de marcas, para que el mapa reciente solo (R2.1) | `MapView.jsx` |
+| Guardia de secuencia para que una respuesta vieja no pise una nueva | `Home.jsx` |
 
 ---
 
