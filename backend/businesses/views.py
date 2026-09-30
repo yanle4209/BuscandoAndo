@@ -215,10 +215,10 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
             except (ValueError, TypeError):
                 qs = qs.filter(category__slug=category)
 
-        # Filtrar por ciudad (municipality)
-        city = params.get('city')
-        if city:
-            qs = qs.filter(location__municipality__icontains=city)
+        # `city` NO es filtro (R3.5): la ciudad ya es coordenadas + 5 km.
+        # Un filtro por nombre seria un segundo radio encubierto. Si un
+        # cliente con el JS viejo lo sigue mandando, se ignora.
+        # Ver FiltroCityTests.
 
         # Filtrar por estado operativo
         op_status = params.get('operational_status')
@@ -271,7 +271,6 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
         params = request.query_params
         search = params.get('text') or params.get('search')
         category = params.get('category')
-        city = params.get('city')
 
         now = timezone.now()
         qs = Business.objects.filter(
@@ -301,9 +300,7 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
             except (ValueError, TypeError):
                 qs = qs.filter(category__slug=category)
 
-        # Filter by city if provided
-        if city:
-            qs = qs.filter(location__municipality__icontains=city)
+        # R3.5: `city` tampoco aqui. Ver FiltroCityTests.
 
         # R1.2: los destacados del buscador entran en el MISMO filtro de 5 km
         # que los resultados normales. Sin coordenadas no se recorta (y sin
@@ -314,7 +311,7 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
             qs = negocios_en_radio(qs, lat, lng, parse_radio(params.get('radius')))
 
         # If no search filters, return empty
-        if not search and not category and not city:
+        if not search and not category:
             return Response([])
 
         # Escoger hasta 3 destacados, del mejor nivel al peor (1 -> 4).

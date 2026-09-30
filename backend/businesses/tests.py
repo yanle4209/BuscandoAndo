@@ -474,6 +474,81 @@ class BusquedaPorTextoTests(TestCase):
         self.assertEqual(self.abajo(text='restaurante'), {'Cocina Dona Rosa'})
 
 
+class FiltroCityTests(TestCase):
+    """R3.5: `city` dejo de ser filtro por nombre.
+
+    La ciudad ahora son coordenadas + 5 km. Si alguien sigue mandando
+    `city=Moca` (cliente con el JS cacheado) el parametro se ignora:
+    recortar por nombre seria un segundo radio encubierto, con un tamano
+    distinto en cada municipio.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(name='Publicado', slug='publicado')
+        cls.categoria = Category.objects.create(name='Restaurantes', slug='restaurantes')
+        cls.op_status = OperationalStatus.objects.create(name='Abierto', slug='abierto')
+
+    def make_business(self, name, municipio, *, featured=False, tier='2'):
+        biz = Business.objects.create(
+            name=name,
+            description=f'Descripcion de {name}',
+            short_description=name,
+            category=self.categoria,
+            publication_status=self.publicado,
+            operational_status=self.op_status,
+            is_featured=featured,
+            featured_tier=tier if featured else None,
+            featured_permanent=featured,
+        )
+        BusinessLocation.objects.create(
+            business=biz,
+            municipality=municipio,
+            latitude=MOCA_LAT,
+            longitude=MOCA_LNG,
+        )
+        return biz
+
+    def test_el_listado_ignora_city(self):
+        self.make_business('De Moca', 'Moca')
+        self.make_business('De Santiago', 'Santiago')
+
+        data = self.client.get(BUSINESSES_URL, {'city': 'Moca'}).json()
+
+        self.assertEqual(data['count'], 2, 'city no debe recortar nada')
+
+    def test_los_destacados_tambien_lo_ignoran(self):
+        # Niveles distintos: featured-by-search coge UNO por nivel
+        # (`.first()` dentro de cada tier), asi que dos en el mismo
+        # solo dejarian ver uno y el test no estaria mirando `city`.
+        self.make_business('De Moca', 'Moca', featured=True, tier='2')
+        self.make_business('De Santiago', 'Santiago', featured=True, tier='3')
+
+        data = self.client.get(
+            FEATURED_BY_SEARCH_URL, {'city': 'Moca', 'text': 'De '}
+        ).json()
+
+        self.assertEqual(
+            sorted(b['name'] for b in data),
+            ['De Moca', 'De Santiago'],
+        )
+
+    def test_por_nivel_se_coge_solo_uno(self):
+        """Dos nivel 2 -> solo sale uno; la mezcla es de niveles, no de filas."""
+        self.make_business('De Moca', 'Moca', featured=True, tier='2')
+        self.make_business('De Santiago', 'Santiago', featured=True, tier='2')
+
+        data = self.client.get(FEATURED_BY_SEARCH_URL, {'text': 'De '}).json()
+
+        self.assertEqual(len(data), 1)
+
+    def test_sin_criterio_sigue_devolviendo_vacio(self):
+        """Quitar `city` no rompe la regla de que sin criterio no haya nada."""
+        self.make_business('De Moca', 'Moca', featured=True)
+
+        self.assertEqual(self.client.get(FEATURED_BY_SEARCH_URL).json(), [])
+
+
 class CabecerasApiTests(TestCase):
     """GET /api/cabeceras/ -> las cabeceras municipales del pais (R3).
 
