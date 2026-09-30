@@ -196,13 +196,6 @@ class HomeViewModel : ViewModel() {
         search(page = 1)
     }
 
-    /** Cambia el radio (km) y recarga: es un filtro más, como el chip. */
-    fun onRadiusChanged(km: Int) {
-        if (km == _uiState.value.radiusKm) return   // evita una recarga inútil
-        _uiState.update { it.copy(radiusKm = km) }
-        search(page = 1)
-    }
-
     // ─────────────── Acceso a datos ───────────────
 
     /**
@@ -227,7 +220,7 @@ class HomeViewModel : ViewModel() {
                     "BuscandoAndo",
                     "search page=$page text='${current.query}' cat=${current.selectedCategory?.id} " +
                         "lat=${current.myLat} lng=${current.myLng} " +
-                        "radiusKm=${current.radiusKm} cerca=${current.hasLocation}",
+                        "radio=${HomeUiState.RADIO_KM}km cerca=${current.hasLocation}",
                 )
 
                 // ── Fase 7: los DESTACADOS viajan EN PARALELO ──
@@ -240,11 +233,11 @@ class HomeViewModel : ViewModel() {
                 //
                 // Si no hay filtros el endpoint devuelve [] por contrato, así
                 // que ni lo pedimos: ahorramos una petición en la carga
-                // inicial, en cada página y en cada cambio de radio.
+                // inicial y en cada página.
                 val featuredJob = if (text == null && catId == null) {
                     null
                 } else {
-                    async { fetchFeaturedFor(text, catId) }
+                    async { fetchFeaturedFor(text, catId, current.myLat, current.myLng) }
                 }
 
                 val response = ApiClient.api.getBusinesses(
@@ -258,7 +251,7 @@ class HomeViewModel : ViewModel() {
                     // ifBlank { null } de "text").
                     lat = current.myLat,
                     lng = current.myLng,
-                    radius = if (current.hasLocation) current.radiusKm.toDouble() else null,
+                    radius = if (current.hasLocation) HomeUiState.RADIO_KM.toDouble() else null,
                 )
 
                 // Siempre llegamos aquí: `featuredJob` nunca falla (ver abajo).
@@ -301,10 +294,25 @@ class HomeViewModel : ViewModel() {
      *
      * En React sería un `try { ... } catch { return [] }` dentro de
      * un `Promise.allSettled`.
+     *
+     * Recibe lat/lng para que los DESTACADOS entren en el mismo
+     * círculo de 5 km que los normales (R1.2): si no, un destacado
+     * a 12 km aparecería sobre resultados que se cortaron en 5.
      */
-    private suspend fun fetchFeaturedFor(text: String?, category: Int?): List<Business> =
+    private suspend fun fetchFeaturedFor(
+        text: String?,
+        category: Int?,
+        lat: Double?,
+        lng: Double?,
+    ): List<Business> =
         try {
-            val featured = ApiClient.api.getFeaturedBySearch(text = text, category = category)
+            val featured = ApiClient.api.getFeaturedBySearch(
+                text = text,
+                category = category,
+                lat = lat,
+                lng = lng,
+                radius = if (lat != null && lng != null) HomeUiState.RADIO_KM.toDouble() else null,
+            )
             Log.d(TAG, "featured-by-search → ${featured.size} resultados")
             featured
         } catch (e: CancellationException) {

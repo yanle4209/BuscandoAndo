@@ -41,7 +41,7 @@ interface BuscandoAndoApi {
      *
      *  Ejemplos reales que genera:
      *   text="hotel"          -> /api/businesses/?text=hotel
-     *   lat=19.38&lng=-70.53  -> /api/businesses/?lat=19.38&lng=-70.53&radius=10
+     *   lat=19.38&lng=-70.53  -> /api/businesses/?lat=19.38&lng=-70.53&radius=5
      *   sin filtros           -> /api/businesses/?page=1&page_size=12
      */
     @GET("businesses/")
@@ -80,11 +80,18 @@ interface BuscandoAndoApi {
      * GET /api/businesses/featured-by-search/
      *  ⚠️ Este endpoint NO está paginado: devuelve un arreglo plano.
      *  Si no hay filtros, Django responde [] (vacío).
+     *
+     *  lat/lng/radius van igual que en getBusinesses: los destacados
+     *  se filtran dentro del MISMO círculo de 5 km (R1.2). Si no,
+     *  "Destacados" podría enseñar un sitio a 12 km de quien busca.
      */
     @GET("businesses/featured-by-search/")
     suspend fun getFeaturedBySearch(
         @Query("text") text: String? = null,
         @Query("category") category: Int? = null,
         @Query("city") city: String? = null,
+        @Query("lat") lat: Double? = null,
+        @Query("lng") lng: Double? = null,
+        @Query("radius") radius: Double? = null,
     ): List<Business>
 }

@@ -101,12 +101,6 @@ data class HomeUiState(
     val myLat: Double? = null,
     val myLng: Double? = null,
 
-    /**
-     * Radio de búsqueda en KILOMETROS.
-     * (El API lo interpreta en km: radius=1 -> 20 negocios, 5 -> 132.)
-     */
-    val radiusKm: Int = 5,
-
     // ───────────── Fase 7 · destacados ─────────────
 
     /**
@@ -155,18 +149,17 @@ data class HomeUiState(
         const val PAGE_SIZE = 12
 
         /**
-         * Opciones de radio (km) que ofrece la barra de ubicación.
+         * Radio de búsqueda en KILOMETROS: FIJO, no es un filtro.
          *
-         * Solo 2 y 5: son las únicas que de verdad filtran. Con
-         * lat/lng en Moca, la API devuelve:
+         * Decisión R1.3: la búsqueda es "a 5 km de donde estés" en
+         * TODAS las plataformas, así que el chip de 2 km se ha ido —
+         * con dos radios distintos la web y la app dejan de verse igual
+         * para la misma persona.
          *
-         *    2 km ->   89 de 325
-         *    5 km ->  132 de 325
-         *   10 km ->  322 de 325   (¡casi todo!)
-         *
-         * Más allá de 5 km el resultado se parece tanto a la búsqueda
-         * completa que el chip deja de significar algo.
+         * El valor lo fija la API de todos modos (`parse_radio` lo
+         * recorta a 5): mandar radius=10 devuelve lo mismo que radius=5.
+         * Aquí está para los logs y para el texto de la barra.
          */
-        val RADIUS_OPTIONS = listOf(2, 5)
+        const val RADIO_KM = 5
     }
 }

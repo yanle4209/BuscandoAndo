@@ -210,7 +210,6 @@ fun HomeScreen(
         onRetry = viewModel::onRetry,
         onOpenMap = onOpenMap,
         onMyLocation = { requestLocation() },
-        onRadiusChanged = viewModel::onRadiusChanged,
         onClearLocation = viewModel::onClearLocation,
         onOpenSettings = { openAppSettings() },
         onBusinessClick = { business ->
@@ -242,7 +241,6 @@ private fun HomeContent(
     onRetry: () -> Unit,
     onOpenMap: () -> Unit,
     onMyLocation: () -> Unit,
-    onRadiusChanged: (Int) -> Unit,
     onClearLocation: () -> Unit,
     onOpenSettings: () -> Unit,
     onBusinessClick: (Business) -> Unit,
@@ -286,7 +284,6 @@ private fun HomeContent(
         LocationBar(
             state = state,
             onRetry = onMyLocation,
-            onRadiusChanged = onRadiusChanged,
             onClear = onClearLocation,
             onOpenSettings = onOpenSettings,
         )
@@ -471,7 +468,7 @@ private fun HomeHeader(
  * Un único `when` exhaustivo para los tres casos:
  *
  *   Locating → "esperando el fix"      (spinner)
- *   Active   → radios + botón de quitar
+ *   Active   → "cerca de mí" + radio fijo de 5 km + botón de quitar
  *   Denied   → explicación + Reintentar + Ajustes
  *
  * El compilador de Kotlin garantiza que, si mañana añades un valor al
@@ -481,7 +478,6 @@ private fun HomeHeader(
 private fun LocationBar(
     state: HomeUiState,
     onRetry: () -> Unit,
-    onRadiusChanged: (Int) -> Unit,
     onClear: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -538,20 +534,15 @@ private fun LocationBar(
                     }
                 }
 
-                // Radios en km. Reutilizamos CategoryChip: en la app
-                // solo existe UNA pieza "chip", con distintos datos.
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
-                ) {
-                    items(HomeUiState.RADIUS_OPTIONS) { km ->
-                        CategoryChip(
-                            text = "$km km",
-                            selected = state.radiusKm == km,
-                            onClick = { onRadiusChanged(km) },
-                        )
-                    }
-                }
+                // El radio es FIJO (R1.3): sin chips que elegir. Aquí
+                // solo se dice en qué circulo se está buscando, para
+                // que "Cerca de mí" no suene a sin límite.
+                Text(
+                    text = stringResource(R.string.home_radius_fixed, HomeUiState.RADIO_KM),
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 2.dp, bottom = 12.dp),
+                )
             }
 
             LocationStatus.Denied -> {
