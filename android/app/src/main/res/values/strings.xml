@@ -46,7 +46,7 @@
     <string name="home_locating">Buscando tu ubicación…</string>
     <string name="home_near_me">Cerca de mí</string>
     <string name="home_location_clear">Quitar el filtro de cercanía</string>
-    <string name="home_radius_hint">Radio de búsqueda en kilómetros</string>
+    <string name="home_radius_fixed">Buscando a %1$d km a la redonda</string>
     <string name="home_location_denied">No pudimos obtener tu ubicación</string>
     <string name="home_location_denied_hint">Revisa el permiso de ubicación o los ajustes de GPS.</string>
     <string name="home_open_settings">Ajustes</string>
