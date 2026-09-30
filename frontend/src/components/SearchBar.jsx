@@ -1,8 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { claveCabecera } from '../municipios';
 import api from '../api/axios';
 import './SearchBar.css';
 
-export default function SearchBar({ filters, onSearch, onGeolocate, hasSearched }) {
+export default function SearchBar({
+  filters,
+  onSearch,
+  onGeolocate,
+  hasSearched,
+  cabeceras,
+  municipioClave,
+  onMunicipio,
+}) {
   const [text, setText] = useState(filters.text || '');
   const [categories, setCategories] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -12,6 +21,12 @@ export default function SearchBar({ filters, onSearch, onGeolocate, hasSearched 
       .then(({ data }) => setCategories(data.results || data))
       .catch(() => {});
   }, []);
+
+  // El texto se borra desde fuera cuando R3.2 resetea la busqueda: sin
+  // esto el input se quedaria con la busqueda que el sistema acaba de borrar.
+  useEffect(() => {
+    setText(filters.text || '');
+  }, [filters.text]);
 
   useEffect(() => {
     if (text === '' && hasSearched) {
@@ -28,13 +43,22 @@ export default function SearchBar({ filters, onSearch, onGeolocate, hasSearched 
     onSearch({ category: e.target.value });
   };
 
-  const handleRadiusChange = (e) => {
-    onSearch({ radius: parseInt(e.target.value) });
-  };
-
-  const handleCityChange = (e) => {
-    onSearch({ city: e.target.value });
-  };
+  // Las cabeceras llegan planas del API y se agrupan aqui: la agrupacion
+  // por provincia es cosa de la interfaz, no del backend.
+  const porProvincia = useMemo(() => {
+    const grupos = new Map();
+    (cabeceras || []).forEach((c) => {
+      if (!grupos.has(c.provincia)) grupos.set(c.provincia, []);
+      grupos.get(c.provincia).push(c);
+    });
+    return Array.from(grupos.entries())
+      .map(([provincia, lista]) => ({
+        provincia,
+        lista: lista.slice()
+          .sort((a, b) => a.municipio.localeCompare(b.municipio, 'es')),
+      }))
+      .sort((a, b) => a.provincia.localeCompare(b.provincia, 'es'));
+  }, [cabeceras]);
 
   return (
     <div className="search-bar-container">
@@ -77,6 +101,27 @@ export default function SearchBar({ filters, onSearch, onGeolocate, hasSearched 
         </button>
       </div>
 
+      {/* R1.1: sin GPS, elegir municipio es OBLIGATORIO. Por eso no vive
+          dentro de "Filtros" (que solo se abre tras buscar): quien niegue la
+          ubicacion tiene que llegar al selector en un toque, si no se queda
+          mirando el overlay sin salida. Sustituye al viejo filtro "Ciudad"
+          por nombre: la ciudad ahora son coordenadas + 5 km (R3.5). */}
+      <div className="filter-group municipio-group">
+        <label>Municipio</label>
+        <select value={municipioClave} onChange={(e) => onMunicipio(e.target.value)}>
+          <option value="">Elige tu municipio</option>
+          {porProvincia.map((grupo) => (
+            <optgroup key={grupo.provincia} label={grupo.provincia}>
+              {grupo.lista.map((c) => (
+                <option key={claveCabecera(c)} value={claveCabecera(c)}>
+                  {c.municipio}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+
       {showFilters && (
         <div className="filters-panel">
           <div className="filter-group">
@@ -88,25 +133,8 @@ export default function SearchBar({ filters, onSearch, onGeolocate, hasSearched 
               ))}
             </select>
           </div>
-          <div className="filter-group">
-            <label>Ciudad</label>
-            <input
-              type="text"
-              placeholder="ej. Santo Domingo"
-              value={filters.city}
-              onChange={handleCityChange}
-            />
-          </div>
-          <div className="filter-group">
-            <label>Radio: {filters.radius} km</label>
-            <input
-              type="range"
-              min="1"
-              max="20"
-              value={filters.radius}
-              onChange={handleRadiusChange}
-            />
-          </div>
+          {/* El radio ya no se elige: R1.3 lo fija en 5 km en las dos
+              plataformas y el backend lo acota por arriba. */}
         </div>
       )}
     </div>

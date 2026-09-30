@@ -62,13 +62,6 @@ export default function MapView({ businesses, selected, center, onMarkerClick, o
     }
   }, []);
 
-  // Update center when user location changes
-  useEffect(() => {
-    if (mapInstance.current && center) {
-      mapInstance.current.setView(center, mapInstance.current.getZoom());
-    }
-  }, [center]);
-
   // Update markers
   useEffect(() => {
     if (!mapInstance.current) return;
@@ -116,6 +109,17 @@ export default function MapView({ businesses, selected, center, onMarkerClick, o
       }
     }
   }, [businesses, selected]);
+
+  // Update center when the active point changes. Va DESPUES del efecto de
+  // marcas a proposito: al refrescar cambian a la vez el punto y los
+  // negocios, y el reciente del mapa (R2.1) tiene que ganarle al fitBounds.
+  // Con center estable (useMemo en Home) esto solo salta en un refresco, no
+  // en cada render, asi que se puede arrastrar el mapa.
+  useEffect(() => {
+    if (mapInstance.current && center) {
+      mapInstance.current.setView(center, mapInstance.current.getZoom());
+    }
+  }, [center]);
 
   // Cleanup
   useEffect(() => {
