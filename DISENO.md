@@ -154,7 +154,7 @@ Principio rector: **si hay resultados disponibles, se enseñan — nunca tapados
 
 | # | Qué | Nota |
 |---|---|---|
-| 1 | **Fuente de cabeceras municipales** | Plan: listado por provincia → OSM → fallback. *Previa a todo.* |
+| 1 | ~~Fuente de cabeceras municipales~~ | ✅ **Resuelta** → `backend/data/cabeceras_municipales.csv` (158 filas). Ver §9. |
 | 2 | **Cobertura de datos por municipio** | Pospuesta al final. *Puede invalidar lo decidido.* |
 | 3 | **Destacados** | Atada al 2: marcar más no sirve fuera de donde hay datos. |
 | 4 | Confirmación: destino elegido + reabrir **con GPS** → ¿se reanuda? | R3.6 literal → **no, vuelve a tu GPS**. |
@@ -199,3 +199,65 @@ Principio rector: **si hay resultados disponibles, se enseñan — nunca tapados
   solo overlay.
 - **a1** — fila de destacados solo si hay destacados en 5 km.
 - **m2** — mapa siempre junto a la lista en escritorio; en móvil solo sin resultados.
+
+---
+
+## 9. Cabeceras municipales — fuente y método
+
+**Archivo:** `backend/data/cabeceras_municipales.csv` — 158 filas, una por municipio.
+
+### Fuentes
+
+| Qué | De dónde |
+|---|---|
+| Lista de municipios **por provincia** | Wikipedia — *Municipios de la República Dominicana* (158 municipios, 32 provincias) |
+| Edificio de **ayuntamiento** | OpenStreetMap — `amenity=townhall` (97 en RD) |
+| Fallback: **edificio gubernamental** | OpenStreetMap — `office=government` (305 en RD) |
+| Fallback: **punto en el pueblo** | OpenStreetMap — `place=city\|town\|municipality\|village` (794) |
+| Último recurso | centroide del polígono municipal (OSM `admin_level=6`, 157) |
+
+### Cadena de preferencia
+
+1. `ayuntamiento` — edificio cuyo nombre contiene el municipio
+2. `ayuntamiento` — edificio a <4 km de la relación municipal
+3. `gubernamental` — ídem
+4. `nodo_lugar` — nodo de asentamiento con el **mismo nombre exacto**
+5. `centroide` — centroide del polígono
+
+### Validación
+
+Todo punto se contrasta contra el centroide de su polígono municipal.
+**Se descarta si está a >30 km** — eso detecta los emparejamientos falsos por
+colisión de nombre (*Cristóbal ↔ San Cristóbal* a 124 km, *Sabaneta* a 149 km,
+*Guayabal* a 75 km, *Consuelo* a 68 km). El umbral es generoso a propósito:
+*Pedernales* está a 26.8 km de su centroide y es correcto, porque el municipio es enorme.
+
+### Cobertura
+
+| Fuente | Municipios |
+|---|---|
+| `ayuntamiento` | **52** |
+| `gubernamental` | **22** |
+| `nodo_lugar` | **75** |
+| `centroide` | **9** |
+| sin nada | **0** |
+
+**149 de 158 (94 %) tienen el punto en el pueblo.** Ninguno se queda sin punto.
+
+### Filas a revisar manualmente
+
+Las 9 que cayeron al `centroide` no tienen asentamiento con nombre coincidente:
+*Barahona, Hostos, Mao, Monte Cristi, Sabana Yegua, Sabaneta, San Juan,
+Santo Domingo Norte, Villa Bisonó (Navarrete)*.
+
+**`dist_centroide_km`** es una pista, no un error: mide la distancia entre el
+punto elegido y el centroide del polígono. Muestra la **forma** del municipio,
+no la calidad del punto — *Baní* está a 11.2 km y su ayuntamiento es correcto.
+
+### Nota sobre el recuento
+
+Las cifras de municipios no coinciden entre fuentes: ONE 2021 dice **157**,
+el portal del Estado dice **158**, Wikipedia (2024) **158**, OSM modela **157**.
+Se usó Wikipedia (158) como canónica por venir con provincia ya asignada.
+OJO: `municipality` ≠ `distrito municipal` (235) — los distritos municipales
+**no** son cabeceras y no entran en este listado.
