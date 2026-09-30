@@ -141,6 +141,16 @@
   outline: none;
 }
 
-.filter-group input[type="range"] {
-  accent-color: var(--yellow);
+/* El selector de municipio va FUERA del panel de filtros: sin GPS, elegir
+   municipio es obligatorio (R1.1) y tiene que estar a un toque. */
+.municipio-group {
+  margin-top: 10px;
+}
+
+.municipio-group select {
+  cursor: pointer;
+}
+
+.filters-panel .filter-group {
+  min-width: 160px;
 }

@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import './MapOverlay.css';
 
+// Ninguna frase puede nombrar un municipio: el overlay se ve en los 158
+// (y en los que todavia no tienen fichas cargadas).
 const MESSAGES = [
-  'Encuentra los mejores negocios de Moca',
+  'Encuentra los mejores negocios cerca de ti',
   'Restaurantes, tiendas, servicios y mas',
   'Descubre lo que tu comunidad tiene para ofrecer',
-  'Tu guia de negocios en Espaillat',
+  'Tu guia de negocios en toda la República',
   'Conecta con los mejores profesionales',
-  'Explora Moca como nunca antes',
+  'Explora tu municipio como nunca antes',
 ];
 
-export default function MapOverlay({ visible }) {
+export default function MapOverlay({ visible, hint }) {
   const [msgIndex, setMsgIndex] = useState(0);
   const [fadeOut, setFadeOut] = useState(false);
 
@@ -55,6 +57,10 @@ export default function MapOverlay({ visible }) {
         <p className={`map-overlay__message ${fadeOut ? 'map-overlay__message--fade' : ''}`}>
           {MESSAGES[msgIndex]}
         </p>
+
+        {/* Sin punto activo no hay radio que trazar: hace falta decirle al
+            usuario que esa es la unica salida (R1.1). */}
+        {hint && <p className="map-overlay__hint">{hint}</p>}
 
         {/* Decorative dots */}
         <div className="map-overlay__dots">

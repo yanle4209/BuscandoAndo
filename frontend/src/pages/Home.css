@@ -167,6 +167,17 @@
   color: #888;
 }
 
+/* Overlay de "sin resultados": sustituye a "No se encontraron negocios"
+   (DISENO.md a1 / m2) y a la portada cuando no hay punto activo (R4.1).
+   El overlay es position:absolute, asi que este envoltorio es el ancla. */
+.sin-resultados {
+  position: relative;
+  grid-column: 1 / -1;
+  min-height: 420px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
 /* ===== BENTO GRID: 4 cols x 3 rows ===== */
 .mobile-overlay-wrapper {
   display: none;

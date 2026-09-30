@@ -79,6 +79,15 @@
   opacity: 0;
 }
 
+/* Aviso de "todavia no hay punto activo": es la salida, no decoracion. */
+.map-overlay__hint {
+  margin: 14px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--yellow);
+  letter-spacing: 0.4px;
+}
+
 /* Dots */
 .map-overlay__dots {
   display: flex;
