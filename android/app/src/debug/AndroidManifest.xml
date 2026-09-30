@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Manifest SOLO del buildType "debug".
+
+    Android 9+ (API 28+) bloquea por defecto el tráfico http:// claro.
+    En release NO hace falta: la app solo habla con
+    https://buscandoando.onrender.com.
+
+    En debug sí, para poder probar contra un backend local:
+
+        gradlew assembleDebug -PapiBaseUrl=http://10.0.2.2:8765/api/
+
+    (10.0.2.2 es el PC visto desde el emulador de Android.)
+
+    Los manifest de distintos buildTypes se MERGEAN: aquí solo
+    declaramos lo que queremos AÑADIR/sobrescribir.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application android:usesCleartextTraffic="true" />
+
+</manifest>

@@ -1,0 +1,59 @@
+<resources>
+    <string name="app_name">BuscandoAndo</string>
+    <string name="styleguide_title">Guía de Estilos</string>
+    <string name="styleguide_subtitle">Paleta oficial · modo oscuro</string>
+    <string name="stylegroup_brand">Colores de marca</string>
+    <string name="stylegroup_dark">Fondos y superficies</string>
+    <string name="stylegroup_text">Texto</string>
+    <string name="stylegroup_status">Estados operativos</string>
+    <string name="stylegroup_levels">Niveles de destacado</string>
+
+    <!-- ===== Fase 3 · Home ===== -->
+    <string name="home_search_hint">Buscar en Moca…</string>
+    <string name="home_search_label">Buscar negocios</string>
+    <string name="home_all_categories">Todas</string>
+    <string name="home_loading">Cargando…</string>
+    <string name="home_empty">No se encontraron resultados</string>
+    <string name="home_empty_hint">Prueba con otra palabra o quita los filtros</string>
+    <string name="home_error_retry">Reintentar</string>
+    <string name="home_page_of">Página %1$d de %2$d</string>
+    <string name="home_total_results">%1$d negocios</string>
+    <string name="home_prev_page">Página anterior</string>
+    <string name="home_next_page">Página siguiente</string>
+    <string name="home_no_image">Sin foto</string>
+    <string name="home_no_category">Sin categoría</string>
+
+    <!-- ===== Fase 4 · Detalle (hoja modal) ===== -->
+    <string name="detail_location">Ubicación</string>
+    <string name="detail_contact">Contacto</string>
+    <string name="detail_schedule">Horario</string>
+    <string name="detail_loading">Cargando detalle…</string>
+    <string name="detail_error">No se pudo cargar el detalle</string>
+    <string name="detail_closed_day">Cerrado</string>
+    <string name="detail_no_info">Sin información</string>
+    <string name="detail_close">Cerrar detalle</string>
+
+    <!-- ===== Fase 5 · Mapa ===== -->
+    <string name="home_open_map">Ver mapa de resultados</string>
+    <string name="map_title">Mapa</string>
+    <string name="map_back">Volver al listado</string>
+    <string name="map_counter">%1$d negocios</string>
+    <string name="map_no_coords">Ningún negocio de esta página tiene coordenadas</string>
+    <string name="map_legend">Toca un punto para ver el detalle</string>
+
+    <!-- ===== Fase 6 · GPS y permisos ===== -->
+    <string name="home_my_location">Buscar cerca de mí</string>
+    <string name="home_locating">Buscando tu ubicación…</string>
+    <string name="home_near_me">Cerca de mí</string>
+    <string name="home_location_clear">Quitar el filtro de cercanía</string>
+    <string name="home_radius_hint">Radio de búsqueda en kilómetros</string>
+    <string name="home_location_denied">No pudimos obtener tu ubicación</string>
+    <string name="home_location_denied_hint">Revisa el permiso de ubicación o los ajustes de GPS.</string>
+    <string name="home_open_settings">Ajustes</string>
+
+    <!-- ===== Fase 7 · destacados y acabado ===== -->
+    <string name="home_featured_title">Destacados para esta búsqueda</string>
+    <string name="card_level">Nivel %1$d</string>
+    <string name="home_search_clear">Borrar búsqueda</string>
+    <string name="home_categories_error">No se pudieron cargar las categorías</string>
+</resources>

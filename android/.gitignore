@@ -1,0 +1,50 @@
+# ============================================================
+#  BuscandoAndo · Android — qué NO subir a git
+#  (los comentarios van SIEMPRE en su propia línea: git no
+#   entiende comentarios al final de la línea, los trata como
+#   parte del patrón y dejaría de casar)
+# ============================================================
+
+
+# ── 1. Compilación: se regenera con ./gradlew, nunca se sube ──
+
+# "build/" SIN barra inicial casa CUALQUIER carpeta llamada build,
+# a cualquier profundidad: /build (raíz) y /app/build (el APK de
+# 21 MB y los intermediarios).
+build/
+.gradle/
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+
+# ── 2. Configuración propia de ESTA máquina ──
+
+# local.properties guarda la ruta al SDK de tu equipo. Si lo subes,
+# el build se rompe en cualquier otro ordenador.
+local.properties
+
+
+# ── 3. Android Studio / IntelliJ (se regenera solo al abrir) ──
+
+.idea/
+*.iml
+*.ipr
+*.iws
+
+
+# ── 4. Sistema ──
+
+.DS_Store
+Thumbs.db
+
+
+# ── 5. SEGURIDAD: las claves de firma NUNCA ──
+
+# Un .jks filtrado en un repo público permite a cualquiera firmar
+# actualizaciones "oficiales" de tu app. Sube esto por seguridad,
+# nunca por comodidad.
+*.jks
+*.keystore
+keystore.properties

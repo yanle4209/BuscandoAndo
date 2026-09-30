@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Alcance de flecha de una sola bandera (pin de ubicación).
+
+    Se pinta en NEGRO a propósito: el coloreamos en tiempo de ejecución
+    con DrawableCompat.setTint(...) según el estado del negocio
+    (verde = abierto, rojo = cerrado, naranja = por horario).
+
+    La punta está en (12, 23) = centro-hueco e inferior, así que el
+    áncora del Marker es ANCHOR_CENTER / ANCHOR_BOTTOM y la pinca
+    "clava" justo en las coordenadas del negocio.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="26dp"
+    android:height="26dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Cuerpo del pin -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M12,2C8.13,2 5,5.13 5,9c0,5.25 7,13 7,13s7,-7.75 7,-13c0,-3.87 -3.13,-7 -7,-7z" />
+
+    <!-- Agujero del centro -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,11.5A2.5,2.5 0,1 1,12 6.5A2.5,2.5 0,1 1,12 11.5z" />
+</vector>

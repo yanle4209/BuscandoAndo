@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ===== Paleta BuscandoAndo (usada por la ventana y widgets XML) ===== -->
+    <color name="canary_yellow">#B3B334</color>
+    <color name="grey_olive">#88898A</color>
+    <color name="chocolate_plum">#543335</color>
+    <color name="brand_black">#000600</color>
+    <color name="white_smoke">#F3F3F3</color>
+    <color name="dark_background">#1A1A1A</color>
+</resources>
