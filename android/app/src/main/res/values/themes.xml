@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Tema de la VENTANA (no de Compose).
+      Parent oscuro + windowBackground oscuro = no hay "destello blanco"
+      al abrir la app antes de que Compose pinte.
+    -->
+    <style name="Theme.BuscandoAndo" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/dark_background</item>
+        <item name="android:statusBarColor">@color/dark_background</item>
+        <item name="android:navigationBarColor">@color/dark_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
