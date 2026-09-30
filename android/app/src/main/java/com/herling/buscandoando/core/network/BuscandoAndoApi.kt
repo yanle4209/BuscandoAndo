@@ -50,7 +50,6 @@ interface BuscandoAndoApi {
         @Query("page_size") pageSize: Int = 12,
         @Query("text") text: String? = null,
         @Query("category") category: Int? = null,
-        @Query("city") city: String? = null,
         @Query("lat") lat: Double? = null,
         @Query("lng") lng: Double? = null,
         @Query("radius") radius: Double? = null,
@@ -89,7 +88,6 @@ interface BuscandoAndoApi {
     suspend fun getFeaturedBySearch(
         @Query("text") text: String? = null,
         @Query("category") category: Int? = null,
-        @Query("city") city: String? = null,
         @Query("lat") lat: Double? = null,
         @Query("lng") lng: Double? = null,
         @Query("radius") radius: Double? = null,

@@ -93,16 +93,17 @@ page                     ← se resetea a 1 en cada refresco (R2)
 |---|---|---|
 | Resultados | `/businesses/?lat&lng&radius` | ✅ sí |
 | Destacados de portada (R4.1) | `/businesses/?featured=true&lat&lng&radius` | ✅ sí |
-| Destacados del buscador (R1.2) | `/featured-by-search/` | ❌ **falta lat/lng/radius** |
+| Destacados del buscador (R1.2) | `/featured-by-search/` | ✅ sí |
 
-> **Choque 2:** `featured-by-search` solo entiende `text`, `category` y `city`.
-> R1.2 da por hecho que filtra por distancia. **Hay que añadirle el mismo
-> filtro haversine que ya usa `/businesses/`** — trabajo de backend no contado.
+> **Choque 2 (resuelto):** `featured-by-search` solo entendía `text`,
+> `category` y `city`. Ya recibe `lat`/`lng`/`radius` y aplica el mismo
+> haversine que `/businesses/`, así que los destacados entran en el
+> mismo círculo de 5 km (R1.2).
 
-> **Choque 4 — "ciudad" cambia de significado:**
-> hoy `city=Santiago` = *todo* el municipio (`icontains`); con R3.5 = círculo de
-> **5 km desde la cabecera**. Se ven menos negocios por búsqueda de ciudad. Es
-> lo decidido (R1), pero cambia lo que el usuario ve.
+> **Choque 4 (resuelto) — "ciudad" cambia de significado:**
+> antes `city=Santiago` = *todo* el municipio (`icontains`); ahora la
+> ciudad es **5 km desde la cabecera**. El parámetro `city` se ha
+> retirado del API (R3.5): mandarlo no recorta nada.
 
 > **Choque 5 — el radio por defecto es 10, no 5:** `radius` default `10` en el
 > backend y `radius: 10` en `Home.jsx`. Hoy **se busca a 10 km**.

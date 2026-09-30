@@ -30,10 +30,13 @@ backend/
 | GET | `/api/search/?q=...` | Buscar negocios |
 
 ### Filtros de búsqueda (en `/api/businesses/`)
-- `?search=restaurante` — Buscar por nombre/descripción/ciudad
+- `?text=restaurante` — Buscar por nombre, descripción o categoría (alias `?search=`)
 - `?category=restaurantes` — Filtrar por categoría
-- `?city=bogota` — Filtrar por ciudad
+- `?lat=19.40&lng=-70.53&radius=5` — Círculo de 5 km desde el punto activo
 - `?featured=true` — Solo destacados
+
+> `radius` se recorta a 5: pedir 10 devuelve lo mismo que pedir 5 (R1.3).
+> `?city=` **no es filtro** — la ciudad son coordenadas + 5 km (R3.5).
 
 ### Instalación
 ```bash
