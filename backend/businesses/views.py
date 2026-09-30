@@ -1,12 +1,25 @@
+import csv
 import math
+from functools import lru_cache
+
+from django.conf import settings
 from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from django.db.models import Case, IntegerField, Q, Value, When
 from django.utils import timezone
 from .models import Business, Correction
 from .serializers import BusinessListSerializer, BusinessDetailSerializer, CorrectionCreateSerializer, CorrectionSerializer
+
+# Radio de busqueda en km. R1: las busquedas son unica y exclusivamente a
+# 5 km del punto activo (la ubicacion del usuario; la cabecera municipal,
+# si no la hay). Lo impone el backend: el cliente puede pedir menos, nunca
+# mas. Ver DISENO.md R1.3.
+RADIO_KM = 5.0
+
+# Fuente estatica de las 158 cabeceras municipales (DISENO.md seccion 9).
+CABECERAS_CSV = settings.BASE_DIR / 'data' / 'cabeceras_municipales.csv'
 
 
 def is_featured_active(biz):
@@ -40,6 +53,52 @@ def haversine_distance(lat1, lng1, lat2, lng2):
          math.sin(dlng / 2) ** 2)
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
+
+
+def parse_radio(valor):
+    """Radio solicitado, siempre acotado a RADIO_KM.
+
+    Antes el codigo hacia ``float(params.get('radius', 10))`` sin comprobar
+    nada, y lo calculaba aunque no hubiera coordenadas: un ``?radius=abc``
+    devolvia un 500. Aqui cualquier no numerico (o un radio negativo) cae en
+    el valor por defecto y lo que supere el tope se recorta.
+    """
+    try:
+        pedido = float(valor)
+    except (TypeError, ValueError):
+        return RADIO_KM
+    if pedido <= 0:
+        return RADIO_KM
+    return min(pedido, RADIO_KM)
+
+
+def negocios_en_radio(qs, lat, lng, radius_km):
+    """Recorta ``qs`` a los negocios a ``radius_km`` o menos del punto.
+
+    Haversine en Python, igual que ya se hacia: no hay PostGIS en el
+    proyecto y con el volumen actual no hace falta. Los negocios sin
+    ubicacion y con coordenadas invalidas quedan fuera del radio, que es
+    lo que quiere R1 (sin punto no hay cercania que calcular).
+    """
+    try:
+        user_lat = float(lat)
+        user_lng = float(lng)
+    except (TypeError, ValueError):
+        return qs
+
+    dentro = []
+    for biz in qs:
+        loc = getattr(biz, 'location', None)
+        if loc is None:
+            continue
+        biz_lat = getattr(loc, 'lat', None)
+        biz_lng = getattr(loc, 'lng', None)
+        if biz_lat is None or biz_lng is None:
+            continue
+        if haversine_distance(user_lat, user_lng, biz_lat, biz_lng) <= radius_km:
+            dentro.append(biz.id)
+
+    return qs.filter(id__in=dentro)
 
 
 class CorrectionViewSet(viewsets.ModelViewSet):
@@ -187,33 +246,13 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
                 )
             ).order_by('tier_ord', '-created_at')
 
-        # Filtrar por radio (haversine en Python)
+        # Filtrar por radio. R1: unica y exclusivamente a RADIO_KM del punto
+        # activo del usuario. Sin coordenadas no hay radio que aplicar (y el
+        # frontend no deberia consultar sin punto activo: DISENO.md R1.1).
         lat = params.get('lat')
         lng = params.get('lng')
-        radius_km = float(params.get('radius', 10))
-
         if lat and lng:
-            try:
-                user_lat = float(lat)
-                user_lng = float(lng)
-
-                business_ids = []
-                for biz in qs:
-                    loc = getattr(biz, 'location', None)
-                    if loc:
-                        biz_lat = loc.lat if hasattr(loc, 'lat') else getattr(loc, 'latitude', None)
-                        biz_lng = loc.lng if hasattr(loc, 'lng') else getattr(loc, 'longitude', None)
-                        if biz_lat and biz_lng:
-                            dist = haversine_distance(
-                                user_lat, user_lng,
-                                float(biz_lat), float(biz_lng)
-                            )
-                            if dist <= radius_km:
-                                business_ids.append(biz.id)
-
-                qs = qs.filter(id__in=business_ids)
-            except (ValueError, TypeError):
-                pass
+            qs = negocios_en_radio(qs, lat, lng, parse_radio(params.get('radius')))
 
         return qs
 
@@ -262,6 +301,14 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
         if city:
             qs = qs.filter(location__municipality__icontains=city)
 
+        # R1.2: los destacados del buscador entran en el MISMO filtro de 5 km
+        # que los resultados normales. Sin coordenadas no se recorta (y sin
+        # busqueda no hay fila que devolver, que es la regla de abajo).
+        lat = params.get('lat')
+        lng = params.get('lng')
+        if lat and lng:
+            qs = negocios_en_radio(qs, lat, lng, parse_radio(params.get('radius')))
+
         # If no search filters, return empty
         if not search and not category and not city:
             return Response([])
@@ -278,3 +325,47 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
 
         serializer = BusinessListSerializer(result, many=True)
         return Response(serializer.data)
+
+
+@lru_cache(maxsize=1)
+def _cabeceras():
+    """Las cabeceras municipales del pais, leidas una sola vez del CSV.
+
+    El archivo ``backend/data/cabeceras_municipales.csv`` (DISENO.md
+    seccion 9) es una fuente estatica: municipio + provincia de Wikipedia,
+    cruzada con OpenStreetMap en este orden: ``amenity=townhall`` ->
+    ``office=government`` -> nodo ``place=*`` -> centroide. Se descarta
+    cualquier punto a mas de 30 km del centroide del poligono.
+
+    149 de los 158 apuntan al pueblo; los 9 restantes al centroide del
+    municipio. Se cachea para no releer el disco en cada llamada.
+    """
+    if not CABECERAS_CSV.exists():
+        return []
+    with CABECERAS_CSV.open(encoding='utf-8') as fh:
+        filas = csv.DictReader(fh)
+        return [
+            {
+                'provincia': (fila.get('provincia') or '').strip(),
+                'municipio': (fila.get('municipio') or '').strip(),
+                'lat': float(fila['lat']),
+                'lng': float(fila['lng']),
+            }
+            for fila in filas
+            if (fila.get('lat') or '').strip() and (fila.get('lng') or '').strip()
+        ]
+
+
+@api_view(['GET'])
+def cabeceras(request):
+    """Las cabeceras municipales de todo el pais (158).
+
+    Un dato, dos usos (DISENO.md R3):
+
+    * ancla del circulo de 5 km cuando el usuario no da su ubicacion, y
+    * fuente del selector manual de municipio.
+
+    Se devuelve una lista plana agrupable por el cliente: la agrupacion por
+    provincia es cosa de la interfaz, no del API.
+    """
+    return Response(_cabeceras())
