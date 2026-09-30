@@ -398,6 +398,82 @@ class RadioDeBusquedaTests(TestCase):
         self.assertEqual(data, [])
 
 
+class BusquedaPorTextoTests(TestCase):
+    """Listado y destacados tienen que casar con el mismo texto.
+
+    En produccion "restaurante" devolvia 0 resultados debajo y 2
+    destacados arriba: el listado buscaba en nombre/descripcion y el de
+    destacados anadia el nombre de la categoria. El usuario veia
+    "Destacados para esta buscar..." sobre "0 resultados", que es lo
+    contrario de que siempre haya resultados si estan disponibles.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(name='Publicado', slug='publicado')
+        cls.categoria = Category.objects.create(name='Restaurantes', slug='restaurantes')
+        cls.op_status = OperationalStatus.objects.create(name='Abierto', slug='abierto')
+
+    def make_business(self, name, *, featured, tier=None):
+        """Ni el nombre ni la descripcion contienen 'restaurante': solo la categoria."""
+        return Business.objects.create(
+            name=name,
+            description=f'Descripcion de {name}',
+            short_description=name,
+            category=self.categoria,
+            publication_status=self.publicado,
+            operational_status=self.op_status,
+            is_featured=featured,
+            featured_tier=tier,
+            featured_permanent=featured,
+        )
+
+    def abajo(self, **params):
+        data = self.client.get(BUSINESSES_URL, params).json()
+        return {b['name'] for b in data['results']}
+
+    def arriba(self, **params):
+        return {b['name'] for b in self.client.get(FEATURED_BY_SEARCH_URL, params).json()}
+
+    def test_el_listado_encuentra_por_nombre_de_categoria(self):
+        """'restaurante' no esta en el nombre: solo en 'Restaurantes'."""
+        self.make_business('Cocina Dona Rosa', featured=False)
+
+        data = self.client.get(BUSINESSES_URL, {'text': 'restaurante'}).json()
+
+        self.assertEqual(data['count'], 1)
+        self.assertEqual(data['results'][0]['name'], 'Cocina Dona Rosa')
+
+    def test_listado_y_destacados_no_se_contradicen(self):
+        """Lo que arriba es un subconjunto de lo de abajo, nunca al reves."""
+        self.make_business('Cocina Dona Rosa', featured=True, tier='2')
+        self.make_business('Comedor El Parque', featured=True, tier='3')
+
+        abajo = self.abajo(text='restaurante')
+        arriba = self.arriba(text='restaurante')
+
+        self.assertTrue(arriba, 'los destacados si encontraban')
+        self.assertTrue(
+            arriba <= abajo,
+            f'los destacados enseñan {sorted(arriba - abajo)} que el listado no ve',
+        )
+
+    def test_una_categoria_que_no_coincide_no_inventa_resultados(self):
+        """Buscar 'restaurante' no debe traer negocios de otra categoria."""
+        self.make_business('Cocina Dona Rosa', featured=False)
+        otra = Category.objects.create(name='Farmacias', slug='farmacias')
+        Business.objects.create(
+            name='Farmacia Central',
+            description='Medicinas',
+            short_description='Medicinas',
+            category=otra,
+            publication_status=self.publicado,
+            operational_status=self.op_status,
+        )
+
+        self.assertEqual(self.abajo(text='restaurante'), {'Cocina Dona Rosa'})
+
+
 class CabecerasApiTests(TestCase):
     """GET /api/cabeceras/ -> las cabeceras municipales del pais (R3).
 
