@@ -20,11 +20,13 @@ from categories.models import Category
 from operational_status.models import OperationalStatus
 from publication_status.models import PublicationStatus
 
+from business_locations.models import BusinessLocation
 from .models import Business, Correction
 
 BUSINESSES_URL = '/api/businesses/'
 FEATURED_BY_SEARCH_URL = '/api/businesses/featured-by-search/'
 CORRECTIONS_URL = '/api/corrections/'
+CABECERAS_URL = '/api/cabeceras/'
 
 
 class CorrectionApiTests(TestCase):
@@ -280,3 +282,156 @@ class FeaturedApiTests(TestCase):
         data = self.client.get(BUSINESSES_URL, {'featured': 'true'}).json()
 
         self.assertEqual(data['count'], 1)
+
+
+# Cabecera de Moca: el mismo punto con el que se midio la cobertura en
+# produccion (131 fichas a 5 km, 322 a 10 km, 325 en total).
+MOCA_LAT = 19.3964
+MOCA_LNG = -70.5274
+
+
+class RadioDeBusquedaTests(TestCase):
+    """R1: las busquedas son unica y exclusivamente a 5 km del punto activo.
+
+    Tres negocios a la misma longitud que Moca y a tres distancias
+    distintas, para poder afirmar sin ambiguedad que el corte es en 5 y no
+    en 10 (que era el default anterior):
+
+    * Cerca  19.4000 -> ~0.40 km
+    * Medio  19.4100 -> ~1.51 km
+    * Lejos  19.4500 -> ~5.97 km
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(name='Publicado', slug='publicado')
+        cls.category = Category.objects.create(name='Restaurantes', slug='restaurantes')
+        cls.op_status = OperationalStatus.objects.create(name='Abierto', slug='abierto')
+
+    def make_business(self, name, lat, lng, *, tier=None, featured=True):
+        biz = Business.objects.create(
+            name=name,
+            description=f'Descripcion de {name}',
+            short_description=name,
+            category=self.category,
+            publication_status=self.publicado,
+            operational_status=self.op_status,
+            is_featured=featured,
+            featured_tier=tier,
+            featured_permanent=featured,
+        )
+        BusinessLocation.objects.create(business=biz, latitude=lat, longitude=lng)
+        return biz
+
+    def setUp(self):
+        self.make_business('Cerca', 19.4000, MOCA_LNG, featured=False)
+        self.make_business('Medio', 19.4100, MOCA_LNG, featured=False)
+        self.make_business('Lejos', 19.4500, MOCA_LNG, featured=False)
+
+    def nombres(self, **params):
+        params.setdefault('lat', MOCA_LAT)
+        params.setdefault('lng', MOCA_LNG)
+        data = self.client.get(BUSINESSES_URL, params).json()
+        return sorted(b['name'] for b in data['results'])
+
+    def test_sin_radius_el_defecto_es_5_km_no_10(self):
+        """El default anterior era 10 y meteria 'Lejos' (~6 km)."""
+        self.assertEqual(self.nombres(), ['Cerca', 'Medio'])
+
+    def test_un_radius_mayor_no_amplia_el_circulo(self):
+        """R1.3: el radio es fijo en 5 km en las dos plataformas."""
+        self.assertEqual(self.nombres(radius=20), ['Cerca', 'Medio'])
+
+    def test_un_radius_mas_pequeno_si_se_respeta(self):
+        """Poder pedir menos si: el tope es el maximo, no el valor unico."""
+        self.assertEqual(self.nombres(radius=1), ['Cerca'])
+
+    def test_radius_basura_no_devuelve_500(self):
+        """Regresion: float('abc') revientaba el endpoint."""
+        response = self.client.get(
+            BUSINESSES_URL, {'lat': MOCA_LAT, 'lng': MOCA_LNG, 'radius': 'abc'}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            sorted(b['name'] for b in response.json()['results']),
+            ['Cerca', 'Medio'],
+        )
+
+    def test_sin_coordinadas_no_se_recorta(self):
+        """Sin punto activo no hay radio que aplicar (R1.1: no deberia
+        ocurrir, porque el frontend no consulta sin punto, pero no debe
+        romper)."""
+        response = self.client.get(BUSINESSES_URL, {'radius': 'abc'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['count'], 3)
+
+    def test_featured_by_search_tambien_filtra_por_radio(self):
+        """R1.2: los destacados del buscador entran en el mismo filtro."""
+        self.make_business('Destacado Cerca', 19.4000, MOCA_LNG, tier='1')
+        self.make_business('Destacado Lejos', 19.4500, MOCA_LNG, tier='2')
+
+        data = self.client.get(FEATURED_BY_SEARCH_URL, {
+            'text': 'Destacado', 'lat': MOCA_LAT, 'lng': MOCA_LNG,
+        }).json()
+
+        self.assertEqual([b['name'] for b in data], ['Destacado Cerca'])
+
+    def test_featured_by_search_sin_coordinadas_no_se_recorta(self):
+        """Sin lat/lng el endpoint se comporta como siempre."""
+        self.make_business('Destacado Cerca', 19.4000, MOCA_LNG, tier='1')
+        self.make_business('Destacado Lejos', 19.4500, MOCA_LNG, tier='2')
+
+        data = self.client.get(FEATURED_BY_SEARCH_URL, {'text': 'Destacado'}).json()
+
+        self.assertEqual(len(data), 2)
+
+    def test_featured_by_search_sigue_vacio_sin_criterio(self):
+        """El lat/lng es un recorte adicional, no un criterio de busqueda."""
+        self.make_business('Destacado Cerca', 19.4000, MOCA_LNG, tier='1')
+
+        data = self.client.get(
+            FEATURED_BY_SEARCH_URL, {'lat': MOCA_LAT, 'lng': MOCA_LNG}
+        ).json()
+
+        self.assertEqual(data, [])
+
+
+class CabecerasApiTests(TestCase):
+    """GET /api/cabeceras/ -> las cabeceras municipales del pais (R3).
+
+    Es el dato que hace que el sistema funcione en los 158 municipios y no
+    solo donde hay fichas cargadas: ancla del circulo de 5 km cuando no hay
+    GPS y fuente del selector manual.
+    """
+
+    def cabeceras(self):
+        response = self.client.get(CABECERAS_URL)
+        self.assertEqual(response.status_code, 200)
+        return response.json()
+
+    def test_es_publico_y_cubre_casi_todo_el_pais(self):
+        data = self.cabeceras()
+
+        # 158 municipios en el CSV; el corte se deja holgado para que un
+        # anadido futuro no rompa el test.
+        self.assertGreaterEqual(len(data), 150)
+
+    def test_toda_cabecera_es_un_punto_usable(self):
+        """Ninguna fila puede venirse abajo: sin municipio, sin provincia o
+        con coordenadas fuera de la Republica Dominicana inutilizan el
+        selector y el ancla del radio."""
+        for cab in self.cabeceras():
+            with self.subTest(municipio=cab['municipio']):
+                self.assertTrue(cab['municipio'].strip())
+                self.assertTrue(cab['provincia'].strip())
+                self.assertTrue(-72.5 <= cab['lng'] <= -68.0, cab)
+                self.assertTrue(17.0 <= cab['lat'] <= 20.5, cab)
+
+    def test_incluye_la_cabecera_de_moca(self):
+        """La cabecera con la que se midio la cobertura en produccion."""
+        moca = [c for c in self.cabeceras() if c['municipio'] == 'Moca']
+
+        self.assertEqual(len(moca), 1)
+        self.assertEqual(moca[0]['provincia'], 'Espaillat')
