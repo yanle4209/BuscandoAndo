@@ -163,7 +163,7 @@ def duplicado(indice, nombre, lat=None, lng=None):
     return None
 
 
-def enriquecer(negocio, datos):
+def enriquecer(negocio, datos, *, categoria=None):
     """Rellena en la ficha existente lo que le falta. **Nunca sobrescribe.**
 
     Es la otra mitad de §10-d: si la fuente trae el telefono y nosotros no
@@ -171,10 +171,19 @@ def enriquecer(negocio, datos):
     segunda por ese motivo. Al reves tambien: si nosotros ya lo teniamos,
     se queda lo nuestro.
 
+    Cubre **todos** los campos del reporte de §11.1, no solo el contacto:
+    si el formulario de la Fase D no pudiera completar nombre, punto,
+    categoria, descripcion o estado, el colaborador terminaria de llenar
+    un ficha y el reporte se quedaria marcandola igual, es decir no
+    acabaria nunca.
+
     Devuelve la lista de lo que se toco (vacía = no hizo falta nada).
 
     ``datos`` es el mismo diccionario que produce ``osm.a_datos`` y que
     arma el endpoint de levantamiento, para que los dos crucen igual.
+    ``categoria`` es opcional y viene **ya resuelta** por quien llama: el
+    importador la crea si no existe y el canal solo busca la que ya hay,
+    para que una errata no le abra una categoria nueva al sistema.
     """
     from business_contacts.models import BusinessContact
 
@@ -214,13 +223,68 @@ def enriquecer(negocio, datos):
         if not (loc.sector or '').strip() and datos.get('sector'):
             loc.sector = datos['sector']
             cambios.append('sector')
+        # El punto: los DOS juntos o ninguno. Un ficha a medias seria
+        # peor que una sin punto, porque pasaria la puerta del circulo
+        # sin tener sitio de verdad.
+        if (loc.latitude is None or loc.longitude is None) \
+                and datos.get('lat') is not None \
+                and datos.get('lng') is not None:
+            loc.latitude = datos['lat']
+            loc.longitude = datos['lng']
+            cambios.append('punto')
         if cambios:
-            loc.save(update_fields=cambios)
+            campos = [c for c in cambios if c != 'punto']
+            if 'punto' in cambios:
+                campos.extend(['latitude', 'longitude'])
+            loc.save(update_fields=campos)
             tocado.extend(cambios)
 
     if datos.get('horario') and not negocio.hours.exists():
         from .ingreso import poner_horario
         poner_horario(negocio, datos['horario'])
         tocado.append('horario')
+
+    # Lo que va en el propio negocio y todavia no tiene. Se guarda en una
+    # sola llamada porque son campos de la misma fila. Van DOS listas:
+    # `cambios` en el vocabulario del reporte (es lo que se devuelve como
+    # "completado") y `campos`, que es como se llaman de verdad en el
+    # modelo — `update_fields` no perdona un nombre inventado.
+    cambios = []
+    campos = []
+    if not (negocio.name or '').strip() and datos.get('nombre'):
+        negocio.name = datos['nombre']
+        cambios.append('nombre')
+        campos.append('name')
+    if not (negocio.description or '').strip() and datos.get('descripcion'):
+        negocio.description = datos['descripcion']
+        cambios.append('descripcion')
+        campos.append('description')
+    if negocio.category_id is None and datos.get('categoria'):
+        if categoria is None:
+            from categories.models import Category
+            categoria = Category.objects.filter(
+                name__iexact=datos['categoria'],
+            ).first()
+        if categoria is not None:
+            negocio.category = categoria
+            cambios.append('categoria')
+            campos.append('category')
+    if negocio.operational_status_id is None and datos.get('estado'):
+        from operational_status.models import OperationalStatus
+        operativo = OperationalStatus.objects.filter(
+            slug=datos['estado'],
+        ).first()
+        if operativo is not None:
+            negocio.operational_status = operativo
+            cambios.append('estado')
+            campos.append('operational_status')
+    if cambios:
+        # El slug se guarda solo si acaba de ponerse el nombre: sin el,
+        # un ficha que entro sin nombre se quedaria sin URL por mucho que
+        # ahora le llamemos Panaderia El Trigal.
+        if 'nombre' in cambios:
+            campos.append('slug')
+        negocio.save(update_fields=campos)
+        tocado.extend(cambios)
 
     return tocado

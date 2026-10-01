@@ -27,6 +27,21 @@ const VACIO = {
   web: '',
 };
 
+// El mismo cruce de nombres que hace el backend: "Baní" y "Bani" son el
+// mismo municipio. Aquí solo para amarrar la ficha elegida a su cabecera.
+const normal = (texto) => (texto || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, ' ')
+  .trim();
+
+// Lo que sin esto no se publica solo (§10-f). Marcarlo distinto al resto
+// porque completarlo es lo que saca la ficha del reporte.
+const TRIO = ['nombre', 'telefono', 'punto'];
+
+const CONTACTO = ['whatsapp', 'correo', 'web'];
+
 const aCoordenada = (valor) => {
   if (valor === '' || valor === null || valor === undefined) return null;
   const n = Number(valor);
@@ -54,11 +69,22 @@ export default function Levantamiento() {
   const [lng, setLng] = useState('');
   const [datos, setDatos] = useState(VACIO);
   const [franjas, setFranjas] = useState([]);
-  const [cerrado, setCerrado] = useState(false);
+  // El estado operativo que declara el formulario. Va como texto —antes
+  // era una casilla «está cerrado permanentemente»— porque el reporte
+  // cuenta `estado` como faltante y hay que poder completarlo.
+  const [estado, setEstado] = useState('');
   const [masDatos, setMasDatos] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState(null);
   const [geo, setGeo] = useState('');
+
+  // La ficha elegida en el reporte. CON ID el envío pasa a modo
+  // completar: se escribe en esa ficha, no se crea otra (Fase D).
+  const [fichaId, setFichaId] = useState(null);
+  const [fichaMunicipio, setFichaMunicipio] = useState('');
+  const [faltanFicha, setFaltanFicha] = useState([]);
+  const [cargandoFicha, setCargandoFicha] = useState(false);
+  const [avisoFicha, setAvisoFicha] = useState(null);
 
   // El reporte de su municipio: lo que le dice al colaborador que hacer.
   // Se pide con el MISMO token del envio — el backend solo devuelve el
@@ -66,6 +92,37 @@ export default function Levantamiento() {
   const [reporte, setReporte] = useState({
     fila: null, detalle: null, aviso: null, cargando: false,
   });
+
+  // Una sola carga, usada al validar el token y al refrescar: primero la
+  // fila del municipio y, si tiene pendientes, el detalle. El detalle va
+  // SOLO, sin esperar un clic: el token ya se validó, y eso es lo que
+  // hace que el reporte aparezca de inmediato.
+  const cargarReporte = async (t, vivo = () => true) => {
+    const { data } = await api.get('/pendientes/', {
+      headers: { 'X-Colaborador-Token': t },
+    });
+    if (!Array.isArray(data)) {
+      if (vivo()) {
+        setReporte({ fila: null, detalle: null, aviso: data?.detail || null, cargando: false });
+      }
+      return;
+    }
+    const fila = data[0] || null;
+    const espera = Boolean(fila) && fila.con_pendientes > 0;
+    if (vivo()) setReporte({ fila, detalle: null, aviso: null, cargando: espera });
+    if (!espera) return;
+    try {
+      const r = await api.get('/pendientes/', {
+        params: { municipio: fila.municipio },
+        headers: { 'X-Colaborador-Token': t },
+      });
+      if (vivo()) {
+        setReporte((x) => (x.fila === fila ? { ...x, detalle: r.data, cargando: false } : x));
+      }
+    } catch {
+      if (vivo()) setReporte((x) => ({ ...x, cargando: false }));
+    }
+  };
 
   useEffect(() => {
     const t = token.trim();
@@ -77,27 +134,18 @@ export default function Levantamiento() {
     // Con retardo: se teclea el token y sin esto se peticiona cada letra.
     const reloj = setTimeout(() => {
       setReporte((r) => ({ ...r, cargando: true }));
-      api.get('/pendientes/', { headers: { 'X-Colaborador-Token': t } })
-        .then(({ data }) => {
-          if (!vivo) return;
-          if (Array.isArray(data)) {
-            setReporte({ fila: data[0] || null, detalle: null, aviso: null, cargando: false });
-          } else {
-            setReporte({ fila: null, detalle: null, aviso: data.detail || null, cargando: false });
-          }
-        })
-        .catch((err) => {
-          if (!vivo) return;
-          // El 400 lo manda el propio backend con su mensaje («este token
-          // no tiene municipio»); el 401 es un token que no vale. El resto
-          // —malo, bloqueado, caído el servidor— lo dice el envío, que es
-          // la única acción que de verdad importa aquí.
-          const detalle = err.response?.status === 401
-            ? 'Token no válido o bloqueado. Pídelo al coordinador.'
-            : err.response?.status === 400
-              ? err.response.data?.detail : null;
-          setReporte({ fila: null, detalle: null, aviso: detalle, cargando: false });
-        });
+      cargarReporte(t, () => vivo).catch((err) => {
+        if (!vivo) return;
+        // El 400 lo manda el propio backend con su mensaje («este token
+        // no tiene municipio»); el 401 es un token que no vale. El resto
+        // —malo, bloqueado, caído el servidor— lo dice el envío, que es
+        // la única acción que de verdad importa aquí.
+        const detalle = err.response?.status === 401
+          ? 'Token no válido o bloqueado. Pídelo al coordinador.'
+          : err.response?.status === 400
+            ? err.response.data?.detail : null;
+        setReporte({ fila: null, detalle: null, aviso: detalle, cargando: false });
+      });
     }, 400);
     return () => { vivo = false; clearTimeout(reloj); };
   }, [token]);
@@ -105,16 +153,71 @@ export default function Levantamiento() {
   const verReporte = () => {
     const t = token.trim();
     setReporte((r) => ({ ...r, cargando: true }));
-    api.get('/pendientes/', {
-      params: { municipio: reporte.fila.municipio },
-      headers: { 'X-Colaborador-Token': t },
-    })
-      .then(({ data }) => setReporte((r) => ({ ...r, detalle: data, cargando: false })))
-      .catch((err) => setReporte((r) => ({
-        ...r,
-        aviso: err.response?.data?.detail || 'No se pudo leer el reporte.',
-        cargando: false,
+    cargarReporte(t).catch(() => setReporte((r) => ({
+      ...r,
+      aviso: 'No se pudo leer el reporte.',
+      cargando: false,
+    })));
+  };
+
+  // Un ficha concreta del reporte -> el formulario ya rellenado. El
+  // backend devuelve solo LA que se pidió (y solo si es de su municipio):
+  // poblar con las 148 de golpe sería mandar medio municipio a rellenar
+  // UNO.
+  const elegirFicha = async (e) => {
+    const id = e.target.value;
+    setResultado(null);
+    setAvisoFicha(null);
+    if (!id) {
+      setFichaId(null);
+      setFaltanFicha([]);
+      setFichaMunicipio('');
+      return;
+    }
+    setCargandoFicha(true);
+    try {
+      const { data } = await api.get('/pendientes/', {
+        params: { ficha: id },
+        headers: { 'X-Colaborador-Token': token.trim() },
+      });
+      setDatos({
+        nombre: data.nombre || '',
+        telefono: data.telefono || '',
+        calle: data.calle || '',
+        sector: data.sector || '',
+        descripcion: data.descripcion || '',
+        categoria: data.categoria || '',
+        whatsapp: data.whatsapp || '',
+        correo: data.correo || '',
+        web: data.web || '',
+      });
+      setLat(data.lat === null || data.lat === undefined ? '' : String(data.lat));
+      setLng(data.lng === null || data.lng === undefined ? '' : String(data.lng));
+      setEstado(data.operativo || '');
+      setFranjas((data.horario || []).map((h, i) => ({
+        id: `${data.id}-${i}`,
+        day: h.dia || '',
+        desde: h.desde || '',
+        hasta: h.hasta || '',
       })));
+      setFaltanFicha(Array.isArray(data.faltan) ? data.faltan : []);
+      setFichaMunicipio(data.municipio || '');
+      // El municipio sale solo: quien eligió la ficha no debería tener
+      // que reelegir lo que ya está claro.
+      const c = cabeceras.find((x) => normal(x.municipio) === normal(data.municipio));
+      if (c) setMunicipioClave(claveCabecera(c));
+      // WhatsApp, correo y web van escondidos detrás de un botón; si es
+      // lo que falta, hay que abrirlos sin que nadie lo busque.
+      setMasDatos((data.faltan || []).some((x) => CONTACTO.includes(x)));
+      setFichaId(Number(id));
+    } catch (err) {
+      setFichaId(null);
+      setFaltanFicha([]);
+      setFichaMunicipio('');
+      setAvisoFicha(err.response?.data?.detail || 'No se pudo abrir esa ficha.');
+    } finally {
+      setCargandoFicha(false);
+    }
   };
 
   // El token y las dos listas que rellenan el formulario. Sin token no se
@@ -158,9 +261,19 @@ export default function Levantamiento() {
       .sort((a, b) => a.provincia.localeCompare(b.provincia, 'es'));
   }, [cabeceras]);
 
+  // Mientras se completa una ficha, el municipio que manda es el de la
+  // ficha; si alguien lo cambia a mano, manda el que eligió.
+  const municipioActual = useMemo(() => {
+    if (fichaMunicipio) {
+      const c = cabeceras.find((x) => normal(x.municipio) === normal(fichaMunicipio));
+      if (c) return claveCabecera(c);
+    }
+    return municipioClave;
+  }, [fichaMunicipio, cabeceras, municipioClave]);
+
   const cabecera = useMemo(
-    () => cabeceras.find((c) => claveCabecera(c) === municipioClave) || null,
-    [cabeceras, municipioClave],
+    () => cabeceras.find((c) => claveCabecera(c) === municipioActual) || null,
+    [cabeceras, municipioActual],
   );
 
   const punto = useMemo(() => [aCoordenada(lat), aCoordenada(lng)], [lat, lng]);
@@ -216,7 +329,13 @@ export default function Levantamiento() {
   const limpiarFicha = () => {
     setDatos(VACIO);
     setFranjas([]);
-    setCerrado(false);
+    setEstado('');
+    setMasDatos(false);
+    // ...y se suelta la ficha elegida: lo que sigue empieza en blanco.
+    setFichaId(null);
+    setFaltanFicha([]);
+    setFichaMunicipio('');
+    setAvisoFicha(null);
   };
 
   const enviar = async (e) => {
@@ -231,10 +350,14 @@ export default function Levantamiento() {
       municipio: cabecera ? cabecera.municipio : '',
       lat: punto[0],
       lng: punto[1],
-      cerrado,
+      cerrado: estado === 'cerrado' || estado === 'cerrado-permanente',
+      estado,
       horario: franjas
         .filter((f) => f.day && f.desde && f.hasta)
         .map((f) => ({ dia: f.day, desde: f.desde, hasta: f.hasta })),
+      // Con id el backend va en modo completar: se escribe en ESA ficha
+      // (y solo si es del municipio del token).
+      ...(fichaId ? { ficha: fichaId } : {}),
     };
 
     try {
@@ -250,11 +373,16 @@ export default function Levantamiento() {
       // Listo para el siguiente: solo se borra la ficha, no el token ni
       // el municipio, que son lo que se repite en una ronda de campo.
       limpiarFicha();
+      // Y se relee el reporte enseguida — la ficha acaba de cambiar de
+      // estado, y de ahí sale el siguiente negocio a completar.
+      if (token.trim()) cargarReporte(token.trim()).catch(() => {});
     } catch (err) {
       const status = err.response?.status;
       const data = err.response?.data || {};
       if (status === 401) {
         setResultado({ tipo: 'firma', motivos: [data.detail || ''] });
+      } else if (status === 403) {
+        setResultado({ tipo: 'otro', motivos: [data.detail || ''] });
       } else if (status === 429) {
         setResultado({ tipo: 'techo', motivos: [data.detail || ''] });
       } else if (status === 400) {
@@ -273,6 +401,22 @@ export default function Levantamiento() {
   };
 
   const listo = token.trim() !== '' && datos.nombre.trim() !== '' && cabecera;
+
+  // Resaltado de lo que falta. Solo mientras se completa una ficha ya
+  // existente: en un alta nueva TODO está vacío y pintar la mitad del
+  // formulario sería puro ruido.
+  const falta = (campo) => fichaId !== null && faltanFicha.includes(campo);
+
+  const claseFalta = (...campos) => {
+    const hitos = campos.filter((c) => falta(c));
+    if (hitos.length === 0) return 'lev-field';
+    const trio = hitos.some((c) => TRIO.includes(c));
+    return `lev-field lev-field--falta${trio ? ' lev-field--trio' : ''}`;
+  };
+
+  const marca = (campo) => (falta(campo)
+    ? <span className="lev-falta-marca">falta</span>
+    : null);
 
   return (
     <div className="lev-page">
@@ -342,6 +486,32 @@ export default function Levantamiento() {
                       + `, ${reporte.fila.en_revision} esperando publicarse.`}
                 </p>
 
+                {/* El selector: la puerta al modo completar. Elegir una
+                    ficha puebla el formulario con lo que ya hay y le marca
+                    lo que falta; el envío va con su id. */}
+                {reporte.detalle && reporte.detalle.fichas.length > 0 && (
+                  <div className="lev-field lev-elegir">
+                    <label htmlFor="lev-elegir">Negocio a completar</label>
+                    <select id="lev-elegir" value={fichaId ?? ''} onChange={elegirFicha}>
+                      <option value="">— Elige uno de la lista —</option>
+                      {reporte.detalle.fichas.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.nombre}
+                          {f.faltan.length > 0 ? ` — le falta ${f.faltan.length}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {cargandoFicha && <p className="lev-aviso">Abriendo la ficha…</p>}
+                    {avisoFicha && <p className="lev-aviso">{avisoFicha}</p>}
+                    {fichaId !== null && (
+                      <small className="lev-elegir-nota">
+                        Formulario rellenado con lo que ya había. Lo marcado en amarillo es lo que
+                        todavía falta rellenar.
+                      </small>
+                    )}
+                  </div>
+                )}
+
                 {reporte.fila.total > 0 && reporte.fila.con_pendientes > 0 && (
                   <button type="button" className="lev-btn-ghost" onClick={verReporte}>
                     {reporte.detalle ? 'Actualizar' : `Ver las ${reporte.fila.con_pendientes} que le falta algo`}
@@ -390,8 +560,11 @@ export default function Levantamiento() {
             <label htmlFor="lev-municipio">Municipio</label>
             <select
               id="lev-municipio"
-              value={municipioClave}
-              onChange={(e) => setMunicipioClave(e.target.value)}
+              value={municipioActual}
+              onChange={(e) => {
+                setMunicipioClave(e.target.value);
+                setFichaMunicipio('');
+              }}
             >
               <option value="">Elige el municipio</option>
               {porProvincia.map((grupo) => (
@@ -414,7 +587,7 @@ export default function Levantamiento() {
               </svg>
               Usar mi ubicación
             </button>
-            <div className="lev-coordenadas">
+            <div className={`lev-coordenadas${falta('punto') ? ' lev-coordenadas--falta' : ''}`}>
               <input
                 aria-label="Latitud"
                 type="text"
@@ -448,8 +621,8 @@ export default function Levantamiento() {
           )}
 
           <div className="lev-row">
-            <div className="lev-field">
-              <label htmlFor="lev-calle">Calle</label>
+            <div className={claseFalta('direccion')}>
+              <label htmlFor="lev-calle">Calle {marca('direccion')}</label>
               <input id="lev-calle" type="text" value={datos.calle} onChange={cambiar('calle')} placeholder="Calle 1 #10" />
             </div>
             <div className="lev-field">
@@ -461,19 +634,19 @@ export default function Levantamiento() {
 
         <section className="lev-card">
           <h2 className="lev-card-title">El negocio</h2>
-          <div className="lev-field">
-            <label htmlFor="lev-nombre">Nombre *</label>
+          <div className={claseFalta('nombre')}>
+            <label htmlFor="lev-nombre">Nombre * {marca('nombre')}</label>
             <input id="lev-nombre" type="text" value={datos.nombre} onChange={cambiar('nombre')} placeholder="Panadería El Trigal" />
           </div>
 
           <div className="lev-row">
-            <div className="lev-field">
-              <label htmlFor="lev-telefono">Teléfono</label>
+            <div className={claseFalta('telefono')}>
+              <label htmlFor="lev-telefono">Teléfono {marca('telefono')}</label>
               <input id="lev-telefono" type="tel" value={datos.telefono} onChange={cambiar('telefono')} placeholder="809-555-1111" />
               <small>Sin teléfono no se publica solo: queda en el reporte.</small>
             </div>
-            <div className="lev-field">
-              <label htmlFor="lev-categoria">Categoría</label>
+            <div className={claseFalta('categoria')}>
+              <label htmlFor="lev-categoria">Categoría {marca('categoria')}</label>
               <select id="lev-categoria" value={datos.categoria} onChange={cambiar('categoria')}>
                 <option value="">La que ya exista</option>
                 {categorias.map((cat) => (
@@ -483,19 +656,25 @@ export default function Levantamiento() {
             </div>
           </div>
 
-          <div className="lev-field">
-            <label htmlFor="lev-descripcion">Descripción</label>
+          <div className={claseFalta('descripcion')}>
+            <label htmlFor="lev-descripcion">Descripción {marca('descripcion')}</label>
             <textarea id="lev-descripcion" rows={2} value={datos.descripcion} onChange={cambiar('descripcion')} placeholder="Pan artesanal, venta por libra" />
           </div>
 
-          <label className="lev-check">
-            <input type="checkbox" checked={cerrado} onChange={(e) => setCerrado(e.target.checked)} />
-            Está cerrado permanentemente
-          </label>
+          <div className={claseFalta('estado')}>
+            <label htmlFor="lev-estado">Estado {marca('estado')}</label>
+            <select id="lev-estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
+              <option value="">Sin decidir</option>
+              <option value="abierto">Abierto</option>
+              <option value="cerrado">Cerrado</option>
+              <option value="por-horario">Según horario</option>
+              <option value="cerrado-permanente">Cerrado permanentemente</option>
+            </select>
+          </div>
 
-          <div className="lev-horario">
+          <div className={`lev-horario${falta('horario') ? ' lev-horario--falta' : ''}`}>
             <div className="lev-horario-head">
-              <h3>Horario</h3>
+              <h3>Horario {marca('horario')}</h3>
               <button type="button" className="lev-btn-ghost" onClick={agregarFranja}>
                 + Añadir día
               </button>
@@ -531,16 +710,16 @@ export default function Levantamiento() {
 
           {masDatos && (
             <div className="lev-row">
-              <div className="lev-field">
-                <label htmlFor="lev-whatsapp">WhatsApp</label>
+              <div className={claseFalta('whatsapp')}>
+                <label htmlFor="lev-whatsapp">WhatsApp {marca('whatsapp')}</label>
                 <input id="lev-whatsapp" type="tel" value={datos.whatsapp} onChange={cambiar('whatsapp')} />
               </div>
-              <div className="lev-field">
-                <label htmlFor="lev-correo">Correo</label>
+              <div className={claseFalta('correo')}>
+                <label htmlFor="lev-correo">Correo {marca('correo')}</label>
                 <input id="lev-correo" type="email" value={datos.correo} onChange={cambiar('correo')} />
               </div>
-              <div className="lev-field">
-                <label htmlFor="lev-web">Sitio web</label>
+              <div className={claseFalta('web')}>
+                <label htmlFor="lev-web">Sitio web {marca('web')}</label>
                 <input id="lev-web" type="url" value={datos.web} onChange={cambiar('web')} />
               </div>
             </div>
@@ -587,6 +766,11 @@ const COMPLETADOS = {
   street: 'calle',
   sector: 'sector',
   horario: 'horario',
+  nombre: 'nombre',
+  descripcion: 'descripción',
+  categoria: 'categoría',
+  estado: 'estado operativo',
+  punto: 'punto',
 };
 
 function Resultado({ r }) {
@@ -596,6 +780,7 @@ function Resultado({ r }) {
     duplicado: ['Ya existía: se completó', 'lev-ok'],
     rechazado: ['No se aceptó', 'lev-malo'],
     firma: ['Token no válido', 'lev-malo'],
+    otro: ['A este token le toca otro municipio', 'lev-malo'],
     techo: ['Demasiados envíos', 'lev-malo'],
     'sin-red': ['Sin conexión', 'lev-malo'],
   }[r.tipo] || ['Respuesta', 'lev-malo'];
@@ -613,6 +798,12 @@ function Resultado({ r }) {
         </ul>
       )}
 
+      {completado.length > 0 && (
+        <p>
+          Se le completó: <strong>{completado.join(', ')}</strong>.
+        </p>
+      )}
+
       {r.tipo === 'pendiente' && faltan.length > 0 && (
         <p>
           Está en el reporte de su municipio. Le falta:{' '}
@@ -620,11 +811,9 @@ function Resultado({ r }) {
         </p>
       )}
 
-      {r.tipo === 'duplicado' && (
+      {r.tipo === 'duplicado' && completado.length === 0 && (
         <p>
-          {completado.length > 0
-            ? `Se le completó: ${completado.join(', ')}.`
-            : 'No había nada nuevo que añadir.'}
+          No había nada nuevo que añadir.
           {faltan.length > 0 && ` Aún le falta: ${faltan.join(', ')}.`}
         </p>
       )}
@@ -635,6 +824,9 @@ function Resultado({ r }) {
 
       {r.tipo === 'firma' && (
         <p>Revisa el token o pide que te reactive el tuyo.</p>
+      )}
+      {r.tipo === 'otro' && (
+        <p>Cada token trabaja su municipio. Elige una ficha de tu reporte.</p>
       )}
       {r.tipo === 'techo' && <p>Espera un minuto y vuelve a intentarlo.</p>}
       {r.tipo === 'sin-red' && <p>No se pudo hablar con el servidor. Intenta otra vez.</p>}

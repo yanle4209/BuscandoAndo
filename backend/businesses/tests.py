@@ -1631,3 +1631,258 @@ class CanalDeEnvioTests(TestCase):
         response = self.enviar(cliente=client)
 
         self.assertEqual(response.status_code, 201, response.content)
+
+
+class CompletarFichaTests(TestCase):
+    """Fase D: completar la ficha que YA existe (§11.1 + §11-i).
+
+    El colaborador no manda datos al aire: elige una ficha de SU reporte,
+    el formulario sale rellenado y lo que el rellena se escribe EN ESA
+    ficha. Las dos garantias que hay que proteger con mas cuidado son que
+    no se cree una segunda ficha por completar esta, y que no se escriba
+    en el municipio de otro.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado',
+        )
+        cls.en_revision = PublicationStatus.objects.create(
+            name='En Revision', slug='en-revision',
+        )
+        cls.abierto = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto',
+        )
+        cls.cerrado = OperationalStatus.objects.create(
+            name='Cerrado', slug='cerrado',
+        )
+        cls.category = Category.objects.create(
+            name='Panaderias', slug='panaderias',
+        )
+        cls.colaborador = Colaborador.objects.create(
+            nombre='Pedro', municipio='Moca',
+        )
+
+    # ------------------------------ utilidades -------------------------
+    def hacer_ficha(self, *, telefono='', descripcion='Pan artesanal',
+                    categoria=True, con_estado=True, municipio='Moca'):
+        """Una ficha en revision, con lo justo para que le falte algo."""
+        negocio = Business.objects.create(
+            name='Pan del Dia',
+            description=descripcion,
+            category=self.category if categoria else None,
+            publication_status=self.en_revision,
+            operational_status=self.abierto if con_estado else None,
+            procedencia='importado',
+        )
+        BusinessLocation.objects.create(
+            business=negocio, street='Calle 1 #10', municipality=municipio,
+            province='Espaillat', latitude=19.3970, longitude=-70.5270,
+        )
+        if telefono:
+            BusinessContact.objects.create(business=negocio, phone=telefono)
+        return negocio
+
+    def completar(self, ficha=None, token=None, id_ficha=None, **extra):
+        """Un POST en modo completar. ``id_ficha`` sirve para probar ids
+        que no existen, que no se pueden sacar de una ficha de verdad."""
+        if token is None:
+            token = self.colaborador.token
+        cuerpo = {
+            'ficha': ficha.pk if ficha is not None else id_ficha,
+            'nombre': 'Pan del Dia',
+            'telefono': '809-555-1111',
+            'lat': 19.3970,
+            'lng': -70.5270,
+            'municipio': 'Moca',
+        }
+        cuerpo.update(extra)
+        return self.client.post(
+            LEVANTAMIENTO_URL, cuerpo, content_type='application/json',
+            headers={'X-Colaborador-Token': token} if token else {},
+        )
+
+    def pedir_ficha(self, ficha, token=None):
+        if token is None:
+            token = self.colaborador.token
+        return self.client.get(
+            f'{PENDIENTES_URL}?ficha={ficha.pk}',
+            headers={'X-Colaborador-Token': token} if token else {},
+        )
+
+    # ------------------------ completar una ----------------------------
+    def test_completa_la_ficha_elegida_sin_crear_una_segunda(self):
+        ficha = self.hacer_ficha()
+
+        response = self.completar(ficha)
+
+        self.assertEqual(response.status_code, 200, response.content)
+        # La garantia entera en un renglon: seguir siendo UNA.
+        self.assertEqual(Business.objects.count(), 1)
+        self.assertEqual(
+            BusinessContact.objects.get(business=ficha).phone,
+            '809-555-1111',
+        )
+        self.assertEqual(response.json()['completado'], ['contacto'])
+
+    def test_no_sobrescribe_lo_que_la_ficha_ya_tiene(self):
+        ficha = self.hacer_ficha(telefono='809-111-2222')
+
+        response = self.completar(ficha)
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(
+            BusinessContact.objects.get(business=ficha).phone,
+            '809-111-2222',
+        )
+        self.assertNotIn('phone', response.json()['completado'])
+
+    def test_rellena_lo_que_el_reporte_marca_como_faltante(self):
+        ficha = self.hacer_ficha(descripcion='', categoria=False)
+
+        response = self.completar(
+            ficha, telefono='', descripcion='Pan artesanal',
+            categoria='Panaderias',
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        ficha.refresh_from_db()
+        self.assertEqual(ficha.description, 'Pan artesanal')
+        self.assertEqual(ficha.category, self.category)
+        completado = response.json()['completado']
+        self.assertIn('descripcion', completado)
+        self.assertIn('categoria', completado)
+
+    def test_se_publica_en_cuanto_cumple_el_trio(self):
+        ficha = self.hacer_ficha()
+        self.assertEqual(ficha.publication_status, self.en_revision)
+
+        response = self.completar(ficha)
+
+        self.assertEqual(response.json()['estado'], 'publicado')
+        ficha.refresh_from_db()
+        self.assertEqual(ficha.publication_status, self.publicado)
+        self.assertNotIn('telefono', response.json()['faltan'])
+
+    def test_una_ficha_ya_publicada_sigue_publicada_si_solo_se_le_completa_algo(self):
+        ficha = self.hacer_ficha(telefono='809-111-2222')
+        ficha.publication_status = self.publicado
+        ficha.save()
+
+        response = self.completar(ficha, descripcion='Pan del dia y bolleria')
+
+        # Estado de la ficha DESPUES, no "lo que se acabo de promover".
+        self.assertEqual(response.json()['estado'], 'publicado')
+
+    def test_el_estado_operativo_se_puede_completar(self):
+        ficha = self.hacer_ficha(con_estado=False)
+
+        response = self.completar(ficha, estado='cerrado')
+
+        self.assertEqual(response.status_code, 200, response.content)
+        ficha.refresh_from_db()
+        self.assertEqual(ficha.operational_status.slug, 'cerrado')
+        datos = response.json()
+        self.assertIn('estado', datos['completado'])
+        self.assertNotIn('estado', datos['faltan'])
+
+    def test_un_estado_inventado_se_rechaza_en_la_puerta(self):
+        ficha = self.hacer_ficha()
+
+        response = self.completar(ficha, estado='volando')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(
+            '"estado" no es un estado valido.',
+            response.json()['motivos'],
+        )
+
+    def test_el_envio_queda_registrado_con_la_ficha(self):
+        ficha = self.hacer_ficha()
+
+        self.completar(ficha)
+
+        envio = Envio.objects.get()
+        self.assertEqual(envio.estado, 'publicado')
+        self.assertEqual(envio.negocio, ficha)
+        self.assertEqual(envio.datos['ficha'], ficha.pk)
+
+    # ------------------------ §11-i: el alcance ------------------------
+    def test_una_ficha_de_otro_municipio_da_403(self):
+        ficha = self.hacer_ficha(municipio='Santiago')
+
+        response = self.completar(ficha)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(BusinessContact.objects.filter(business=ficha).count(), 0)
+        # Tampoco se deja un renglon de auditoria: no es un dato malo, es
+        # una llave que no abre.
+        self.assertEqual(Envio.objects.count(), 0)
+
+    def test_un_colaborador_sin_municipio_no_completa_nada(self):
+        self.colaborador.municipio = ''
+        self.colaborador.save()
+        ficha = self.hacer_ficha()
+
+        response = self.completar(ficha)
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_una_ficha_inexistente_se_rechaza_en_la_puerta(self):
+        response = self.completar(id_ficha=999999)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Esa ficha no existe.', response.json()['motivos'])
+        self.assertEqual(Business.objects.count(), 0)
+
+    def test_un_ficha_id_que_no_es_un_numero_no_pasa(self):
+        response = self.completar(id_ficha='abc')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(
+            '"ficha" tiene que ser un numero.',
+            response.json()['motivos'],
+        )
+
+    # ---------------------- poblar el formulario -----------------------
+    def test_el_reporte_devuelve_la_ficha_para_rellenarla(self):
+        ficha = self.hacer_ficha(telefono='809-111-2222')
+
+        response = self.pedir_ficha(ficha)
+
+        self.assertEqual(response.status_code, 200, response.content)
+        datos = response.json()
+        self.assertEqual(datos['id'], ficha.pk)
+        self.assertEqual(datos['nombre'], 'Pan del Dia')
+        self.assertEqual(datos['telefono'], '809-111-2222')
+        self.assertEqual(datos['calle'], 'Calle 1 #10')
+        self.assertEqual(datos['municipio'], 'Moca')
+        self.assertEqual(datos['lat'], 19.3970)
+        self.assertEqual(datos['categoria'], 'Panaderias')
+        self.assertNotIn('telefono', datos['faltan'])
+        self.assertIn('whatsapp', datos['faltan'])
+        self.assertIn('horario', datos['faltan'])
+
+    def test_el_reporte_no_presta_fichas_de_otro_municipio(self):
+        ficha = self.hacer_ficha(municipio='Santiago')
+
+        response = self.pedir_ficha(ficha)
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_una_ficha_inexistente_da_404(self):
+        response = self.client.get(
+            f'{PENDIENTES_URL}?ficha=999999',
+            headers={'X-Colaborador-Token': self.colaborador.token},
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_un_ficha_id_basura_da_400(self):
+        response = self.client.get(
+            f'{PENDIENTES_URL}?ficha=abc',
+            headers={'X-Colaborador-Token': self.colaborador.token},
+        )
+
+        self.assertEqual(response.status_code, 400)

@@ -32,10 +32,20 @@ def crear(datos, *, categoria, en_revision, procedencia='importado'):
     que hace falta de verdad —sin el no hay en que poner la ficha—, por
     eso ese viene de fuera.
     """
+    # El estado declarado manda; si no viene ninguno (cliente viejo, o
+    # "sin decidir" en el formulario) se cae en el criterio de siempre,
+    # que es el de la casilla "esta cerrado". Se busca con
+    # `filter().first()` y no con `get()`: es nullable y opcional, y un
+    # sembrado a medias no puede tumbar el envio de alguien que esta en
+    # la calle.
     operativo = (
-        OperationalStatus.objects.filter(slug='cerrado').first()
-        if datos.get('cerrado')
-        else OperationalStatus.objects.filter(slug='abierto').first()
+        OperationalStatus.objects.filter(slug=datos['estado']).first()
+        if datos.get('estado')
+        else (
+            OperationalStatus.objects.filter(slug='cerrado').first()
+            if datos.get('cerrado')
+            else OperationalStatus.objects.filter(slug='abierto').first()
+        )
     )
     negocio = Business.objects.create(
         name=datos['nombre'],
