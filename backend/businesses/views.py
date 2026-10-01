@@ -374,6 +374,95 @@ def _le_toca(colaborador, municipio):
     return bool(asignado) and normalizar(asignado) == normalizar(municipio)
 
 
+def _para_formulario(biz):
+    """La ficha entera, en la forma que espera el formulario (Fase D).
+
+    El listado de ``fichas`` trae solo lo justo para decir QUÉ falta; el
+    formulario necesita ademas lo que YA hay —telefono, calle, horario—
+    para salir rellenado. Pedirselo a los 148 de golpe seria mandar medio
+    municipio a rellenar UNO, y por eso esto va aparte, uno a uno.
+    """
+    from business_hours.models import BusinessHours
+
+    loc = getattr(biz, 'location', None)
+    contact = getattr(biz, 'contact', None)
+
+    municipio = (getattr(loc, 'municipality', '') or '') if loc else ''
+    dias = {valor: nombre for valor, nombre in BusinessHours.DayOfWeek.choices}
+    horario = [
+        {'dia': dias.get(h.day, h.day),
+         'desde': h.open_time.isoformat()[:5] if h.open_time else '',
+         'hasta': h.close_time.isoformat()[:5] if h.close_time else ''}
+        for h in biz.hours.all()
+        if not h.is_closed and h.open_time and h.close_time
+    ]
+
+    return {
+        'id': biz.id,
+        'nombre': biz.name or '',
+        'slug': biz.slug,
+        'estado': biz.publication_status.slug,
+        'procedencia': biz.procedencia,
+        'categoria': biz.category.name if biz.category_id else '',
+        'descripcion': biz.description or '',
+        'operativo': (
+            biz.operational_status.slug if biz.operational_status_id else ''
+        ),
+        'calle': (loc.street or '') if loc else '',
+        'sector': (loc.sector or '') if loc else '',
+        'municipio': municipio,
+        'provincia': (loc.province or '') if loc else '',
+        'lat': loc.latitude if loc else None,
+        'lng': loc.longitude if loc else None,
+        'telefono': (contact.phone or '') if contact else '',
+        'whatsapp': (contact.whatsapp or '') if contact else '',
+        'correo': (contact.email or '') if contact else '',
+        'web': (contact.website or '') if contact else '',
+        'horario': horario,
+        'faltan': faltantes_de(biz),
+    }
+
+
+def _una_ficha(colaborador, ficha_id):
+    """La respuesta de ``?ficha=``: una sola ficha, o el motivo por el
+    que no se puede dar."""
+    try:
+        pk = int(ficha_id)
+    except (TypeError, ValueError):
+        return Response(
+            {'detail': '"ficha" tiene que ser un numero.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    ficha = (
+        Business.objects
+        .select_related(
+            'location', 'contact', 'category', 'operational_status',
+            'publication_status',
+        )
+        .prefetch_related('hours')
+        .filter(pk=pk)
+        .first()
+    )
+    if ficha is None:
+        return Response(
+            {'detail': 'Esa ficha no existe.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    loc = getattr(ficha, 'location', None)
+    municipio = (getattr(loc, 'municipality', '') or '') if loc else ''
+    if colaborador is not None and not _le_toca(colaborador, municipio):
+        # §11-i: el reporte le da la lista de SU municipio, y con esta
+        # misma llave no se abre otra.
+        return Response(
+            {'detail': 'A este token le toca otro municipio.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    return Response(_para_formulario(ficha))
+
+
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def pendientes(request):
@@ -420,6 +509,12 @@ def pendientes(request):
             {'detail': 'Sesion de administrador o token de colaborador.'},
             status=status.HTTP_403_FORBIDDEN,
         )
+
+    # Una ficha concreta, para POBLAR el formulario: va primero porque
+    # conoce su propio municipio y no hace falta que se lo pidan.
+    ficha_id = (request.query_params.get('ficha') or '').strip()
+    if ficha_id:
+        return _una_ficha(colaborador, ficha_id)
 
     if (colaborador is not None and municipio
             and not _le_toca(colaborador, municipio)):

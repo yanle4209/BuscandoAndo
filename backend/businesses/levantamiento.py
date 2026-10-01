@@ -16,6 +16,13 @@ Tres reglas, en este orden, y cada una es una decision distinta:
 
 Quien decide es el sistema en los tres: quien envia no publica (§11-j).
 
+El cuerpo puede traer ademas ``ficha`` (el id de una ficha ya existente),
+que enciende el **modo completar** de la Fase D: el formulario sale
+poblado con lo que ya hay y lo que se manda se escribe EN ESA ficha. Sin
+el id el cruce de la regla 2 seria a ciegas y podria enriquecer el
+negocio de al lado; con el id hace falta ademas que la ficha este en el
+municipio del token (§11-i, la misma llave con la que se LEE el reporte).
+
 El token solo se acepta en cabecera (``X-Colaborador-Token`` o
 ``Authorization: Bearer``). Por la URL se quedaria en los registros del
 servidor y en el historial del navegador, que es justo donde no queremos
@@ -44,9 +51,33 @@ from .models import Business, Envio
 # pocos por minuto. Basta para cortar un bombardeo y no estorba a nadie.
 LIMITE_ENVIOS_POR_MINUTO = 30
 
+# Los estados operativos que el formulario puede declarar. Lista, no
+# consulta: se comprueba en la puerta, y resolverla es un `filter()`
+# mas que no hace falta pagar en cada envio.
+ESTADOS_VALIDOS = ('abierto', 'cerrado', 'por-horario', 'cerrado-permanente')
+
 # Copia exacta de la cabecera, para que quien la recibe pueda compartirla
 # sin tener que adivinar si esta en minusculas o con coma.
 AUTENTICACION_DE_ESCRITURA = []
+
+
+def _en_su_municipio(colaborador, ficha):
+    """§11-i: el token solo ESCRIBE en su municipio, igual que solo lo lee.
+
+    Se compara normalizado por lo mismo que en el reporte: el nombre de
+    ``Colaborador.municipio`` lo teclea el admin y el de la ficha viene
+    de texto libre. Un ficha sin ubicacion no tiene municipio que
+    comprobar, y por eso no entra — que ademas es justo como la agrupa el
+    reporte, que la manda a «(sin municipio)».
+    """
+    asignado = (colaborador.municipio or '').strip()
+    if not asignado:
+        return False
+    loc = getattr(ficha, 'location', None)
+    municipio = (getattr(loc, 'municipality', '') or '') if loc else ''
+    if not municipio:
+        return False
+    return geografia.normalizar(asignado) == geografia.normalizar(municipio)
 
 
 def _ip(request):
@@ -136,6 +167,12 @@ def _a_datos(cuerpo):
             motivos.append('"%s" tiene que ser un numero.' % clave)
             return None
 
+    estado = texto('estado', 40)
+    if estado and estado not in ESTADOS_VALIDOS:
+        # Mal formado: no es un pendiente de rellenar despues, es un
+        # cuerpo que no dice nada que se pueda guardar (§11.5).
+        motivos.append('"estado" no es un estado valido.')
+
     datos = {
         'nombre': texto('nombre', 200),
         'telefono': texto('telefono', 30),
@@ -152,6 +189,7 @@ def _a_datos(cuerpo):
         'descripcion': texto('descripcion', 300),
         'horario': _horario(cuerpo.get('horario')),
         'cerrado': bool(cuerpo.get('cerrado')),
+        'estado': estado,
     }
     return datos, motivos
 
@@ -222,6 +260,36 @@ def levantamiento(request):
     cuerpo = request.data if isinstance(request.data, dict) else {}
     datos, motivos = _a_datos(cuerpo)
 
+    # ¿Completar la ficha que el colaborador ELIGIO en su reporte, o una
+    # alta nueva? La diferencia importa: sin el id el cruce de la regla 2
+    # se haria a ciegas, y podria enriquecer el negocio de al lado.
+    ficha = None
+    bruto = cuerpo.get('ficha')
+    if bruto not in (None, ''):
+        try:
+            pk_ficha = int(bruto)
+        except (TypeError, ValueError):
+            motivos.append('"ficha" tiene que ser un numero.')
+        else:
+            ficha = (
+                Business.objects
+                .select_related('location', 'contact')
+                .filter(pk=pk_ficha)
+                .first()
+            )
+            if ficha is None:
+                motivos.append('Esa ficha no existe.')
+            elif not _en_su_municipio(colaborador, ficha):
+                # 403 y no "rechazado": no es que los datos esten mal,
+                # es que a este token no le toca. Se parece a lo que hace
+                # el reporte al pedir el municipio de otro.
+                return Response(
+                    {'detail': 'A este token le toca otro municipio.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            else:
+                datos['ficha'] = ficha.pk
+
     cabecera = None
     if not motivos:
         cabecera = geografia.cabecera_para(datos['municipio'])
@@ -238,10 +306,20 @@ def levantamiento(request):
             cabecera=cabecera,
         )
 
+    # Solo se BUSCA: aqui teclea una persona y una errata no debe abrirle
+    # una categoria nueva al sistema. Se resuelve una sola vez porque la
+    # usan los DOS caminos (completar y alta). El importador si la crea,
+    # porque el nombre viene de OSM y es de fiar.
+    categoria = None
+    if not motivos and datos['categoria']:
+        categoria = Category.objects.filter(
+            name__iexact=datos['categoria'],
+        ).first()
+
     # --------------------- 1. la puerta ------------------------------
     if motivos:
         envio = _registrar(
-            colaborador, 'rechazado', datos, motivos, [], None, request,
+            colaborador, 'rechazado', datos, motivos, [], ficha, request,
         )
         return Response(
             {'estado': 'rechazado', 'motivos': motivos, 'faltan': [],
@@ -249,7 +327,40 @@ def levantamiento(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # --------------------- 2. el cruce -------------------------------
+    # ------------------ 2. completar la ficha elegida -----------------
+    if ficha is not None:
+        completado = validacion.enriquecer(ficha, datos, categoria=categoria)
+        # Releer: `enriquecer` dejo en la instancia la cache de "no tiene
+        # contacto" de antes de crearlo, y con ella `cumple_trio` veria el
+        # telefono que acaba de ponerse.
+        ficha = Business.objects.get(pk=ficha.pk)
+        # Siempre, no solo si acaba de tocar algo: puede que ya cumpliera
+        # el trio desde antes y se quedara esperando.
+        pendientes.publicar_si_cumple(
+            [ficha], PublicationStatus.objects.get(slug='publicado'),
+        )
+        ficha = Business.objects.get(pk=ficha.pk)
+        faltan = pendientes.faltantes_de(ficha)
+        # El estado es el de la ficha DESPUES, no "lo que se acaba de
+        # promover": una ficha ya publicada sigue publicada aunque solo
+        # se le complete la descripcion.
+        estado = (
+            'publicado'
+            if ficha.publication_status.slug == 'publicado'
+            else 'pendiente'
+        )
+        envio = _registrar(
+            colaborador, estado, datos, [], faltan, ficha, request,
+        )
+        return Response({
+            'estado': estado,
+            'motivos': [],
+            'faltan': faltan,
+            'completado': completado,
+            'recibo': envio.id,
+        })
+
+    # --------------------- 3. el cruce -------------------------------
     # Solo el municipio declarado y el canónico: mas que eso seria
     # escanear la base entera en cada envio. Lo acentos distintos entre
     # un nombre y otro quedan cubiertos por el segundo criterio de
@@ -266,7 +377,7 @@ def levantamiento(request):
     )
 
     if existente is not None:
-        completado = validacion.enriquecer(existente, datos)
+        completado = validacion.enriquecer(existente, datos, categoria=categoria)
         # Releer: `enriquecer` dejo en la instancia la cache de "no tiene
         # contacto" de antes de crearlo, y con ella `cumple_trio` veria
         # el telefono que acaba de ponerse. Sin releer, la ficha se quedaria
@@ -289,16 +400,7 @@ def levantamiento(request):
             'recibo': envio.id,
         })
 
-    # ------------------- 3. entrar y publicar ------------------------
-    categoria = None
-    if datos['categoria']:
-        # Solo se BUSCA: aqui teclea una persona y una errata no debe
-        # abrirle una categoria nueva al sistema. (El importador si la
-        # crea, porque el nombre viene de OSM y es de fiar.)
-        categoria = Category.objects.filter(
-            name__iexact=datos['categoria'],
-        ).first()
-
+    # ------------------- 4. entrar y publicar ------------------------
     negocio = ingreso.crear(
         datos,
         categoria=categoria,

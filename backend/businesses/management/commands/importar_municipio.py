@@ -187,7 +187,15 @@ class Command(BaseCommand):
             )
             if existente is not None:
                 totales['duplicados'] += 1
-                if validacion.enriquecer(existente, datos):
+                # La categoria SI se crea aqui (el nombre viene de OSM y es
+                # de fiar), pero solo si la ficha no tiene: es la misma
+                # condicion con la que `enriquecer` la usaria.
+                nueva = (
+                    self._categoria(datos)
+                    if not existente.category_id and datos['categoria']
+                    else None
+                )
+                if validacion.enriquecer(existente, datos, categoria=nueva):
                     totales['enriquecidos'] += 1
                     # Releer: `enriquecer` dejo en la instancia la cache de
                     # "no tiene contacto" de antes de crearlo, y con ella

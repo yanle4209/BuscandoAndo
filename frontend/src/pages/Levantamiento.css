@@ -230,20 +230,67 @@
   margin-bottom: 12px;
 }
 
-/* -------------------------------- check ---------------------------- */
-.lev-check {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 14px;
-  margin-bottom: 16px;
-  cursor: pointer;
+/* ------------------------- el selector y lo que falta --------------- */
+.lev-elegir {
+  margin-top: 16px;
 }
 
-.lev-check input {
-  width: 17px;
-  height: 17px;
-  accent-color: var(--yellow);
+.lev-elegir select {
+  border-color: var(--yellow);
+}
+
+.lev-field .lev-elegir-nota {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--yellow-light);
+}
+
+/* Resaltado de lo que falta. Amarillo sobre oscuro: es el unico color que
+   aqui no significa "roto" ni "apagado", y el que ya usan los chips del
+   reporte — el ojo tiene que reconocer lo mismo en las dos partes. */
+.lev-falta-marca {
+  margin-left: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--yellow);
+  color: var(--dark);
+  border-radius: 4px;
+  padding: 1px 6px;
+  vertical-align: 1px;
+}
+
+.lev-field--falta label {
+  color: var(--yellow-light);
+}
+
+.lev-field--falta input,
+.lev-field--falta select,
+.lev-field--falta textarea {
+  border-color: var(--yellow);
+  background: rgba(179, 179, 52, 0.07);
+}
+
+/* Lo que sin esto no se publica: mas enfasis, pero con las MISMAS formas
+   — un borde grueso distinto al resto se leeria como error. */
+.lev-field--trio input,
+.lev-field--trio select,
+.lev-field--trio textarea {
+  box-shadow: inset 0 0 0 1px rgba(179, 179, 52, 0.55);
+}
+
+.lev-coordenadas--falta input {
+  border-color: var(--yellow);
+  background: rgba(179, 179, 52, 0.07);
+}
+
+.lev-horario--falta {
+  border-top-color: var(--yellow);
+}
+
+.lev-horario--falta .lev-horario-head h3 {
+  color: var(--yellow-light);
 }
 
 /* -------------------------------- horario -------------------------- */

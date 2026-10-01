@@ -499,3 +499,46 @@ POST público validado  +  token que firma el envío
 **Y lo que NO es:** no hay endpoint de lectura para el colaborador, ni
 permiso que le deje consultar el admin. Si mañana hace falta ver cosas,
 eso es otro canal y otra decisión.
+
+### 11.6 — Modo «completar la ficha elegida» (decidido)
+
+El reporte de §11.1 decía **qué** faltaba; faltaba poder **arreglarlo**.
+Un colaborador en Moca entra con su token, el reporte de su municipio
+aparece **de inmediato**, elige una ficha del selector, el formulario
+sale **rellenado con lo que ya hay** y con lo faltante **marcado en
+amarillo**, rellena y envía → el sistema valida → el selector vuelve con
+la lista actualizada, lista para el siguiente.
+
+```
+token ✓  →  reporte de MI municipio (solo, sin un clic más)
+                 │
+                 ├─ selector de las fichas que necesitan completarse
+                 ▼
+         GET /api/pendientes/?ficha=<id>
+                 │  puebla el formulario + lista de faltantes
+                 ▼
+         POST /api/levantamiento/  { … , ficha: <id> }
+                 │
+                 ├─ ficha inexistente          → 400 (no existe)
+                 ├─ ficha de OTRO municipio    → 403 (a este token no le toca)
+                 ├─ pasa, y aún le falta algo  → PENDIENTE, y sigue en el reporte
+                 └─ pasa y cumple el trío      → PUBLICADO
+                 │
+                 ▼
+         se limpia la ficha (no el token ni el municipio) y se relee
+         el reporte → selector listo para el siguiente
+```
+
+**Y por qué así:**
+
+| | |
+|---|---|
+| **Un solo endpoint, con un `ficha` opcional.** Sin id = alta nueva (como hasta ahora); con id = completar. Misma puerta, misma validación, mismo límite de envíos y misma auditoría para los dos. Abrir una segunda puerta sería otra tasa, otro criterio y otro hueco que vigilar. |
+| **Con id NO se cruza a ciegas.** El cruce de §10-d decide por nombre + menos de 300 m, y con 158 municipios eso puede tocar **el negocio de al lado**. Completar es deliberado: quien lo hace ya eligió cuál. |
+| **La ficha tiene que ser de SU municipio (§11-i).** La misma llave con la que se **lee** el reporte sirve para **escribir**. Id inexistente → `400` con motivo (mal formado, se rechaza en la puerta); id de otro municipio o token sin municipio → `403`, y **sin** `Envio`: no es un dato malo, es una llave que no abre. |
+| **Poblar va aparte: `GET /api/pendientes/?ficha=<id>`.** El listado trae `id, nombre, estado, faltan` — lo justo para decir qué falta. Para **rellenar** hacen falta teléfono, calle, horario, coordenadas… y traerlos de las 148 sería mandar medio municipio a rellenar **uno**. Se pide uno a uno, al elegirlo. |
+| **`enriquecer` cubre ahora TODOS los campos del reporte.** Antes solo contacto, dirección y horario: se podía terminar de rellenar una ficha y el reporte la seguía marcando, es decir **no acababa nunca**. Ahora también `nombre`, `punto`, `categoria`, `descripcion` y `estado` — y **siempre sin sobrescribir** lo que ya había (§10-d): una corrección encima del dato existente no es un relleno, es otra decisión. |
+| **El estado operativo deja de ser una casilla.** «Está cerrado permanentemente» no podía completar `estado`, que el reporte cuenta como faltante — y eso dejaba fichas trabadas para siempre. Ahora es un selector con los cuatro estados del catálogo; vacío = «sin decidir», que sigue siendo el criterio de siempre para crear. |
+| **El desplegable de municipio lo manda la ficha.** Quien eligió la ficha no tiene que reelegir lo que ya está claro; si lo cambia a mano, manda lo que eligió. |
+| **Y el `Envio` se anota con la ficha.** `datos.ficha` deja constancia de **cuál** se completó, que es lo que permite juzgar al colaborador concreto (§11.5). |
+
