@@ -1,15 +1,22 @@
-import csv
-import math
-import unicodedata
-from functools import lru_cache
-
-from django.conf import settings
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from django.db.models import Case, IntegerField, Q, Value, When
 from django.utils import timezone
+
+# El mapa (radio de R1, cabeceras, distancia) vive en su modulo: si
+# estuviera aqui, el importador tendria que importar ``views`` y se
+# crearia un ciclo. Se importa el paquete ademas de los nombres sueltos
+# porque la vista ``cabeceras`` taparia al ``cabeceras`` del modulo.
+from . import geografia
+from .geografia import (
+    RADIO_KM,
+    SIN_MUNICIPIO,
+    cabecera_para,
+    haversine_distance,
+    normalizar,
+)
 from .models import Business, Correction
 from .serializers import BusinessListSerializer, BusinessDetailSerializer, CorrectionCreateSerializer, CorrectionSerializer
 
@@ -21,19 +28,6 @@ from .pendientes import (
     contar_pendientes,
     faltantes_de,
 )
-
-# Radio de busqueda en km. R1: las busquedas son unica y exclusivamente a
-# 5 km del punto activo (la ubicacion del usuario; la cabecera municipal,
-# si no la hay). Lo impone el backend: el cliente puede pedir menos, nunca
-# mas. Ver DISENO.md R1.3.
-RADIO_KM = 5.0
-
-# Fuente estatica de las 158 cabeceras municipales (DISENO.md seccion 9).
-CABECERAS_CSV = settings.BASE_DIR / 'data' / 'cabeceras_municipales.csv'
-
-# Donde caen las fichas que no dicen a que municipio pertenecen. No se las
-# esconde del reporte: no poder asignarlas es justo algo que hay que ver.
-SIN_MUNICIPIO = '(sin municipio)'
 
 
 def is_featured_active(biz):
@@ -55,18 +49,6 @@ class FeaturedPagination(PageNumberPagination):
 class SearchPagination(PageNumberPagination):
     page_size = 12
     page_size_query_param = 'page_size'
-
-
-def haversine_distance(lat1, lng1, lat2, lng2):
-    """Calcular distancia en km entre dos puntos usando la formula de Haversine."""
-    R = 6371  # Radio de la Tierra en km
-    dlat = math.radians(lat2 - lat1)
-    dlng = math.radians(lng2 - lng1)
-    a = (math.sin(dlat / 2) ** 2 +
-         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
-         math.sin(dlng / 2) ** 2)
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return R * c
 
 
 def parse_radio(valor):
@@ -342,35 +324,6 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
 
-@lru_cache(maxsize=1)
-def _cabeceras():
-    """Las cabeceras municipales del pais, leidas una sola vez del CSV.
-
-    El archivo ``backend/data/cabeceras_municipales.csv`` (DISENO.md
-    seccion 9) es una fuente estatica: municipio + provincia de Wikipedia,
-    cruzada con OpenStreetMap en este orden: ``amenity=townhall`` ->
-    ``office=government`` -> nodo ``place=*`` -> centroide. Se descarta
-    cualquier punto a mas de 30 km del centroide del poligono.
-
-    149 de los 158 apuntan al pueblo; los 9 restantes al centroide del
-    municipio. Se cachea para no releer el disco en cada llamada.
-    """
-    if not CABECERAS_CSV.exists():
-        return []
-    with CABECERAS_CSV.open(encoding='utf-8') as fh:
-        filas = csv.DictReader(fh)
-        return [
-            {
-                'provincia': (fila.get('provincia') or '').strip(),
-                'municipio': (fila.get('municipio') or '').strip(),
-                'lat': float(fila['lat']),
-                'lng': float(fila['lng']),
-            }
-            for fila in filas
-            if (fila.get('lat') or '').strip() and (fila.get('lng') or '').strip()
-        ]
-
-
 @api_view(['GET'])
 def cabeceras(request):
     """Las cabeceras municipales de todo el pais (158).
@@ -383,42 +336,7 @@ def cabeceras(request):
     Se devuelve una lista plana agrupable por el cliente: la agrupacion por
     provincia es cosa de la interfaz, no del API.
     """
-    return Response(_cabeceras())
-
-
-def _normalizar(texto):
-    """Minusculas y sin acentos, para comparar nombres de municipios.
-
-    El nombre de ``BusinessLocation`` es texto libre y el del CSV viene de
-    Wikipedia: "Bani" contra "Baní" deberia ser el mismo municipio.
-    """
-    texto = (texto or '').strip().casefold()
-    return ''.join(
-        caracter for caracter in unicodedata.normalize('NFD', texto)
-        if unicodedata.category(caracter) != 'Mn'
-    )
-
-
-def _cabecera_para(municipio, provincia=None):
-    """La cabecera del municipio en el CSV, o ``None`` si no aparece.
-
-    Desempate por provincia: primero nombre + provincia (dos municipios
-    homonimos no deberian cruzarse) y, si no coincide, el primer municipio
-    con ese nombre.
-    """
-    clave = _normalizar(municipio)
-    if not clave:
-        return None
-    provincia_clave = _normalizar(provincia)
-
-    por_nombre = None
-    for cab in _cabeceras():
-        if _normalizar(cab['municipio']) != clave:
-            continue
-        if provincia_clave and _normalizar(cab['provincia']) == provincia_clave:
-            return cab
-        por_nombre = por_nombre or cab
-    return por_nombre
+    return Response(geografia.cabeceras())
 
 
 @api_view(['GET'])
@@ -454,7 +372,7 @@ def pendientes(request):
         nombre = ((loc.municipality if loc else '') or '').strip()
         nombre = nombre or SIN_MUNICIPIO
         grupos.setdefault(nombre, []).append(biz)
-        indice.setdefault(_normalizar(nombre), nombre)
+        indice.setdefault(normalizar(nombre), nombre)
 
     if not municipio:
         return Response([
@@ -472,7 +390,7 @@ def pendientes(request):
             for nombre, grupo in sorted(grupos.items(), key=lambda par: par[0])
         ])
 
-    real = indice.get(_normalizar(municipio))
+    real = indice.get(normalizar(municipio))
     if real is None:
         return Response(
             {'detail': 'No hay fichas en "%s" todavia.' % municipio},
@@ -486,7 +404,7 @@ def pendientes(request):
         if loc is not None and loc.province:
             provincia = loc.province
             break
-    cab = _cabecera_para(real, provincia)
+    cab = cabecera_para(real, provincia)
 
     con_faltantes = [
         (b, faltantes_de(b)) for b in grupo

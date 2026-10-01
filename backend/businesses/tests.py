@@ -11,8 +11,11 @@ heredados), pero ``Business.FEATURED_TIERS`` solo admite ``'1'..'4'``. Por eso
 la web llamaba a ``featured-by-search`` y siempre recibia ``[]``.
 """
 import datetime
+import io
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
 
@@ -23,6 +26,7 @@ from publication_status.models import PublicationStatus
 from business_locations.models import BusinessLocation
 from business_contacts.models import BusinessContact
 from business_hours.models import BusinessHours
+from . import geografia, osm, validacion
 from .models import Business, Correction
 
 BUSINESSES_URL = '/api/businesses/'
@@ -856,3 +860,317 @@ class ReportePendientesTests(TestCase):
 
         self.assertTrue(pendientes.cumple_trio(self.sin_extras))
         self.assertIn('horario', pendientes.faltantes_de(self.sin_extras))
+
+
+CABECERA_MOCA = {
+    'municipio': 'Moca',
+    'provincia': 'Espaillat',
+    'lat': MOCA_LAT,
+    'lng': MOCA_LNG,
+}
+
+
+def nodo(nombre, lat=19.3970, lng=-70.5270, **etiquetas):
+    """Un elemento de Overpass con la forma que devuelve ``out center``."""
+    return {
+        'type': 'node',
+        'lat': lat,
+        'lon': lng,
+        'tags': {'name': nombre, **etiquetas},
+    }
+
+
+class ValidacionDeEntradaTests(TestCase):
+    """§11.5: la puerta. Lo mal formado NO entra; lo incompleto SI.
+
+    Esta distincion es la que sostiene R5 entero: si la puerta rechazara
+    por no cumplir el trio, los que mas necesitamos (los que no tienen
+    telefono) no llegarian nunca al reporte de §11.1.
+    """
+
+    def validar(self, **extra):
+        datos = {
+            'nombre': 'Pan del Dia',
+            'telefono': '809-555-1111',
+            'lat': 19.3970,
+            'lng': -70.5270,
+            'municipio': 'Moca',
+            'cabecera': CABECERA_MOCA,
+        }
+        datos.update(extra)
+        return validacion.validar(**datos)
+
+    # ------------------------------ lo que SI ---------------------------
+    def test_un_dato_completo_pasa(self):
+        self.assertEqual(self.validar(), [])
+
+    def test_faltar_el_trio_no_rechaza(self):
+        """§10-g: quien no tiene telefono no se descarta, se acumula."""
+        self.assertEqual(
+            self.validar(nombre='Taller Nuevo', telefono='', lat=None, lng=None),
+            [],
+        )
+
+    def test_sin_cabecera_no_hay_como_verificarlo(self):
+        """Sin padron no se puede decir que las coordenadas caen ahi."""
+        motivos = self.validar(cabecera=None)
+
+        self.assertEqual(len(motivos), 1)
+        self.assertIn('padron', motivos[0])
+
+    # ------------------------------ lo que NO ---------------------------
+    def test_un_nombre_vacio_se_rechaza(self):
+        self.assertTrue(self.validar(nombre='   '))
+
+    def test_un_telefono_con_letras_se_rechaza(self):
+        motivos = self.validar(telefono='no se sabe')
+
+        self.assertEqual(len(motivos), 1)
+        self.assertIn('telefono', motivos[0])
+
+    def test_un_punto_fuera_del_circulo_se_rechaza(self):
+        """§10: 'importar lejos del centro no entra en ningun circulo'."""
+        motivos = self.validar(lat=19.6000, lng=-70.5274)
+
+        self.assertEqual(len(motivos), 1)
+        self.assertIn('fuera del circulo', motivos[0])
+
+    def test_un_punto_a_medias_si_se_rechaza(self):
+        """Ni falta el trío (que pasa) ni esta completo (que pasa): esta
+        partido, que no es ninguna de las dos."""
+        motivos = self.validar(lat=None, lng=-70.5270)
+
+        self.assertEqual(len(motivos), 1)
+        self.assertIn('incompletas', motivos[0])
+
+    def test_el_radio_es_5_km_por_defecto(self):
+        """R1: el canal de envio no puede admitir a mas de 5 km."""
+        motivos = self.validar(lat=19.4400, lng=-70.5274)  # ~4.85 km
+
+        self.assertEqual(motivos, [])
+
+        motivos = self.validar(lat=19.4460, lng=-70.5274)  # ~5.51 km
+
+        self.assertEqual(len(motivos), 1)
+
+    # --------------------------- normalizacion --------------------------
+    def test_el_prefijo_tel_de_osm_no_llega_a_la_base(self):
+        self.assertEqual(
+            validacion.limpiar_telefono('tel:+18095551234'),
+            '+18095551234',
+        )
+
+    def test_de_varios_telefonos_se_queda_el_primero(self):
+        self.assertEqual(
+            validacion.limpiar_telefono('809-555-1111;809-555-2222'),
+            '809-555-1111',
+        )
+
+    def test_un_telefono_con_suficientes_digitos_es_valido(self):
+        self.assertTrue(validacion.telefono_valido('8095551234'))
+        self.assertTrue(validacion.telefono_valido('+1 (809) 555-1234'))
+        self.assertFalse(validacion.telefono_valido('123'))
+        self.assertFalse(validacion.telefono_valido(''))
+
+    # ---------------------------- duplicados ----------------------------
+    def hacer(self, nombre, lat=19.3970, lng=-70.5270):
+        publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado',
+        )
+        biz = Business.objects.create(
+            name=nombre,
+            description='Descripcion',
+            publication_status=publicado,
+        )
+        BusinessLocation.objects.create(
+            business=biz, municipality='Moca', province='Espaillat',
+            latitude=lat, longitude=lng,
+        )
+        return biz
+
+    def test_el_mismo_nombre_con_distinto_acento_es_un_duplicado(self):
+        """§10-d: cruzar antes de publicar, y 'Café' contra 'Cafe' es el
+        mismo sitio."""
+        existente = self.hacer('Café El Sol')
+        indice = validacion.indice_de_nombres([existente])
+
+        encontrado = validacion.duplicado(indice, 'CAFE  EL SOL')
+
+        self.assertEqual(encontrado, existente)
+
+    def test_un_nombre_parecido_en_la_misma_esquina_tambien_es_duplicado(self):
+        existente = self.hacer('Panaderia Sol')
+        indice = validacion.indice_de_nombres([existente])
+
+        encontrado = validacion.duplicado(
+            indice, 'Panaderia Sol (Moca)', 19.3970, -70.5270,
+        )
+
+        self.assertEqual(encontrado, existente)
+
+    def test_un_negocio_de_otro_municipio_no_es_un_duplicado(self):
+        """El cruce es por municipio: dos 'Farmacia Central' distintas
+        pueden existir."""
+        existente = self.hacer('Farmacia Central')
+        indice = {}  # el cruce se hace sobre el municipio, y este no esta
+
+        self.assertIsNone(validacion.duplicado(indice, 'Farmacia Central'))
+
+
+class ImportarMunicipioTests(TestCase):
+    """``manage.py importar_municipio`` -> R5 en la practica.
+
+    Tres pasos dependen del anterior y hay que protegerlos en ese orden:
+    validar ANTES de crear, cruzar ANTES de publicar, y publicar SOLO el
+    trio. El cuarto, que no se ve a primera vista: lo creado a mano nunca
+    se publica solo (VISION.md).
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado',
+        )
+        cls.en_revision = PublicationStatus.objects.create(
+            name='En Revision', slug='en-revision',
+        )
+        cls.abierto = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto',
+        )
+        cls.cerrado = OperationalStatus.objects.create(
+            name='Cerrado', slug='cerrado',
+        )
+
+    def importar(self, municipio='Moca'):
+        salida = io.StringIO()
+        call_command('importar_municipio', municipio, stdout=salida)
+        return salida.getvalue()
+
+    def hacer_manual(self, nombre):
+        """Una ficha creada a mano y sin publicar, en el circulo de Moca."""
+        biz = Business.objects.create(
+            name=nombre,
+            description='Descripcion',
+            publication_status=self.en_revision,
+            operational_status=self.abierto,
+            procedencia='manual',
+        )
+        BusinessLocation.objects.create(
+            business=biz, street='Calle 1 #10', municipality='Moca',
+            province='Espaillat', latitude=19.3970, longitude=-70.5270,
+        )
+        return biz
+
+    # ---------------------- R5: que se publica --------------------------
+    @patch('businesses.osm.consultar')
+    def test_publica_la_que_cumple_el_trio(self, consultar):
+        consultar.return_value = [
+            nodo('Pan del Dia', phone='809-555-1111'),
+        ]
+
+        self.importar()
+
+        pan = Business.objects.get(name='Pan del Dia')
+
+        self.assertEqual(pan.publication_status.slug, 'publicado')
+        self.assertEqual(pan.procedencia, 'importado')
+
+    @patch('businesses.osm.consultar')
+    def test_sin_telefono_queda_en_revision_y_no_se_descarta(self, consultar):
+        consultar.return_value = [nodo('Taller Nuevo')]
+
+        self.importar()
+
+        taller = Business.objects.get(name='Taller Nuevo')
+
+        self.assertEqual(taller.publication_status.slug, 'en-revision')
+        self.assertEqual(taller.procedencia, 'importado')
+
+    # ------------------ §10-d: cruzar antes de publicar -----------------
+    @patch('businesses.osm.consultar')
+    def test_un_duplicado_no_crea_una_segunda_ficha(self, consultar):
+        existente = self.hacer_manual('Pan del Dia')
+        consultar.return_value = [
+            nodo('Pan del Dia', phone='809-555-1111'),
+        ]
+
+        self.importar()
+
+        self.assertEqual(
+            Business.objects.filter(name='Pan del Dia').count(), 1,
+        )
+        # Y el telefono que trae OSM se le pone a la que ya estaba.
+        self.assertEqual(existente.contact.phone, '809-555-1111')
+
+    @patch('businesses.osm.consultar')
+    def test_correrlo_dos_veces_no_duplica(self, consultar):
+        consultar.return_value = [nodo('Pan del Dia', phone='8095551234')]
+
+        self.importar()
+        self.importar()
+
+        self.assertEqual(Business.objects.filter(name='Pan del Dia').count(), 1)
+
+    # ---------------------- §11.5: la puerta ----------------------------
+    @patch('businesses.osm.consultar')
+    def test_un_nombre_vacio_no_entra(self, consultar):
+        consultar.return_value = [nodo(''), nodo('Valido', phone='8095551234')]
+
+        self.importar()
+
+        self.assertEqual(Business.objects.count(), 1)
+        self.assertEqual(Business.objects.get().name, 'Valido')
+
+    @patch('businesses.osm.consultar')
+    def test_un_punto_fuera_del_circulo_no_entra(self, consultar):
+        consultar.return_value = [
+            nodo('Lejos', lat=19.6000, lng=-70.5274, phone='8095551234'),
+        ]
+
+        self.importar()
+
+        self.assertEqual(Business.objects.count(), 0)
+
+    # --------------------------- el municipio ---------------------------
+    @patch('businesses.osm.consultar')
+    def test_el_municipio_lo_da_la_cabecera_y_no_las_etiquetas(self, consultar):
+        consultar.return_value = [
+            nodo('Pan', **{'addr:city': 'Otra Cosa', 'phone': '8095551234'}),
+        ]
+
+        self.importar()
+
+        pan = Business.objects.get(name='Pan')
+
+        self.assertEqual(pan.location.municipality, 'Moca')
+        self.assertEqual(pan.location.province, 'Espaillat')
+
+    @patch('businesses.osm.consultar')
+    def test_un_elemento_sin_red_no_se_con_funde_con_un_municipio_vacio(
+        self, consultar,
+    ):
+        """§11: 'Overpass no contesto' y 'no hay nada' son cosas
+        distintas; la primera no deberia parecer un municipio sin datos."""
+        consultar.return_value = None
+
+        salida = self.importar()
+
+        self.assertEqual(Business.objects.count(), 0)
+        self.assertIn('Overpass no contesto', salida)
+
+    # --------------------- VISION.md: quien publica ---------------------
+    @patch('businesses.osm.consultar')
+    def test_una_ficha_creada_a_mano_no_se_publica_sola(self, consultar):
+        """El cruce le completa el telefono, pero quien publica una ficha
+        manual es el admin, no el importador."""
+        manual = self.hacer_manual('La Receta')
+        consultar.return_value = [
+            nodo('La Receta', phone='809-555-1111'),
+        ]
+
+        self.importar()
+
+        manual.refresh_from_db()
+
+        self.assertEqual(manual.publication_status.slug, 'en-revision')
+        self.assertEqual(manual.contact.phone, '809-555-1111')
