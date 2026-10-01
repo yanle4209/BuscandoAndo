@@ -1,16 +1,26 @@
 import csv
 import math
+import unicodedata
 from functools import lru_cache
 
 from django.conf import settings
 from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from django.db.models import Case, IntegerField, Q, Value, When
 from django.utils import timezone
 from .models import Business, Correction
 from .serializers import BusinessListSerializer, BusinessDetailSerializer, CorrectionCreateSerializer, CorrectionSerializer
+
+# Se traen los nombres sueltos y no el modulo: la vista se llama
+# ``pendientes`` igual que el modulo, y dentro de la funcion el nombre
+# local taparia al importado.
+from .pendientes import (
+    ETIQUETAS as ETIQUETAS_PENDIENTES,
+    contar_pendientes,
+    faltantes_de,
+)
 
 # Radio de busqueda en km. R1: las busquedas son unica y exclusivamente a
 # 5 km del punto activo (la ubicacion del usuario; la cabecera municipal,
@@ -20,6 +30,10 @@ RADIO_KM = 5.0
 
 # Fuente estatica de las 158 cabeceras municipales (DISENO.md seccion 9).
 CABECERAS_CSV = settings.BASE_DIR / 'data' / 'cabeceras_municipales.csv'
+
+# Donde caen las fichas que no dicen a que municipio pertenecen. No se las
+# esconde del reporte: no poder asignarlas es justo algo que hay que ver.
+SIN_MUNICIPIO = '(sin municipio)'
 
 
 def is_featured_active(biz):
@@ -370,3 +384,143 @@ def cabeceras(request):
     provincia es cosa de la interfaz, no del API.
     """
     return Response(_cabeceras())
+
+
+def _normalizar(texto):
+    """Minusculas y sin acentos, para comparar nombres de municipios.
+
+    El nombre de ``BusinessLocation`` es texto libre y el del CSV viene de
+    Wikipedia: "Bani" contra "Baní" deberia ser el mismo municipio.
+    """
+    texto = (texto or '').strip().casefold()
+    return ''.join(
+        caracter for caracter in unicodedata.normalize('NFD', texto)
+        if unicodedata.category(caracter) != 'Mn'
+    )
+
+
+def _cabecera_para(municipio, provincia=None):
+    """La cabecera del municipio en el CSV, o ``None`` si no aparece.
+
+    Desempate por provincia: primero nombre + provincia (dos municipios
+    homonimos no deberian cruzarse) y, si no coincide, el primer municipio
+    con ese nombre.
+    """
+    clave = _normalizar(municipio)
+    if not clave:
+        return None
+    provincia_clave = _normalizar(provincia)
+
+    por_nombre = None
+    for cab in _cabeceras():
+        if _normalizar(cab['municipio']) != clave:
+            continue
+        if provincia_clave and _normalizar(cab['provincia']) == provincia_clave:
+            return cab
+        por_nombre = por_nombre or cab
+    return por_nombre
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAdminUser])
+def pendientes(request):
+    """Reporte de pendientes por municipio (DISENO.md seccion 11.1).
+
+    La ficha de trabajo del editor. Sin ``?municipio=`` lista los
+    municipios que tienen fichas — con cuantas le falta algo y cuantas
+    esperan publicacion — para elegir donde trabajar; con el parametro, el
+    detalle de ese municipio, agrupado por campo faltante.
+
+    Sale de lo ya decidido y **no guarda nada nuevo**: el municipio lo da
+    la ubicacion de cada ficha, la cabecera viene del CSV de la seccion 9
+    y el circulo, del radio de R1. Por eso no hace falta ampliar el
+    serializer de lista con ``hours[]``: el horario se cuenta aqui, en el
+    servidor, en vez de pedir 325 llamadas de detalle (pendiente *i*).
+
+    Solo staff: aqui se ven fichas sin publicar y el reparto de trabajo.
+    """
+    municipio = (request.query_params.get('municipio') or '').strip()
+
+    negocios = (
+        Business.objects
+        .select_related('location', 'contact', 'category', 'publication_status')
+        .prefetch_related('hours')
+    )
+
+    grupos = {}
+    indice = {}
+    for biz in negocios:
+        loc = getattr(biz, 'location', None)
+        nombre = ((loc.municipality if loc else '') or '').strip()
+        nombre = nombre or SIN_MUNICIPIO
+        grupos.setdefault(nombre, []).append(biz)
+        indice.setdefault(_normalizar(nombre), nombre)
+
+    if not municipio:
+        return Response([
+            {
+                'municipio': nombre,
+                'total': len(grupo),
+                'con_pendientes': sum(
+                    1 for b in grupo if faltantes_de(b)
+                ),
+                'en_revision': sum(
+                    1 for b in grupo
+                    if b.publication_status.slug != 'publicado'
+                ),
+            }
+            for nombre, grupo in sorted(grupos.items(), key=lambda par: par[0])
+        ])
+
+    real = indice.get(_normalizar(municipio))
+    if real is None:
+        return Response(
+            {'detail': 'No hay fichas en "%s" todavia.' % municipio},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    grupo = grupos[real]
+    provincia = ''
+    for b in grupo:
+        loc = getattr(b, 'location', None)
+        if loc is not None and loc.province:
+            provincia = loc.province
+            break
+    cab = _cabecera_para(real, provincia)
+
+    con_faltantes = [
+        (b, faltantes_de(b)) for b in grupo
+    ]
+    fichas = [
+        {
+            'id': b.id,
+            'nombre': b.name,
+            'slug': b.slug,
+            'estado': b.publication_status.slug,
+            'procedencia': b.procedencia,
+            'categoria': b.category.name if b.category_id else None,
+            'lat': (getattr(b, 'location', None).lat
+                    if getattr(b, 'location', None) else None),
+            'lng': (getattr(b, 'location', None).lng
+                    if getattr(b, 'location', None) else None),
+            'faltan': faltan,
+        }
+        for b, faltan in con_faltantes if faltan
+    ]
+    # Las no publicadas primero: son las que hay que PUBLICAR (accion 2 de
+    # §11-j) y solo se diferencian de las demas en un clic. Las publicadas,
+    # completar (accion 1).
+    fichas.sort(key=lambda f: (f['estado'] == 'publicado',
+                               (f['nombre'] or '').casefold()))
+
+    return Response({
+        'municipio': real,
+        'provincia': (cab['provincia'] if cab else provincia),
+        'cabecera': ({'lat': cab['lat'], 'lng': cab['lng']} if cab else None),
+        'radio_km': RADIO_KM,
+        'total': len(grupo),
+        'con_pendientes': len(fichas),
+        'campos': ETIQUETAS_PENDIENTES,
+        'por_campo': contar_pendientes(grupo),
+        'fichas': fichas,
+    })

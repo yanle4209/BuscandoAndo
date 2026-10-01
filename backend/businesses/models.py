@@ -92,6 +92,25 @@ class Business(models.Model):
         verbose_name='Fin destacado',
     )
 
+    # === PROCEDENCIA (R5, DISENO.md seccion 10) ===
+    # Lo que viene del servicio entra marcado: el usuario ve la calidad de
+    # la ficha sin que se pierda el control. Es el UNICO campo nuevo que
+    # pide R5 — lo pendiente es calculado, no se guarda.
+    PROCEDENCIAS = [
+        ('manual', 'Manual'),
+        ('importado', 'Importado (automatico)'),
+        ('levantado', 'Levantado por colaborador'),
+        ('verificado', 'Verificado por humano'),
+    ]
+    procedencia = models.CharField(
+        max_length=12,
+        choices=PROCEDENCIAS,
+        default='manual',
+        verbose_name='Procedencia',
+        help_text='De donde salio la ficha. "importado" se anade solo, para '
+                  'senalar lo que nadie ha revisado todavia.',
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Creado el')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Actualizado el')
 

@@ -13,4 +13,7 @@ urlpatterns = [
     # ancla de los circulos de 5 km cuando no hay GPS, y fuente del selector
     # manual de municipio.
     path('cabeceras/', views.cabeceras, name='cabeceras'),
+    # Reporte de pendientes por municipio (DISENO.md 11.1): la ficha de
+    # trabajo del editor. Solo staff.
+    path('pendientes/', views.pendientes, name='pendientes'),
 ]

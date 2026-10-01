@@ -21,12 +21,15 @@ from operational_status.models import OperationalStatus
 from publication_status.models import PublicationStatus
 
 from business_locations.models import BusinessLocation
+from business_contacts.models import BusinessContact
+from business_hours.models import BusinessHours
 from .models import Business, Correction
 
 BUSINESSES_URL = '/api/businesses/'
 FEATURED_BY_SEARCH_URL = '/api/businesses/featured-by-search/'
 CORRECTIONS_URL = '/api/corrections/'
 CABECERAS_URL = '/api/cabeceras/'
+PENDIENTES_URL = '/api/pendientes/'
 
 
 class CorrectionApiTests(TestCase):
@@ -586,3 +589,270 @@ class CabecerasApiTests(TestCase):
 
         self.assertEqual(len(moca), 1)
         self.assertEqual(moca[0]['provincia'], 'Espaillat')
+
+
+class ReportePendientesTests(TestCase):
+    """GET /api/pendientes/ -> reporte de pendientes por municipio (§11.1).
+
+    La ficha de trabajo con la que se edita y publica a mano lo que no
+    llego a cumplir el trio. Hay que proteger tres cosas:
+
+    1. que **solo staff** la lea — dentro estan fichas sin publicar y el
+       reparto de trabajo, y el DEFAULT_PERMISSION_CLASSES del proyecto es
+       AllowAny;
+    2. que agrupe por campo faltante **y marque el trio**: lo que sale de
+       aqui es lo que un editor va a ir rellenando, y el trio es lo que
+       decide si una ficha se publica sola;
+    3. que traiga **cabecera y radio**, que es lo que ancla el circulo de
+       5 km con el que se mide si una ficha entrara en el municipio.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(name='Publicado', slug='publicado')
+        cls.en_revision = PublicationStatus.objects.create(name='En Revision', slug='en-revision')
+        cls.category = Category.objects.create(name='Restaurantes', slug='restaurantes')
+        cls.op_status = OperationalStatus.objects.create(name='Abierto', slug='abierto')
+
+        # Nada que pedir: no debe salir ni en el contador ni en la lista.
+        cls.completa = cls.crear(
+            'La Receta', telefono='809-555-1111', extras=True, horario=True,
+        )
+        # Cumple el trio, pero no horario ni contacto extra: se publica
+        # sola y aun asi sigue siendo un pendiente para quien edita.
+        cls.sin_extras = cls.crear('Panaderia Sol', telefono='809-555-2222')
+        # Sin telefono no hay trio -> queda en revision.
+        cls.sin_telefono = cls.crear(
+            'Taller El Rayo', telefono='', estado=cls.en_revision,
+            procedencia='importado',
+        )
+        # Con fila de ubicacion pero sin coordenadas: sigue en Moca y aun
+        # asi no tiene punto.
+        cls.sin_coordenadas = cls.crear(
+            'Kiosko La Esquina', lat=None, lng=None, calle='',
+            estado=cls.en_revision,
+        )
+        # Ni siquiera dice a que municipio pertenece.
+        cls.sin_ubicacion = cls.crear(
+            'Puesto Ambulante', con_ubicacion=False, estado=cls.en_revision,
+        )
+        # Otro municipio: no debe colarse en el de Moca.
+        cls.en_santiago = cls.crear(
+            'Cafe Santiago', municipio='Santiago', provincia='Santiago',
+            lat=19.4500, lng=-70.6900,
+        )
+        # Nombre sin acento en la base, con acento en el CSV.
+        cls.en_bani = cls.crear(
+            'Fonda Bani', municipio='Bani', provincia='Peravia',
+            lat=18.2793, lng=-70.3330,
+        )
+
+    @classmethod
+    def crear(cls, nombre, *, municipio='Moca', provincia='Espaillat',
+              lat=MOCA_LAT, lng=MOCA_LNG, calle='Calle 1',
+              telefono='809-555-0000', extras=False, estado=None,
+              procedencia='manual', horario=False, con_ubicacion=True):
+        biz = Business.objects.create(
+            name=nombre,
+            description='Descripcion de %s' % nombre,
+            category=cls.category,
+            publication_status=estado or cls.publicado,
+            operational_status=cls.op_status,
+            procedencia=procedencia,
+        )
+        if con_ubicacion:
+            BusinessLocation.objects.create(
+                business=biz, street=calle, municipality=municipio,
+                province=provincia, latitude=lat, longitude=lng,
+            )
+        if telefono:
+            contact = {'phone': telefono}
+            if extras:
+                contact = {
+                    'phone': telefono,
+                    'whatsapp': '+18095550000',
+                    'email': 'hola@example.com',
+                    'website': 'https://example.com',
+                }
+            BusinessContact.objects.create(business=biz, **contact)
+        if horario:
+            BusinessHours.objects.create(
+                business=biz, day='Lunes',
+                open_time=datetime.time(8, 0),
+                close_time=datetime.time(17, 0),
+            )
+        return biz
+
+    # ------------------------------ acceso ------------------------------
+    def test_el_reporte_no_es_publico(self):
+        """Dentro se ven fichas sin publicar: no puede ser anonimo."""
+        response = self.client.get(PENDIENTES_URL)
+
+        self.assertIn(
+            response.status_code, (401, 403),
+            'El reporte de pendientes se esta colando en publico',
+        )
+
+    def test_un_admin_si_puede_leerlo(self):
+        User = get_user_model()
+        self.client.force_login(
+            User.objects.create_superuser('admin', 'admin@example.com', 'x')
+        )
+
+        response = self.client.get(PENDIENTES_URL)
+
+        self.assertEqual(response.status_code, 200)
+
+    # --------------------------- sin municipio --------------------------
+    def test_sin_municipio_lista_donde_hay_trabajo(self):
+        """La pantalla de entrada: que municipios tienen fichas y cuantas
+        le falta algo, para elegir donde se empieza."""
+        User = get_user_model()
+        self.client.force_login(
+            User.objects.create_superuser('admin', 'admin@example.com', 'x')
+        )
+
+        datos = self.client.get(PENDIENTES_URL).json()
+
+        por_nombre = {f['municipio']: f for f in datos}
+        self.assertEqual(por_nombre['Moca']['total'], 4)
+        self.assertEqual(por_nombre['Santiago']['total'], 1)
+        # 'La Receta' no le falta nada, las otras tres de Moca si.
+        self.assertEqual(por_nombre['Moca']['con_pendientes'], 3)
+        # Dos de Moca y la sin municipio esperan publicacion.
+        self.assertEqual(por_nombre['Moca']['en_revision'], 2)
+
+    def test_las_fichas_sin_municipio_no_desaparecen(self):
+        """No se pueden editar si ni siquiera se sabe donde caen, asi que
+        van en su propio casillero en vez de quedar escondidas."""
+        User = get_user_model()
+        self.client.force_login(
+            User.objects.create_superuser('admin', 'admin@example.com', 'x')
+        )
+
+        datos = self.client.get(PENDIENTES_URL).json()
+        por_nombre = {f['municipio']: f for f in datos}
+
+        self.assertIn('(sin municipio)', por_nombre)
+        self.assertEqual(por_nombre['(sin municipio)']['total'], 1)
+
+    # ----------------------------- municipio ----------------------------
+    def admin(self):
+        User = get_user_model()
+        self.client.force_login(
+            User.objects.create_superuser('admin', 'admin@example.com', 'x')
+        )
+        return self.client.get(PENDIENTES_URL, {'municipio': 'Moca'}).json()
+
+    def test_un_municipio_con_fichas_trae_cabecera_y_radio(self):
+        """La cabecera ancla el circulo: sin ella no se sabe si una ficha
+        nueva entraria en este municipio (R1, DISENO.md 9)."""
+        datos = self.admin()
+
+        self.assertEqual(datos['municipio'], 'Moca')
+        self.assertEqual(datos['provincia'], 'Espaillat')
+        self.assertAlmostEqual(datos['cabecera']['lat'], 19.3964, places=4)
+        self.assertAlmostEqual(datos['cabecera']['lng'], -70.5274, places=4)
+        self.assertEqual(datos['radio_km'], 5)
+
+    def test_no_contamina_a_otro_municipio(self):
+        nombres = [f['nombre'] for f in self.admin()['fichas']]
+
+        self.assertNotIn('Cafe Santiago', nombres)
+        self.assertNotIn('Fonda Bani', nombres)
+
+    def test_una_ficha_completa_no_es_pendiente(self):
+        datos = self.admin()
+
+        self.assertEqual(datos['total'], 4)
+        self.assertEqual(datos['con_pendientes'], 3)
+        self.assertNotIn('La Receta', [f['nombre'] for f in datos['fichas']])
+
+    def test_agrupa_por_campo_faltante_y_marca_el_trio(self):
+        """§11.1: agrupado por campo. El trio va marcado para que se vea
+        de un vistazo que lo que bloquea la publicacion."""
+        por_campo = {f['campo']: f for f in self.admin()['por_campo']}
+
+        self.assertTrue(por_campo['telefono']['en_trio'])
+        self.assertTrue(por_campo['punto']['en_trio'])
+        self.assertFalse(por_campo['horario']['en_trio'])
+        self.assertGreaterEqual(por_campo['telefono']['cantidad'], 1)
+
+    def test_el_trio_va_primero_en_la_cola(self):
+        """Si no, los campos que no tiene casi nadie (WhatsApp, web)
+        taparian el telefono, que es el que decide la publicacion."""
+        filas = self.admin()['por_campo']
+        nombres = [f['campo'] for f in filas]
+
+        ultimo_trio = max(
+            nombres.index(c) for c in ('nombre', 'telefono', 'punto')
+            if c in nombres
+        )
+        primero_sin_trio = min(
+            i for i, fila in enumerate(filas) if not fila['en_trio']
+        )
+
+        self.assertLess(ultimo_trio, primero_sin_trio)
+
+    def test_las_que_hay_que_publicar_van_primero(self):
+        """§11-j: son dos acciones distintas en el admin — publicar la que
+        nunca cumplio el trio, completar la que ya se publico."""
+        fichas = self.admin()['fichas']
+
+        self.assertEqual(fichas[0]['estado'], 'en-revision')
+        self.assertEqual(fichas[-1]['estado'], 'publicado')
+
+    def test_trae_la_procedencia(self):
+        """§10: lo que viene del servicio entra marcado."""
+        por_nombre = {f['nombre']: f for f in self.admin()['fichas']}
+
+        self.assertEqual(por_nombre['Taller El Rayo']['procedencia'], 'importado')
+        self.assertEqual(por_nombre['Panaderia Sol']['procedencia'], 'manual')
+
+    def test_un_municipio_sin_fichas_da_404(self):
+        User = get_user_model()
+        self.client.force_login(
+            User.objects.create_superuser('admin', 'admin@example.com', 'x')
+        )
+
+        response = self.client.get(PENDIENTES_URL, {'municipio': 'Barahona'})
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_el_nombre_del_municipio_no_distingue_mayusculas_ni_acentos(self):
+        """El nombre de la base es texto libre y el del CSV viene de
+        Wikipedia: 'Bani' contra 'Baní' es el mismo municipio."""
+        User = get_user_model()
+        self.client.force_login(
+            User.objects.create_superuser('admin', 'admin@example.com', 'x')
+        )
+
+        mayusculas = self.client.get(
+            PENDIENTES_URL, {'municipio': 'mOcA'}
+        ).json()
+        sin_acento = self.client.get(
+            PENDIENTES_URL, {'municipio': 'baní'}
+        ).json()
+
+        self.assertEqual(mayusculas['municipio'], 'Moca')
+        self.assertEqual(sin_acento['municipio'], 'Bani')
+        # Y la cabecera del CSV (que si lleva acento) se encuentra igual.
+        self.assertIsNotNone(sin_acento['cabecera'])
+        self.assertEqual(sin_acento['provincia'], 'Peravia')
+
+    # ---------------------------- el trio (R5) --------------------------
+    def test_el_trio_es_nombre_telefono_y_punto(self):
+        """§10-f: el telefono es obligatorio porque es el propio trio."""
+        from . import pendientes
+
+        self.assertTrue(pendientes.cumple_trio(self.completa))
+        self.assertFalse(pendientes.cumple_trio(self.sin_telefono))
+        self.assertFalse(pendientes.cumple_trio(self.sin_coordenadas))
+
+    def test_los_extras_no_forman_parte_del_trio(self):
+        """§10: horario y WhatsApp son pendientes, pero no impiden
+        publicar. 'Panaderia Sol' no tiene ninguno de los dos."""
+        from . import pendientes
+
+        self.assertTrue(pendientes.cumple_trio(self.sin_extras))
+        self.assertIn('horario', pendientes.faltantes_de(self.sin_extras))
