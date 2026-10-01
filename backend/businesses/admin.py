@@ -4,7 +4,10 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django.contrib import messages
 from django.utils import timezone
-from .models import Business, Correction, FEATURED_LIMITS, FEATURED_WEEKS_CHOICES
+from .models import (
+    Business, Correction, Colaborador, Envio,
+    FEATURED_LIMITS, FEATURED_WEEKS_CHOICES,
+)
 from business_locations.models import BusinessLocation
 from business_contacts.models import BusinessContact
 from business_hours.admin import BusinessHoursInline
@@ -289,3 +292,97 @@ class BusinessAdmin(admin.ModelAdmin):
         location = getattr(obj, 'location', None)
         return location.municipality if location and location.municipality else '-'
     get_city.short_description = 'Municipio'
+
+
+@admin.register(Colaborador)
+class ColaboradorAdmin(admin.ModelAdmin):
+    """Alta de colaboradores y el token con que firman (DISENO.md 11.5).
+
+    No hay "usuarios" del canal: hay personas que firman. Crear uno aqui
+    es entregarle el token; apagarlo (`activo`) lo bloquea a el y solo a
+    el, sin tocar a los demas — que es justo la propiedad que hizo que se
+    eligiera el token de firma en vez de una cuenta.
+    """
+
+    list_display = ['nombre', 'token_corto', 'municipio', 'activo',
+                    'ultimo_envio', 'creado_el']
+    list_filter = ['activo', 'municipio']
+    search_fields = ['nombre', 'municipio']
+    # El token se genera en `save()` y no se teclea: se muestra aqui para
+    # poder copiarlo y entregarselo, pero no se puede escribir.
+    readonly_fields = ['token', 'creado_el', 'ultimo_envio']
+    actions = ['bloquear', 'desbloquear']
+    fieldsets = [
+        (None, {
+            'fields': ['nombre', 'municipio', 'activo'],
+            'description': (
+                'Colaborador NO es usuario: no entra a nada, no lee nada. '
+                'Solo firma los envios con un token. Eso es lo que permite '
+                'bloquear a este sin cerrarle el canal a los demas.'
+            ),
+        }),
+        ('Firma', {
+            'fields': ['token'],
+            'description': (
+                'Se entrega tal cual. La herramienta de levantamiento lo '
+                'pide una vez y lo guarda en el navegador. Va en la '
+                'cabecera <code>X-Colaborador-Token</code>, nunca en la URL.'
+            ),
+        }),
+        ('Actividad', {
+            'fields': ['ultimo_envio', 'creado_el'],
+        }),
+    ]
+
+    def token_corto(self, obj):
+        return (obj.token[:10] + '…') if obj.token else '-'
+    token_corto.short_description = 'Token'
+    token_corto.admin_order_field = 'token'
+
+    def bloquear(self, request, queryset):
+        """§11.5: bloquear a UN colaborador sin cerrar a los demas."""
+        actualizados = queryset.update(activo=False)
+        self.message_user(
+            request,
+            '%d colaborador(es) bloqueado(s). Sus envios dejaron de aceptarse.'
+            % actualizados,
+        )
+    bloquear.short_description = 'Bloquear los seleccionados'
+
+    def desbloquear(self, request, queryset):
+        actualizados = queryset.update(activo=True)
+        self.message_user(
+            request, '%d colaborador(es) reactivo(s).' % actualizados,
+        )
+    desbloquear.short_description = 'Reactivar los seleccionados'
+
+
+@admin.register(Envio)
+class EnvioAdmin(admin.ModelAdmin):
+    """Bandeja de auditoria del canal: que decidio el sistema y por que.
+
+    **Solo lectura.** Ahi dentro esta la decision (§11.5) y el cuerpo
+    literal de lo que llego: cambiarlo seria reescribir la prueba. Lo que
+    se arregla es en la ficha, no aqui.
+    """
+
+    list_display = ['recibido_el', 'colaborador', 'estado', 'negocio',
+                    'motivos_cortos', 'ip']
+    list_filter = ['estado', 'colaborador', 'recibido_el']
+    search_fields = ['colaborador__nombre', 'negocio__name', 'datos']
+    date_hierarchy = 'recibido_el'
+
+    def has_add_permission(self, request):
+        # Los envios los hace el sistema, no la persona.
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        return [campo.name for campo in Envio._meta.fields]
+
+    def motivos_cortos(self, obj):
+        if obj.estado == 'rechazado' and obj.motivos:
+            return ' | '.join(obj.motivos)
+        if obj.faltan:
+            return 'Faltan: ' + ', '.join(obj.faltan)
+        return '-'
+    motivos_cortos.short_description = 'Motivos / faltantes'

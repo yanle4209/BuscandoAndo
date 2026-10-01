@@ -161,3 +161,66 @@ def duplicado(indice, nombre, lat=None, lng=None):
         if haversine_distance(lat, lng, loc.lat, loc.lng) <= MARGEN_DUPLICADO_KM:
             return otro
     return None
+
+
+def enriquecer(negocio, datos):
+    """Rellena en la ficha existente lo que le falta. **Nunca sobrescribe.**
+
+    Es la otra mitad de §10-d: si la fuente trae el telefono y nosotros no
+    lo tenemos, se le pone a la ficha que ya existe en vez de publicar una
+    segunda por ese motivo. Al reves tambien: si nosotros ya lo teniamos,
+    se queda lo nuestro.
+
+    Devuelve la lista de lo que se toco (vacía = no hizo falta nada).
+
+    ``datos`` es el mismo diccionario que produce ``osm.a_datos`` y que
+    arma el endpoint de levantamiento, para que los dos crucen igual.
+    """
+    from business_contacts.models import BusinessContact
+
+    tocado = []
+
+    contact = getattr(negocio, 'contact', None)
+    if contact is None:
+        if any((datos.get('telefono'), datos.get('whatsapp'),
+                datos.get('correo'), datos.get('web'))):
+            BusinessContact.objects.create(
+                business=negocio,
+                phone=datos.get('telefono', ''),
+                whatsapp=datos.get('whatsapp', ''),
+                email=datos.get('correo', ''),
+                website=datos.get('web', ''),
+            )
+            tocado.append('contacto')
+    else:
+        for campo, valor in (
+            ('phone', datos.get('telefono')),
+            ('whatsapp', datos.get('whatsapp')),
+            ('email', datos.get('correo')),
+            ('website', datos.get('web')),
+        ):
+            if valor and not (getattr(contact, campo) or '').strip():
+                setattr(contact, campo, valor)
+                tocado.append(campo)
+        if tocado:
+            contact.save()
+
+    loc = getattr(negocio, 'location', None)
+    if loc is not None:
+        cambios = []
+        if not (loc.street or '').strip() and datos.get('calle'):
+            loc.street = datos['calle']
+            cambios.append('street')
+        if not (loc.sector or '').strip() and datos.get('sector'):
+            loc.sector = datos['sector']
+            cambios.append('sector')
+        if cambios:
+            loc.save(update_fields=cambios)
+            tocado.extend(cambios)
+
+    if datos.get('horario') and not negocio.hours.exists():
+        from .ingreso import poner_horario
+        poner_horario(negocio, datos['horario'])
+        tocado.append('horario')
+
+    return tocado

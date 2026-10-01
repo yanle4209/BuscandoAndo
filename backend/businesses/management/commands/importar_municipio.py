@@ -27,14 +27,11 @@ from collections import Counter
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.text import slugify
 
-from business_contacts.models import BusinessContact
-from business_hours.models import BusinessHours
-from business_locations.models import BusinessLocation
 from categories.models import Category
 from operational_status.models import OperationalStatus
 from publication_status.models import PublicationStatus
 
-from businesses import geografia, osm, pendientes, validacion
+from businesses import geografia, ingreso, osm, pendientes, validacion
 from businesses.models import Business
 
 
@@ -69,11 +66,17 @@ class Command(BaseCommand):
         else:
             raise CommandError('Dime un municipio, o usa --todos.')
 
-        # Sin estos cuatro no hay donde poner lo que entre.
+        # Sin estos cuatro no hay donde poner lo que entre. Se comprueba
+        # aqui y no a mitad de la importacion: una ficha sin estado
+        # operativo se veria "Cerrado" en el frontend, que es mentira.
         self.publicado = PublicationStatus.objects.get(slug='publicado')
         self.en_revision = PublicationStatus.objects.get(slug='en-revision')
-        self.abierto = OperationalStatus.objects.get(slug='abierto')
-        self.cerrado = OperationalStatus.objects.get(slug='cerrado')
+        for slug in ('abierto', 'cerrado'):
+            if not OperationalStatus.objects.filter(slug=slug).exists():
+                raise CommandError(
+                    'Falta el estado operativo "%s": cargalo antes de '
+                    'importar.' % slug
+                )
 
         # Una sola carga: despues se va actualizando con lo que se crea,
         # en vez de consultar la base por cada candidato.
@@ -184,18 +187,27 @@ class Command(BaseCommand):
             )
             if existente is not None:
                 totales['duplicados'] += 1
-                if self._enriquecer(existente, datos):
+                if validacion.enriquecer(existente, datos):
                     totales['enriquecidos'] += 1
+                    # Releer: `enriquecer` dejo en la instancia la cache de
+                    # "no tiene contacto" de antes de crearlo, y con ella
+                    # `cumple_trio` veria el telefono que acaba de ponerse.
+                    existente = Business.objects.get(pk=existente.pk)
                     tocados.append(existente)
                 continue
 
-            negocio = self._crear(datos)
+            negocio = ingreso.crear(
+                datos,
+                categoria=self._categoria(datos),
+                en_revision=self.en_revision,
+                procedencia='importado',
+            )
             nuevos.append(negocio)
             tocados.append(negocio)
             indice.setdefault(clave_municipio, {})[
                 geografia.normalizar(negocio.name)] = negocio
 
-        promovidos = self._publicar_si_cumple(tocados)
+        promovidos = pendientes.publicar_si_cumple(tocados, self.publicado)
         publicados_nuevos = sum(
             1 for n in nuevos
             if n.publication_status_id == self.publicado.id
@@ -212,123 +224,17 @@ class Command(BaseCommand):
                    len(nuevos) - publicados_nuevos))
 
     # ------------------------------------------------------------------
-    def _crear(self, datos):
+    def _categoria(self, datos):
+        """La categoria, creandola si no existe.
+
+        Aqui SI se crea: el nombre viene de OSM y es de fiar. El canal de
+        envio, en cambio, solo busca la que ya hay, porque ahi el nombre
+        lo teclea una persona y una errata no debe abrirle una categoria
+        nueva al sistema.
+        """
+        nombre = datos['categoria']
         categoria, _ = Category.objects.get_or_create(
-            name=datos['categoria'],
-            defaults={'slug': slugify(datos['categoria'], allow_unicode=True)},
+            name=nombre,
+            defaults={'slug': slugify(nombre, allow_unicode=True)},
         )
-        negocio = Business.objects.create(
-            name=datos['nombre'],
-            # Sin inventar: lo que no trae OSM queda vacio y por eso
-            # aparece como pendiente en el reporte (§10).
-            description=datos['descripcion'],
-            short_description='',
-            category=categoria,
-            publication_status=self.en_revision,
-            operational_status=self.cerrado if datos['cerrado'] else self.abierto,
-            procedencia='importado',
-        )
-        BusinessLocation.objects.create(
-            business=negocio,
-            street=datos['calle'],
-            sector=datos['sector'],
-            municipality=datos['municipio'],
-            province=datos['provincia'],
-            latitude=datos['lat'],
-            longitude=datos['lng'],
-        )
-        if any((datos['telefono'], datos['whatsapp'],
-                datos['correo'], datos['web'])):
-            BusinessContact.objects.create(
-                business=negocio,
-                phone=datos['telefono'],
-                whatsapp=datos['whatsapp'],
-                email=datos['correo'],
-                website=datos['web'],
-            )
-        self._poner_horario(negocio, datos['horario'])
-        return negocio
-
-    def _enriquecer(self, negocio, datos):
-        """Rellena en la ficha existente lo que le falta. Nunca sobrescribe.
-
-        Es el cruce que obliga §10-d: si OSM trae el telefono y nosotros
-        no lo tenemos, se le pone a la ficha que ya existe en vez de
-        publicar una segunda por ese motivo.
-        """
-        toco = []
-
-        contact = getattr(negocio, 'contact', None)
-        if contact is None:
-            if any((datos['telefono'], datos['whatsapp'],
-                    datos['correo'], datos['web'])):
-                BusinessContact.objects.create(
-                    business=negocio,
-                    phone=datos['telefono'],
-                    whatsapp=datos['whatsapp'],
-                    email=datos['correo'],
-                    website=datos['web'],
-                )
-                toco.append('contacto')
-        else:
-            for campo, valor in (
-                ('phone', datos['telefono']),
-                ('whatsapp', datos['whatsapp']),
-                ('email', datos['correo']),
-                ('website', datos['web']),
-            ):
-                if valor and not (getattr(contact, campo) or '').strip():
-                    setattr(contact, campo, valor)
-                    toco.append(campo)
-            if toco:
-                contact.save()
-
-        loc = getattr(negocio, 'location', None)
-        if loc is not None:
-            cambios = []
-            if not (loc.street or '').strip() and datos['calle']:
-                loc.street = datos['calle']
-                cambios.append('street')
-            if not (loc.sector or '').strip() and datos['sector']:
-                loc.sector = datos['sector']
-                cambios.append('sector')
-            if cambios:
-                loc.save(update_fields=cambios)
-                toco.extend(cambios)
-
-        if datos['horario'] and not negocio.hours.exists():
-            self._poner_horario(negocio, datos['horario'])
-            toco.append('horario')
-
-        return bool(toco)
-
-    def _poner_horario(self, negocio, franjas):
-        for franja in franjas:
-            BusinessHours.objects.get_or_create(
-                business=negocio,
-                day=franja['day'],
-                defaults={
-                    'open_time': franja['open'],
-                    'close_time': franja['close'],
-                },
-            )
-
-    def _publicar_si_cumple(self, negocios):
-        """§10-f/g: solo lo que acaba de entrar y cumple el trio.
-
-        Solo ``procedencia='importado'``: una ficha creada a mano se queda
-        en revision aunque cumpla el trio, que es quien la publica
-        (VISION.md). Devuelve las promovidas.
-        """
-        promovidos = []
-        for negocio in negocios:
-            if negocio.publication_status_id == self.publicado.id:
-                continue
-            if negocio.procedencia != 'importado':
-                continue
-            if not pendientes.cumple_trio(negocio):
-                continue
-            negocio.publication_status = self.publicado
-            negocio.save(update_fields=['publication_status', 'updated_at'])
-            promovidos.append(negocio)
-        return promovidos
+        return categoria

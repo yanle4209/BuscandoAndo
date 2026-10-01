@@ -27,13 +27,15 @@ from business_locations.models import BusinessLocation
 from business_contacts.models import BusinessContact
 from business_hours.models import BusinessHours
 from . import geografia, osm, validacion
-from .models import Business, Correction
+from .levantamiento import LIMITE_ENVIOS_POR_MINUTO
+from .models import Business, Correction, Colaborador, Envio
 
 BUSINESSES_URL = '/api/businesses/'
 FEATURED_BY_SEARCH_URL = '/api/businesses/featured-by-search/'
 CORRECTIONS_URL = '/api/corrections/'
 CABECERAS_URL = '/api/cabeceras/'
 PENDIENTES_URL = '/api/pendientes/'
+LEVANTAMIENTO_URL = '/api/levantamiento/'
 
 
 class CorrectionApiTests(TestCase):
@@ -1174,3 +1176,334 @@ class ImportarMunicipioTests(TestCase):
 
         self.assertEqual(manual.publication_status.slug, 'en-revision')
         self.assertEqual(manual.contact.phone, '809-555-1111')
+
+
+class CanalDeEnvioTests(TestCase):
+    """POST /api/levantamiento/ -> el canal de envio (§11.5).
+
+    Lo que sostiene el diseño y hay que proteger con mas cuidado es una
+    asimetria de dos renglones:
+
+        MAL FORMADO  -> rechazado en la puerta (no queda pendiente de nada)
+        FALTA EL TRIO -> pendiente en el reporte (nunca se descarta)
+
+    Si se invirtieran, lo que mas necesitamos —los negocios sin telefono—
+    dejaria de llegar al reporte de §11.1. Y lo otro, que sin el token no
+    se entra: §11-i dice "no hay acceso, hay envio", y por eso da igual
+    que el canal este completo desde el primer dia.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado',
+        )
+        cls.en_revision = PublicationStatus.objects.create(
+            name='En Revision', slug='en-revision',
+        )
+        cls.abierto = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto',
+        )
+        cls.category = Category.objects.create(
+            name='Panaderias', slug='panaderias',
+        )
+        cls.colaborador = Colaborador.objects.create(nombre='Pedro')
+        cls.otro = Colaborador.objects.create(nombre='Maria')
+
+    # ------------------------------ utilidades -------------------------
+    def cuerpo(self, **extra):
+        datos = {
+            'nombre': 'Pan del Dia',
+            'telefono': '809-555-1111',
+            'lat': 19.3970,
+            'lng': -70.5270,
+            'municipio': 'Moca',
+            'calle': 'Calle 1 #10',
+            'categoria': 'Panaderias',
+        }
+        datos.update(extra)
+        return datos
+
+    def enviar(self, token=None, cliente=None, **extra):
+        """Un POST al canal. ``token=None`` manda el bueno; '' ninguno."""
+        if token is None:
+            token = self.colaborador.token
+        encabezados = {'X-Colaborador-Token': token} if token else {}
+        return (cliente or self.client).post(
+            LEVANTAMIENTO_URL,
+            self.cuerpo(**extra),
+            content_type='application/json',
+            headers=encabezados,
+        )
+
+    def hacer(self, nombre, *, procedencia='manual', estado=None,
+              telefono='', lat=19.3970, lng=-70.5270, calle='Calle 1 #10'):
+        negocio = Business.objects.create(
+            name=nombre,
+            description='Descripcion',
+            category=self.category,
+            publication_status=estado or self.en_revision,
+            operational_status=self.abierto,
+            procedencia=procedencia,
+        )
+        BusinessLocation.objects.create(
+            business=negocio, street=calle, municipality='Moca',
+            province='Espaillat', latitude=lat, longitude=lng,
+        )
+        if telefono:
+            BusinessContact.objects.create(business=negocio, phone=telefono)
+        return negocio
+
+    # ---------------------------- §11-i: firma -------------------------
+    def test_sin_firma_no_entra(self):
+        response = self.enviar(token='')
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(Business.objects.count(), 0)
+        self.assertEqual(Envio.objects.count(), 0)
+
+    def test_un_token_inventado_no_entra(self):
+        response = self.enviar(token='no-existe')
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(Business.objects.count(), 0)
+
+    def test_un_colaborador_bloqueado_no_entra(self):
+        self.colaborador.activo = False
+        self.colaborador.save()
+
+        response = self.enviar()
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(Business.objects.count(), 0)
+
+    def test_bloquear_a_uno_no_cierra_el_canal_a_los_demas(self):
+        """§11.5: el token firma a UNO. Que se haya equivocado Pedro no es
+        motivo para dejar a Maria sin poder levantar nada."""
+        self.colaborador.activo = False
+        self.colaborador.save()
+
+        response = self.enviar(token=self.otro.token)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['estado'], 'publicado')
+
+    def test_el_token_tambien_se_acepta_como_bearer(self):
+        response = self.client.post(
+            LEVANTAMIENTO_URL,
+            self.cuerpo(),
+            content_type='application/json',
+            headers={'Authorization': 'Bearer ' + self.colaborador.token},
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_del_canal_solo_se_envia_no_se_lee(self):
+        """§11-i: no hay acceso, hay envio. Con la firma en la mano no se
+        abre ni una lectura."""
+        response = self.client.get(
+            LEVANTAMIENTO_URL,
+            headers={'X-Colaborador-Token': self.colaborador.token},
+        )
+
+        self.assertEqual(response.status_code, 405)
+
+    # ------------------------ 1. la puerta -----------------------------
+    def test_un_nombre_vacio_se_rechaza_y_no_deja_nada(self):
+        response = self.enviar(nombre='   ')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data['estado'], 'rechazado')
+        self.assertEqual(Business.objects.count(), 0)
+        # Si, ademas, quedara "pendiente", seria mentira: no hay nada que
+        # editar, no llego nada.
+        self.assertEqual(Envio.objects.get().estado, 'rechazado')
+
+    def test_un_telefono_con_letras_se_rechaza(self):
+        response = self.enviar(telefono='no se sabe')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('telefono', ' '.join(response.data['motivos']).lower())
+        self.assertEqual(Business.objects.count(), 0)
+
+    def test_fuera_del_circulo_de_5_km_se_rechaza(self):
+        """R1/§10-j: el canal no puede ensanchar el radio."""
+        response = self.enviar(lat=19.6000)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Business.objects.count(), 0)
+
+    def test_un_municipio_desconocido_se_rechaza(self):
+        response = self.enviar(municipio='Villa Que No Existe')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Business.objects.count(), 0)
+
+    def test_una_coordenada_rota_se_rechaza_como_rota_no_como_faltante(self):
+        """La diferencia que mas importa de la puerta.
+
+        ``lat='abc'`` **vino** y viene roto -> se rechaza. Si se
+        convirtiera a ``None`` pasaria por "falta el punto" (que se
+        perdona) y el error quedaria escondido en un reporte donde nadie
+        mira coordenadas.
+        """
+        response = self.enviar(lat='abc')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Business.objects.count(), 0)
+        self.assertIn('numero', ' '.join(response.data['motivos']).lower())
+
+    # --------------------------- 3. el trio ----------------------------
+    def test_lo_completo_se_publica_al_momento(self):
+        response = self.enviar()
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['estado'], 'publicado')
+        negocio = Business.objects.get()
+        self.assertEqual(negocio.publication_status.slug, 'publicado')
+        # Es del canal, no de OSM: lo que distingue "levantado".
+        self.assertEqual(negocio.procedencia, 'levantado')
+
+    def test_sin_telefono_queda_pendiente_y_no_se_descarta(self):
+        """§10-g: el negocio sin telefono es el que mas queremos en el
+        reporte, no el que queremos fuera."""
+        response = self.enviar(telefono='')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['estado'], 'pendiente')
+        self.assertIn('telefono', response.data['faltan'])
+        self.assertEqual(
+            Business.objects.get().publication_status.slug, 'en-revision',
+        )
+
+    def test_sin_punto_queda_pendiente(self):
+        """Falta el trio, no esta roto: tambien entra."""
+        response = self.enviar(lat=None, lng=None)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['estado'], 'pendiente')
+        self.assertIn('punto', response.data['faltan'])
+
+    def test_una_categoria_desconocida_no_se_crea_desde_aqui(self):
+        """Aqui teclea una persona: una errata no debe abrirle una
+        categoria nueva al sistema. El importador si la crea, porque el
+        nombre viene de OSM y es de fiar."""
+        response = self.enviar(categoria='Pan (con errata)')
+
+        self.assertFalse(Category.objects.filter(name='Pan (con errata)').exists())
+        # Y no por eso se le retiene: la categoria no es el trio.
+        self.assertEqual(response.data['estado'], 'publicado')
+        self.assertIn('categoria', response.data['faltan'])
+
+    def test_un_pendiente_del_canal_aparece_en_el_reporte(self):
+        """El circuito cerrado: entra por el canal y sale por §11.1."""
+        self.enviar(telefono='')
+        User = get_user_model()
+        self.client.force_login(
+            User.objects.create_superuser('admin', 'admin@example.com', 'x')
+        )
+
+        response = self.client.get(PENDIENTES_URL, {'municipio': 'Moca'})
+
+        self.assertEqual(response.status_code, 200)
+        por_nombre = {f['nombre']: f for f in response.data['fichas']}
+        self.assertEqual(por_nombre['Pan del Dia']['estado'], 'en-revision')
+
+    # ------------------------- 2. el cruce -----------------------------
+    def test_un_duplicado_no_crea_una_segunda_ficha(self):
+        existente = self.hacer('Pan del Dia')
+
+        response = self.enviar()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['estado'], 'duplicado')
+        self.assertEqual(
+            Business.objects.filter(name='Pan del Dia').count(), 1,
+        )
+        self.assertEqual(existente.contact.phone, '809-555-1111')
+
+    def test_completarle_el_trio_a_una_importada_la_publica(self):
+        """§10-d + §10-f, juntas.
+
+        La ficha existente es una importada sin telefono; el envio trae el
+        que nos falta. Se le completa **y** se publica, porque ya cumple
+        el trio. Es la prueba de que hay que releer la instancia: si no,
+        `cumple_trio` veria la cache de "no tiene contacto" de antes de
+        crearlo y la ficha se quedaria en revision.
+        """
+        existente = self.hacer('Pan del Dia', procedencia='importado')
+
+        response = self.enviar()
+
+        self.assertEqual(response.data['estado'], 'duplicado')
+        # `enriquecer` informa el objeto que toco, y al no existir contacto
+        # lo que crea y anota es 'contacto' (que es donde vive el telefono).
+        self.assertIn('contacto', response.data['completado'])
+        existente.refresh_from_db()
+        self.assertEqual(existente.publication_status.slug, 'publicado')
+        self.assertEqual(existente.contact.phone, '809-555-1111')
+
+    def test_lo_manual_no_se_publica_sola_aunque_lo_completen(self):
+        """VISION.md: quien publica una ficha hecha a mano es el admin,
+        aun cuando el cruce le meta el telefono."""
+        self.hacer('Pan del Dia', procedencia='manual')
+
+        response = self.enviar()
+
+        self.assertEqual(response.data['estado'], 'duplicado')
+        self.assertEqual(
+            Business.objects.get().publication_status.slug, 'en-revision',
+        )
+
+    # --------------------------- auditoria -----------------------------
+    def test_el_envio_queda_registrado_con_lo_que_llego(self):
+        self.enviar(descripcion='Pan casero de horno de leña')
+
+        envio = Envio.objects.get()
+        self.assertEqual(envio.colaborador, self.colaborador)
+        self.assertEqual(envio.negocio, Business.objects.get())
+        self.assertEqual(envio.estado, 'publicado')
+        self.assertEqual(envio.datos['nombre'], 'Pan del Dia')
+        self.assertEqual(
+            envio.datos['descripcion'], 'Pan casero de horno de leña',
+        )
+        self.assertIsNotNone(envio.recibido_el)
+
+        self.colaborador.refresh_from_db()
+        self.assertIsNotNone(self.colaborador.ultimo_envio)
+
+    def test_el_techo_por_minuto_corta_un_bombardeo(self):
+        for i in range(LIMITE_ENVIOS_POR_MINUTO):
+            response = self.enviar(
+                nombre='Pan %02d' % i, telefono='8095551%04d' % i,
+            )
+            self.assertEqual(response.status_code, 201, response.content)
+
+        response = self.enviar(nombre='Pan 99')
+
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(
+            Business.objects.count(), LIMITE_ENVIOS_POR_MINUTO,
+        )
+
+    # ---------------------------- CSRF ---------------------------------
+    def test_el_formulario_funciona_con_el_admin_abierto_en_el_mismo_dominio(self):
+        """Regresion del CSRF, igual que el de las correcciones.
+
+        DRF autentica por sesion por defecto: quien tenga la sesion del
+        admin abierta le exigiria token CSRF — y esta herramienta y el
+        admin estan en el MISMO dominio, asi que le pasaria a cualquiera
+        que probara. Por eso el endpoint va con authentication_classes=[];
+        este test es el que falla si alguien lo quita.
+        """
+        from django.test import Client
+
+        client = Client(enforce_csrf_checks=True)
+        User = get_user_model()
+        client.force_login(
+            User.objects.create_superuser('admin3', 'admin3@example.com', 'x')
+        )
+
+        response = self.enviar(cliente=client)
+
+        self.assertEqual(response.status_code, 201, response.content)

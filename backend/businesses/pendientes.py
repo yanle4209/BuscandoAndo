@@ -135,3 +135,30 @@ def contar_pendientes(negocios):
     filas.sort(key=lambda fila: (0 if fila['en_trio'] else 1,
                                  -fila['cantidad'], fila['campo']))
     return filas
+
+
+def publicar_si_cumple(negocios, estado_publicado):
+    """§10-f: de lo que acaba de entrar, se publica el que cumpla el trio.
+
+    Devuelve las promovidas. Vive aqui y no en el importador ni en el
+    endpoint porque es la MISMA regla para los dos: R5 no distingue entre
+    lo que viene de OSM y lo que manda un colaborador.
+
+    Solo ``procedencia='importado'`` o ``'levantado'``: una ficha creada a
+    mano se queda en revision aunque cumpla el trio, que es quien la
+    publica (VISION.md). Si esto se abriera a 'manual', el importador
+    publicaria por su cuenta fichas que alguien dejo a proposito sin
+    publicar.
+    """
+    promovidas = []
+    for biz in negocios:
+        if biz.publication_status_id == estado_publicado.id:
+            continue
+        if biz.procedencia not in ('importado', 'levantado'):
+            continue
+        if not cumple_trio(biz):
+            continue
+        biz.publication_status = estado_publicado
+        biz.save(update_fields=['publication_status', 'updated_at'])
+        promovidas.append(biz)
+    return promovidas

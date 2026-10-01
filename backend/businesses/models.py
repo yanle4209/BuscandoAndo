@@ -1,3 +1,5 @@
+import secrets
+
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -302,3 +304,137 @@ class Correction(models.Model):
     @property
     def esta_resuelta(self):
         return self.estado in ('aplicada', 'descartada')
+
+
+def _token_nuevo():
+    """El token de un colaborador.
+
+    Aleatorio y opaco: no lleva informacion dentro, asi que robarselo no
+    descubre nada. Con eso basta porque su unico uso es FIRMAR un envio
+    (§11.5) — nunca abrir nada.
+    """
+    return secrets.token_urlsafe(32)
+
+
+class Colaborador(models.Model):
+    """Quien firma los envios del canal de levantamiento.
+
+    **No es un usuario.** No entra a nada, no lee nada, no tiene permisos:
+    solo tiene un token con que firmar (§11-i: "no hay acceso, hay
+    envio"). Esa distincion es la que permite construir el canal completo
+    sin montar autenticacion, y la que deja bloquear a UNO —apagar su
+    token— sin cerrar el canal a los demas.
+    """
+
+    nombre = models.CharField(max_length=120, verbose_name='Nombre')
+    # Editable=False: se genera en save() y no se teclea. En el admin sale
+    # como solo lectura para poder copiarlo y entregarselo.
+    token = models.CharField(
+        max_length=64,
+        unique=True,
+        editable=False,
+        verbose_name='Token de firma',
+    )
+    municipio = models.CharField(
+        max_length=100, blank=True, default='',
+        verbose_name='Municipio',
+        help_text='Solo informativo: el municipio de cada envio lo declara '
+                  'el propio envio, no el token.',
+    )
+    activo = models.BooleanField(
+        default=True,
+        verbose_name='Activo',
+        help_text='Apagarlo bloquea a este colaborador sin tocar a los demas.',
+    )
+    creado_el = models.DateTimeField(auto_now_add=True, verbose_name='Creado el')
+    ultimo_envio = models.DateTimeField(
+        null=True, blank=True, verbose_name='Ultimo envio',
+    )
+
+    class Meta:
+        verbose_name = 'Colaborador'
+        verbose_name_plural = 'Colaboradores'
+        ordering = ['nombre']
+
+    def __str__(self):
+        estado = '' if self.activo else ' (bloqueado)'
+        return f'{self.nombre}{estado}'
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = _token_nuevo()
+        super().save(*args, **kwargs)
+
+
+class Envio(models.Model):
+    """El registro de cada envio del canal de levantamiento.
+
+    Aqui esta la auditoria: quien firmo, que mando y que decidio el sistema
+    (§11.5). Es lo que permite juzgar a un colaborador concreto y bloquear
+    solo su token. El colaborador no lo lee — no hay acceso, hay envio.
+
+    ``estado`` refleja la decision del sistema, no una decision humana:
+
+    * ``publicado``   — cumplio el trio, entro a la luz;
+    * ``pendiente``   — paso la validacion pero le falta el trio, y ya
+                        esta en el reporte de §11.1;
+    * ``rechazado``   — fallo en la puerta, no queda pendiente de nada;
+    * ``duplicado``   — ya existia: se le completo lo que faltaba.
+    """
+
+    ESTADOS = [
+        ('publicado', 'Publicado'),
+        ('pendiente', 'Pendiente (falta el trio)'),
+        ('rechazado', 'Rechazado en la puerta'),
+        ('duplicado', 'Ya existia'),
+    ]
+
+    colaborador = models.ForeignKey(
+        Colaborador,
+        on_delete=models.PROTECT,
+        related_name='envios',
+        verbose_name='Colaborador',
+    )
+    negocio = models.ForeignKey(
+        Business,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='envios',
+        verbose_name='Negocio',
+    )
+    estado = models.CharField(
+        max_length=12,
+        choices=ESTADOS,
+        default='pendiente',
+        verbose_name='Decision del sistema',
+    )
+    motivos = models.JSONField(
+        default=list, blank=True,
+        verbose_name='Motivos',
+        help_text='Por que se rechazo. Solo cuando estado es "rechazado".',
+    )
+    faltan = models.JSONField(
+        default=list, blank=True,
+        verbose_name='Campos que faltan',
+        help_text='Que le falta al negocio para cumplir el trio. Es lo que '
+                  'se le devuelve al colaborador para que lo complete.',
+    )
+    datos = models.JSONField(
+        default=dict, blank=True,
+        verbose_name='Datos recibidos',
+        help_text='Copia literal de lo que llego, para auditar.',
+    )
+    ip = models.GenericIPAddressField(
+        null=True, blank=True, verbose_name='IP',
+    )
+    recibido_el = models.DateTimeField(
+        auto_now_add=True, verbose_name='Recibido el',
+    )
+
+    class Meta:
+        verbose_name = 'Envio'
+        verbose_name_plural = 'Envios'
+        ordering = ['-recibido_el']
+
+    def __str__(self):
+        return f'{self.get_estado_display()} · {self.colaborador.nombre}'
