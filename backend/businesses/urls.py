@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from .levantamiento import levantamiento
 
 router = DefaultRouter()
 router.register(r'businesses', views.BusinessViewSet, basename='business')
@@ -16,4 +17,7 @@ urlpatterns = [
     # Reporte de pendientes por municipio (DISENO.md 11.1): la ficha de
     # trabajo del editor. Solo staff.
     path('pendientes/', views.pendientes, name='pendientes'),
+    # Canal de envio del levantamiento (DISENO.md 11.5). Sin login: la
+    # puerta es el token del colaborador, y quien envia no publica.
+    path('levantamiento/', levantamiento, name='levantamiento'),
 ]
