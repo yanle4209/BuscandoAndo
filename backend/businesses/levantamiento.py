@@ -37,7 +37,8 @@ from categories.models import Category
 from publication_status.models import PublicationStatus
 
 from . import geografia, ingreso, pendientes, validacion
-from .models import Business, Colaborador, Envio
+from .firma import colaborador_de
+from .models import Business, Envio
 
 # Un techo, no una politica: de verdad quien esta en la calle manda de a
 # pocos por minuto. Basta para cortar un bombardeo y no estorba a nadie.
@@ -46,22 +47,6 @@ LIMITE_ENVIOS_POR_MINUTO = 30
 # Copia exacta de la cabecera, para que quien la recibe pueda compartirla
 # sin tener que adivinar si esta en minusculas o con coma.
 AUTENTICACION_DE_ESCRITURA = []
-
-
-def _firma_valida(request):
-    """El colaborador del token, o ``None``.
-
-    Que este inactivo tambien da ``None``: apagar el token de uno es como
-    no tenerlo, sin tocar a los demas (§11.5).
-    """
-    token = request.headers.get('X-Colaborador-Token', '').strip()
-    if not token:
-        autorizacion = request.headers.get('Authorization', '')
-        if autorizacion[:7].lower() == 'bearer ':
-            token = autorizacion[7:].strip()
-    if not token:
-        return None
-    return Colaborador.objects.filter(token=token, activo=True).first()
 
 
 def _ip(request):
@@ -217,7 +202,7 @@ def _registrar(colaborador, estado, datos, motivos, faltan, negocio, request):
 @permission_classes([permissions.AllowAny])
 def levantamiento(request):
     """Un envio del canal: validar -> cruzar -> publicar si hay trio."""
-    colaborador = _firma_valida(request)
+    colaborador = colaborador_de(request)
     if colaborador is None:
         return Response(
             {'detail': 'Firma de colaborador invalida o inactiva.'},

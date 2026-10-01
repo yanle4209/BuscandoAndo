@@ -366,6 +366,118 @@
   color: #f0c9c9;
 }
 
+/* ----------------------------- el reporte -------------------------- */
+.lev-resumen {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #c9c9c9;
+  margin-bottom: 12px;
+}
+
+.lev-resumen strong {
+  color: var(--white);
+}
+
+.lev-detalle {
+  margin-top: 16px;
+  border-top: 1px solid #333;
+  padding-top: 14px;
+}
+
+.lev-detalle h3 {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--grey);
+  margin: 14px 0 8px;
+}
+
+.lev-por-campo {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.lev-por-campo li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  background: #1a1a1a;
+  border: 1px solid #3a3a3a;
+  border-radius: 999px;
+  padding: 5px 11px;
+  color: #d0d0d0;
+}
+
+.lev-por-campo li.es-trio {
+  border-color: var(--yellow);
+  color: var(--white);
+}
+
+.lev-por-campo-n {
+  font-weight: 700;
+  color: var(--yellow);
+}
+
+.lev-trio-marca {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--yellow);
+  color: var(--dark);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.lev-fichas {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lev-fichas li {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lev-ficha-nombre {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--white);
+}
+
+.lev-ficha-estado {
+  align-self: flex-start;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.lev-ficha-estado.publicado {
+  background: rgba(34, 197, 94, 0.16);
+  color: #7ee2a8;
+}
+
+.lev-ficha-estado.en-revision {
+  background: rgba(179, 179, 52, 0.16);
+  color: var(--yellow-light);
+}
+
+.lev-ficha-falta {
+  font-size: 13px;
+  color: var(--grey);
+}
+
 @media (max-width: 560px) {
   .lev-top {
     flex-direction: column;

@@ -425,6 +425,14 @@ sirve como **ficha de trabajo** para el corrector asignado.
 implica un **reparto** — si dos correctores toman el mismo municipio →
 duplicados (pendiente *d* de R5). Lo natural: **un municipio = un corrector**.
 
+**Tres precisiones que solo salen al ponerlo a funcionar:**
+
+| | |
+|---|---|
+| **El listado sale del padrón de las 158 cabeceras**, no de lo que ya tenga fichas. Un municipio **sin importar** aparece con `total: 0` — y el cero **es** el trabajo que falta: sin él, el reporte solo contaría lo que ya entra, que es justamente lo contrario de servir para planear. |
+| **Lo que no casa con ninguna cabecera se conserva aparte** (incluidas las fichas sin municipio): no poder asignarlas es un pendiente en sí, no un detalle del formato. |
+| **Quién lo lee:** el admin, todo; el **colaborador, solo su municipio**, firmado con su token (§11-i). Pedirle `?municipio=` distinto al suyo → `403`; token sin municipio asignado → `400`. El municipio deja de ser «solo informativo» en `Colaborador` — y **solo** para leer: los envíos siguen declarando el suyo propio. |
+
 ### 11.2 — Formulario del corrector
 
 | | |
@@ -447,7 +455,7 @@ Los dos caen en **la misma bandeja del admin**. `VISION.md` sigue intacto.
 
 | # | Qué decidir | Decisión |
 |---|---|---|
-| i | **Identificación del corrector.** | ✅ **No hay acceso: hay envío.** Herramienta de levantamiento que manda datos al backend. El colaborador no ve nada — ni fichas, ni admin, ni reportes ajenos. |
+| i | **Identificación del corrector.** | ✅ **No hay acceso: hay envío.** Herramienta de levantamiento que manda datos al backend. El colaborador no ve nada — ni fichas ajenas, ni admin. **Lo único que lee con su token es su municipio en §11.1** (el reporte de incompletas por municipio), que es lo que le dice qué hacer; todo lo demás le devuelve `403`. |
 | j | **Sobre qué trabaja.** | ✅ **Completa → envía → el sistema valida → publica.** La persona **nunca** publica: si el dato no está completo y correcto, no entra. |
 | k | **Municipios sin corrector.** | ✅ **Correctores asignados: ninguno por ahora.** El canal se construye completo hoy; el reparto, cuando haya con quién. |
 

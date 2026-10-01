@@ -1,9 +1,11 @@
 from django.contrib import admin
+from django import forms
 from django.db import models
 from django.urls import reverse
 from django.utils.html import format_html
 from django.contrib import messages
 from django.utils import timezone
+from . import geografia
 from .models import (
     Business, Correction, Colaborador, Envio,
     FEATURED_LIMITS, FEATURED_WEEKS_CHOICES,
@@ -294,6 +296,46 @@ class BusinessAdmin(admin.ModelAdmin):
     get_city.short_description = 'Municipio'
 
 
+class ColaboradorForm(forms.ModelForm):
+    """El municipio como desplegable del padron, no como texto libre.
+
+    Ya no es solo informativo: es **el único reporte que este token puede
+    leer** (§11-i). Un ``'moca '`` con espacios, o un nombre que no
+    exista, no daria error en ninguna parte: le cerraria la puerta al
+    propio colaborador y nadie se enteraria.
+    """
+
+    class Meta:
+        model = Colaborador
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        padron = {c['municipio']: c['provincia']
+                  for c in geografia.cabeceras()}
+        opciones = [('', '— sin municipio —')]
+        # Un valor ya guardado y fuera del padron se muestra tal cual: si
+        # no, el desplegable lo dejaria sin seleccionar y al guardar se
+        # borraria sin que nadie lo notara.
+        actual = (self.instance.municipio or '').strip()
+        if actual and actual not in padron:
+            opciones.append(
+                (actual, '%s (fuera del padron)' % actual)
+            )
+        opciones += [
+            (municipio, '%s (%s)' % (municipio, provincia))
+            for municipio, provincia in sorted(
+                padron.items(), key=lambda par: (par[1], par[0])
+            )
+        ]
+        self.fields['municipio'].widget = forms.Select(choices=opciones)
+        self.fields['municipio'].help_text = (
+            'El unico municipio que este token puede leer en el reporte de '
+            'pendientes. Los envios no se limitan por aqui: el municipio de '
+            'cada envio lo declara el propio envio.'
+        )
+
+
 @admin.register(Colaborador)
 class ColaboradorAdmin(admin.ModelAdmin):
     """Alta de colaboradores y el token con que firman (DISENO.md 11.5).
@@ -304,6 +346,7 @@ class ColaboradorAdmin(admin.ModelAdmin):
     eligiera el token de firma en vez de una cuenta.
     """
 
+    form = ColaboradorForm
     list_display = ['nombre', 'token_corto', 'municipio', 'activo',
                     'ultimo_envio', 'creado_el']
     list_filter = ['activo', 'municipio']
@@ -316,8 +359,9 @@ class ColaboradorAdmin(admin.ModelAdmin):
         (None, {
             'fields': ['nombre', 'municipio', 'activo'],
             'description': (
-                'Colaborador NO es usuario: no entra a nada, no lee nada. '
-                'Solo firma los envios con un token. Eso es lo que permite '
+                'Colaborador NO es usuario: no entra al admin ni a las '
+                'fichas. Lee UNA cosa con su token —el reporte de su '
+                'municipio— y firma los envios. Eso es lo que permite '
                 'bloquear a este sin cerrarle el canal a los demas.'
             ),
         }),

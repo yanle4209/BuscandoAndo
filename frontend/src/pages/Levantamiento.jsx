@@ -60,6 +60,63 @@ export default function Levantamiento() {
   const [resultado, setResultado] = useState(null);
   const [geo, setGeo] = useState('');
 
+  // El reporte de su municipio: lo que le dice al colaborador que hacer.
+  // Se pide con el MISMO token del envio — el backend solo devuelve el
+  // renglon de su municipio (§11-i, "ni reportes ajenos").
+  const [reporte, setReporte] = useState({
+    fila: null, detalle: null, aviso: null, cargando: false,
+  });
+
+  useEffect(() => {
+    const t = token.trim();
+    if (!t) {
+      setReporte({ fila: null, detalle: null, aviso: null, cargando: false });
+      return undefined;
+    }
+    let vivo = true;
+    // Con retardo: se teclea el token y sin esto se peticiona cada letra.
+    const reloj = setTimeout(() => {
+      setReporte((r) => ({ ...r, cargando: true }));
+      api.get('/pendientes/', { headers: { 'X-Colaborador-Token': t } })
+        .then(({ data }) => {
+          if (!vivo) return;
+          if (Array.isArray(data)) {
+            setReporte({ fila: data[0] || null, detalle: null, aviso: null, cargando: false });
+          } else {
+            setReporte({ fila: null, detalle: null, aviso: data.detail || null, cargando: false });
+          }
+        })
+        .catch((err) => {
+          if (!vivo) return;
+          // El 400 lo manda el propio backend con su mensaje («este token
+          // no tiene municipio»); el 401 es un token que no vale. El resto
+          // —malo, bloqueado, caído el servidor— lo dice el envío, que es
+          // la única acción que de verdad importa aquí.
+          const detalle = err.response?.status === 401
+            ? 'Token no válido o bloqueado. Pídelo al coordinador.'
+            : err.response?.status === 400
+              ? err.response.data?.detail : null;
+          setReporte({ fila: null, detalle: null, aviso: detalle, cargando: false });
+        });
+    }, 400);
+    return () => { vivo = false; clearTimeout(reloj); };
+  }, [token]);
+
+  const verReporte = () => {
+    const t = token.trim();
+    setReporte((r) => ({ ...r, cargando: true }));
+    api.get('/pendientes/', {
+      params: { municipio: reporte.fila.municipio },
+      headers: { 'X-Colaborador-Token': t },
+    })
+      .then(({ data }) => setReporte((r) => ({ ...r, detalle: data, cargando: false })))
+      .catch((err) => setReporte((r) => ({
+        ...r,
+        aviso: err.response?.data?.detail || 'No se pudo leer el reporte.',
+        cargando: false,
+      })));
+  };
+
   // El token y las dos listas que rellenan el formulario. Sin token no se
   // puede probar nada, por eso lo primero que se pide.
   useEffect(() => {
@@ -260,6 +317,72 @@ export default function Levantamiento() {
             <small>Se guarda solo en este navegador.</small>
           </div>
         </section>
+
+        {/* §11.1 + lo decidido: el reporte de incompletas POR MUNICIPIO,
+            que es lo que le dice al colaborador que hacer. El backend solo
+            devuelve su renglon; los demas municipios no existen aqui. */}
+        {token.trim() && (reporte.cargando || reporte.aviso || reporte.fila) && (
+          <section className="lev-card">
+            <h2 className="lev-card-title">Lo que falta en tu municipio</h2>
+
+            {reporte.aviso && <p className="lev-aviso">{reporte.aviso}</p>}
+
+            {reporte.fila && (
+              <>
+                <p className="lev-resumen">
+                  <strong>
+                    {reporte.fila.municipio}
+                    {reporte.fila.provincia ? ` (${reporte.fila.provincia})` : ''}
+                  </strong>
+                  {' — '}
+                  {reporte.fila.total === 0
+                    ? 'todavía no hay fichas aquí.'
+                    : `${reporte.fila.total} ficha${reporte.fila.total !== 1 ? 's' : ''}`
+                      + `, ${reporte.fila.con_pendientes} con algo faltando`
+                      + `, ${reporte.fila.en_revision} esperando publicarse.`}
+                </p>
+
+                {reporte.fila.total > 0 && reporte.fila.con_pendientes > 0 && (
+                  <button type="button" className="lev-btn-ghost" onClick={verReporte}>
+                    {reporte.detalle ? 'Actualizar' : `Ver las ${reporte.fila.con_pendientes} que le falta algo`}
+                  </button>
+                )}
+
+                {reporte.detalle && (
+                  <div className="lev-detalle">
+                    <h3>Por campo faltante</h3>
+                    <ul className="lev-por-campo">
+                      {reporte.detalle.por_campo.map((f) => (
+                        <li key={f.campo} className={f.en_trio ? 'es-trio' : ''}>
+                          {f.etiqueta}
+                          <span className="lev-por-campo-n">{f.cantidad}</span>
+                          {f.en_trio && <span className="lev-trio-marca">bloquea</span>}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <h3>Fichas</h3>
+                    <ul className="lev-fichas">
+                      {reporte.detalle.fichas.map((f) => (
+                        <li key={f.id}>
+                          <span className="lev-ficha-nombre">{f.nombre}</span>
+                          <span className={`lev-ficha-estado ${f.estado}`}>
+                            {f.estado === 'publicado' ? 'publicada' : 'sin publicar'}
+                          </span>
+                          <span className="lev-ficha-falta">
+                            Falta: {f.faltan.map((c) => ETIQUETAS[c] || c).join(', ')}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
+            )}
+
+            {reporte.cargando && <p className="lev-aviso">Cargando…</p>}
+          </section>
+        )}
 
         <section className="lev-card">
           <h2 className="lev-card-title">Dónde está</h2>
