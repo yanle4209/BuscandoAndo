@@ -9,6 +9,7 @@ from django.utils import timezone
 # estuviera aqui, el importador tendria que importar ``views`` y se
 # crearia un ciclo. Se importa el paquete ademas de los nombres sueltos
 # porque la vista ``cabeceras`` taparia al ``cabeceras`` del modulo.
+from .firma import colaborador_de, token_de
 from . import geografia
 from .geografia import (
     RADIO_KM,
@@ -339,15 +340,49 @@ def cabeceras(request):
     return Response(geografia.cabeceras())
 
 
+def _provincia_de(grupo):
+    """La provincia de la primera ficha que la traiga. Texto libre en la
+    base, asi que se lee de los datos y no se adivina."""
+    for b in grupo:
+        loc = getattr(b, 'location', None)
+        if loc is not None and loc.province:
+            return loc.province
+    return ''
+
+
+def _fila(nombre, grupo, provincia=''):
+    """Una fila del listado: el trabajo que hay en un municipio."""
+    return {
+        'municipio': nombre,
+        'provincia': provincia,
+        'total': len(grupo),
+        'con_pendientes': sum(1 for b in grupo if faltantes_de(b)),
+        'en_revision': sum(
+            1 for b in grupo if b.publication_status.slug != 'publicado'
+        ),
+    }
+
+
+def _le_toca(colaborador, municipio):
+    """§11-i: al colaborador le toca SU municipio, y solo el suyo.
+
+    Se compara normalizado porque el nombre de ``Colaborador.municipio``
+    lo teclea el admin y el del reporte viene de texto libre: 'Bani' y
+    'Baní' son el mismo municipio.
+    """
+    asignado = (colaborador.municipio or '').strip()
+    return bool(asignado) and normalizar(asignado) == normalizar(municipio)
+
+
 @api_view(['GET'])
-@permission_classes([permissions.IsAdminUser])
+@permission_classes([permissions.AllowAny])
 def pendientes(request):
     """Reporte de pendientes por municipio (DISENO.md seccion 11.1).
 
-    La ficha de trabajo del editor. Sin ``?municipio=`` lista los
-    municipios que tienen fichas — con cuantas le falta algo y cuantas
-    esperan publicacion — para elegir donde trabajar; con el parametro, el
-    detalle de ese municipio, agrupado por campo faltante.
+    La ficha de trabajo del editor. Sin ``?municipio=`` lista **todos los
+    municipios del padron** —con cuantas le falta algo y cuantas esperan
+    publicacion— para elegir donde trabajar; con el parametro, el detalle
+    de ese municipio, agrupado por campo faltante.
 
     Sale de lo ya decidido y **no guarda nada nuevo**: el municipio lo da
     la ubicacion de cada ficha, la cabecera viene del CSV de la seccion 9
@@ -355,9 +390,45 @@ def pendientes(request):
     serializer de lista con ``hours[]``: el horario se cuenta aqui, en el
     servidor, en vez de pedir 325 llamadas de detalle (pendiente *i*).
 
-    Solo staff: aqui se ven fichas sin publicar y el reparto de trabajo.
+    **Quien lo lee** (§11-i): el admin, todo; el colaborador, solo el
+    municipio que le esta asignado y firmado con su token —el suyo es el
+    que le dice que hacer—. Sin eso el reporte seria una puerta trasera a
+    las fichas sin publicar.
+
+    El listado sale del **padron de las 158 cabeceras**, no de lo que ya
+    tenga fichas: un municipio todavia sin importar aparece con
+    ``total: 0``, que es exactamente el trabajo que falta.
     """
     municipio = (request.query_params.get('municipio') or '').strip()
+
+    # ---------------------------- quien pregunta ----------------------
+    usuario = getattr(request, 'user', None)
+    es_admin = bool(
+        usuario is not None and usuario.is_authenticated and usuario.is_staff
+    )
+    colaborador = None if es_admin else colaborador_de(request)
+
+    if not es_admin and colaborador is None:
+        # Quien manda un token que no vale (o que esta apagado) no es lo
+        # mismo que quien no manda nada: el primero puede arreglarlo.
+        if token_de(request):
+            return Response(
+                {'detail': 'Token de colaborador invalido o inactivo.'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        return Response(
+            {'detail': 'Sesion de administrador o token de colaborador.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if (colaborador is not None and municipio
+            and not _le_toca(colaborador, municipio)):
+        # §11-i: "ni reportes ajenos". Un token no sirve para mirar el
+        # municipio de otro, que es lo unico que esta en el reporte.
+        return Response(
+            {'detail': 'A este token le toca otro municipio.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     negocios = (
         Business.objects
@@ -374,37 +445,87 @@ def pendientes(request):
         grupos.setdefault(nombre, []).append(biz)
         indice.setdefault(normalizar(nombre), nombre)
 
+    padron = geografia.cabeceras()
+    grupos_por_norma = {normalizar(k): v for k, v in grupos.items()}
+
     if not municipio:
-        return Response([
-            {
-                'municipio': nombre,
-                'total': len(grupo),
-                'con_pendientes': sum(
-                    1 for b in grupo if faltantes_de(b)
-                ),
-                'en_revision': sum(
-                    1 for b in grupo
-                    if b.publication_status.slug != 'publicado'
-                ),
-            }
-            for nombre, grupo in sorted(grupos.items(), key=lambda par: par[0])
-        ])
+        # Al colaborador no le sale la lista entera: su renglon es el
+        # unico que le toca (§11-i). Sin municipio asignado no hay nada
+        # que enseñarle, y eso no es culpa suya — es un reparto que
+        # todavia no se ha hecho.
+        if colaborador is not None:
+            asignado = (colaborador.municipio or '').strip()
+            if not asignado:
+                return Response(
+                    {'detail': 'Este token no tiene municipio asignado.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            clave = normalizar(asignado)
+            en_padron = next(
+                (c for c in padron if normalizar(c['municipio']) == clave),
+                None,
+            )
+            nombre = en_padron['municipio'] if en_padron else asignado
+            provincia = (
+                en_padron['provincia'] if en_padron
+                else _provincia_de(grupos_por_norma.get(clave, []))
+            )
+            return Response([
+                _fila(nombre, grupos_por_norma.get(clave, []), provincia),
+            ])
+
+        # El listado es del PADRÓN, no de lo que ya tenga fichas: un
+        # municipio sin importar sale con total 0, que es justamente el
+        # trabajo que falta (los 157 restantes hoy).
+        filas = []
+        claves_del_padron = set()
+        for cab in padron:
+            clave = normalizar(cab['municipio'])
+            claves_del_padron.add(clave)
+            filas.append(
+                _fila(
+                    cab['municipio'],
+                    grupos_por_norma.get(clave, []),
+                    cab['provincia'],
+                )
+            )
+
+        # Lo que no casa con ninguna cabecera —incluidas las fichas sin
+        # municipio— tampoco se puede perder: no poder asignarlas es
+        # justo algo que hay que ver.
+        for nombre, grupo in grupos.items():
+            if normalizar(nombre) not in claves_del_padron:
+                filas.append(_fila(nombre, grupo, _provincia_de(grupo)))
+
+        filas.sort(key=lambda f: (f['provincia'].casefold(),
+                                  f['municipio'].casefold()))
+        return Response(filas)
 
     real = indice.get(normalizar(municipio))
-    if real is None:
-        return Response(
-            {'detail': 'No hay fichas en "%s" todavia.' % municipio},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+    grupo = grupos.get(real, []) if real else []
+    provincia = _provincia_de(grupo)
+    cab = cabecera_para(real, provincia) if real else None
 
-    grupo = grupos[real]
-    provincia = ''
-    for b in grupo:
-        loc = getattr(b, 'location', None)
-        if loc is not None and loc.province:
-            provincia = loc.province
-            break
-    cab = cabecera_para(real, provincia)
+    if real is None:
+        # Un municipio del padron sin fichas NO es un error: es el
+        # reporte de un sitio donde todavia no ha entrado nada, que es
+        # exactamente lo que un colaborador tiene que poder ver antes de
+        # salir a levantar. El 404 se reserva para el nombre que no es de
+        # ningun municipio del pais.
+        en_padron = next(
+            (c for c in padron
+             if normalizar(c['municipio']) == normalizar(municipio)),
+            None,
+        )
+        if en_padron is None:
+            return Response(
+                {'detail': 'No hay ni fichas ni municipio llamado "%s".'
+                           % municipio},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        real = en_padron['municipio']
+        provincia = en_padron['provincia']
+        cab = en_padron
 
     con_faltantes = [
         (b, faltantes_de(b)) for b in grupo

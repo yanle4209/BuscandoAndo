@@ -743,11 +743,14 @@ class ReportePendientesTests(TestCase):
         self.assertEqual(por_nombre['(sin municipio)']['total'], 1)
 
     # ----------------------------- municipio ----------------------------
-    def admin(self):
+    def loguear_admin(self):
         User = get_user_model()
         self.client.force_login(
             User.objects.create_superuser('admin', 'admin@example.com', 'x')
         )
+
+    def admin(self):
+        self.loguear_admin()
         return self.client.get(PENDIENTES_URL, {'municipio': 'Moca'}).json()
 
     def test_un_municipio_con_fichas_trae_cabecera_y_radio(self):
@@ -815,15 +818,136 @@ class ReportePendientesTests(TestCase):
         self.assertEqual(por_nombre['Taller El Rayo']['procedencia'], 'importado')
         self.assertEqual(por_nombre['Panaderia Sol']['procedencia'], 'manual')
 
-    def test_un_municipio_sin_fichas_da_404(self):
-        User = get_user_model()
-        self.client.force_login(
-            User.objects.create_superuser('admin', 'admin@example.com', 'x')
-        )
+    def test_un_municipio_del_padron_sin_fichas_da_ceros(self):
+        """§11.1 + lo decidido para los 158: un municipio todavia sin
+        importar NO es un error, es el trabajo que falta. El cero es la
+        informacion: sin el, el reporte solo contaria lo que ya entra."""
+        self.loguear_admin()
 
         response = self.client.get(PENDIENTES_URL, {'municipio': 'Barahona'})
 
+        self.assertEqual(response.status_code, 200)
+        datos = response.json()
+        self.assertEqual(datos['total'], 0)
+        self.assertEqual(datos['fichas'], [])
+        self.assertEqual(datos['por_campo'], [])
+        # Aun vacio trae la cabecera: es lo que ancla el circulo de 5 km.
+        self.assertIsNotNone(datos['cabecera'])
+        self.assertEqual(datos['radio_km'], 5)
+
+    def test_un_nombre_que_no_es_de_ningun_municipio_da_404(self):
+        """El 404 se reserva para lo que no es de ningun sitio del país."""
+        self.loguear_admin()
+
+        response = self.client.get(
+            PENDIENTES_URL, {'municipio': 'Villa Que No Existe'}
+        )
+
         self.assertEqual(response.status_code, 404)
+
+    def test_el_listado_cubre_los_158_municipios(self):
+        """La pregunta «dónde falta importar» tiene que poder responderse
+        con este listado, y hoy no se podia: solo salian los que ya
+        tenian fichas."""
+        from . import geografia
+
+        self.loguear_admin()
+
+        datos = self.client.get(PENDIENTES_URL).json()
+        por_nombre = {f['municipio'] for f in datos}
+
+        faltan = {
+            c['municipio'] for c in geografia.cabeceras()
+        } - por_nombre
+        self.assertEqual(faltan, set())
+        # Y lo que no es de ningun municipio del padron sigue saliendo
+        # aparte, sin perderse.
+        self.assertIn('(sin municipio)', por_nombre)
+
+    # ---------------------- el colaborador (§11-i) ---------------------
+    def colaborador(self, municipio='Moca', activo=True):
+        from .models import Colaborador
+
+        return Colaborador.objects.create(
+            nombre='Pedro', municipio=municipio, activo=activo,
+        )
+
+    def con_token(self, colab, **params):
+        return self.client.get(
+            PENDIENTES_URL, params,
+            headers={'X-Colaborador-Token': colab.token},
+        )
+
+    def test_sin_firma_no_se_lee(self):
+        response = self.client.get(PENDIENTES_URL)
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_un_token_que_no_es_de_nadie_da_401(self):
+        """Distinto de «no mando nada»: este puede arreglarse."""
+        response = self.client.get(
+            PENDIENTES_URL, headers={'X-Colaborador-Token': 'no-existe'}
+        )
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_un_colaborador_bloqueado_no_lee(self):
+        colab = self.colaborador()
+        colab.activo = False
+        colab.save()
+
+        response = self.con_token(colab)
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_al_colaborador_solo_le_sale_su_renglon(self):
+        """§11-i: «ni reportes ajenos». Si le saliera la lista entera
+        veria de un vistazo todos los municipios del país."""
+        datos = self.con_token(self.colaborador('Moca')).json()
+
+        self.assertEqual([f['municipio'] for f in datos], ['Moca'])
+        self.assertEqual(datos[0]['total'], 4)
+        self.assertEqual(datos[0]['con_pendientes'], 3)
+
+    def test_el_colaborador_puede_leer_su_municipio(self):
+        """Y sin distinguir mayusculas: el nombre del token lo teclea el
+        admin a su manera y el del reporte viene de texto libre."""
+        colab = self.colaborador('mOcA')
+
+        datos = self.con_token(colab, municipio='Moca').json()
+
+        self.assertEqual(datos['municipio'], 'Moca')
+        self.assertEqual(datos['total'], 4)
+
+    def test_el_acento_no_le_cierra_la_puerta(self):
+        """'Bani' en la base, 'Baní' en el padron: mismo municipio."""
+        datos = self.con_token(
+            self.colaborador('Bani'), municipio='Baní'
+        ).json()
+
+        self.assertEqual(datos['municipio'], 'Bani')
+
+    def test_al_colaborador_no_le_toca_otro_municipio(self):
+        response = self.con_token(self.colaborador('Moca'), municipio='Santiago')
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn('otro municipio', response.json()['detail'])
+
+    def test_un_token_sin_municipio_no_tiene_reporte(self):
+        """No es culpa suya: es un reparto que todavia no se hizo, y el
+        reporte no puede inventarle uno."""
+        response = self.con_token(self.colaborador(''))
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_al_colaborador_de_un_municipio_vacio_se_le_ensena_el_cero(self):
+        """Su encargo: entrar y ver que todavia no ha entrado nada."""
+        datos = self.con_token(
+            self.colaborador('Barahona'), municipio='Barahona'
+        ).json()
+
+        self.assertEqual(datos['total'], 0)
+        self.assertEqual(datos['fichas'], [])
 
     def test_el_nombre_del_municipio_no_distingue_mayusculas_ni_acentos(self):
         """El nombre de la base es texto libre y el del CSV viene de
