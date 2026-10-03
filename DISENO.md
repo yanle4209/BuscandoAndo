@@ -542,3 +542,102 @@ token ✓  →  reporte de MI municipio (solo, sin un clic más)
 | **El desplegable de municipio lo manda la ficha.** Quien eligió la ficha no tiene que reelegir lo que ya está claro; si lo cambia a mano, manda lo que eligió. |
 | **Y el `Envio` se anota con la ficha.** `datos.ficha` deja constancia de **cuál** se completó, que es lo que permite juzgar al colaborador concreto (§11.5). |
 
+## 12. Transporte de datos a producción (R5)
+
+Hay **dos bases**: SQLite en local, Postgres gratis en Render. Los 158
+municipios se importan **aquí** — OpenStreetMap se consulta desde la
+máquina de desarrollo, no desde Render — y a producción llegan por
+archivo.
+
+```
+aquí                                          en producción
+────────────────────────────────              ─────────────────────────────
+importar_municipio --todos      Overpass
+        │
+        ▼
+exportar_fichas  ──►  fichas_nacionales.ndjson.gz  ──►  cargar_fichas
+                          (el transporte)                  │
+                                                          ▼
+                                             valida → cruza → crea → publica
+```
+
+### Los comandos
+
+| | |
+|---|---|
+| `manage.py importar_municipio --todos` | Los 158 municipios desde Overpass. **Idempotente**: repetirlo no duplica, enriquece. |
+| `manage.py exportar_fichas [salida]` | Una ficha por línea (JSONL, `.gz` si el nombre acaba así). Por defecto `backend/data/fichas_nacionales.ndjson.gz`. |
+| `manage.py exportar_fichas --excluir Moca` | **El que se usa para producción.** Moca ya está allá hecha a mano: exportarla solo puede estorbar (§10-d), así que no viaja. |
+| `manage.py cargar_fichas <archivo>` | La carga en destino. **Idempotente**: se puede correr dos veces. |
+| `manage.py cargar_fichas <archivo> --omitir Moca` | Deja un municipio intacto — el que la base de destino ya tenía trabajado a mano. |
+
+### Por qué un archivo y no `loaddata`
+
+`dumpdata`/`loaddata` viajan por **id primario**, y en el destino esos ids
+ya están ocupados por otra cosa: una categoría con `id=5` aquí puede ser
+«Tiendas» y allá «Salud», con lo que `loaddata` **pisaría** filas que no
+toca. Aquí se viaja por **nombre**, que es como ya cruza §10-d.
+
+El formato vive en `businesses/portar.py`, no en ninguno de los dos
+comandos: si viviera en el exportador, quien carga tendría que copiarlo y
+un cambio de campo los separaría en silencio. No es un fixture de Django,
+es el **mismo diccionario plano** que producen `osm.a_datos` y
+`levantamiento._a_datos`.
+
+### Por qué el bucle es uno solo
+
+`importar_municipio` y `cargar_fichas` por fuera no se parecen: uno trae
+candidatos de Overpass, otro los trae de un archivo. Por dentro tienen
+que hacer **exactamente** lo mismo, y por eso el bucle está en
+`businesses/masivo.py` (`Lote`):
+
+```
+agregar(datos, cabecera)   valida (§11.5) → exige punto
+                           → cabecera más cercana → cruza (§10-d)
+publicar()                 §10-f: solo el que cumple el trío
+```
+
+Antes ese bucle vivía dentro del importador; sacarlo es lo que hace
+posible llevar datos de una base a otra **sin que lo que llegue sea
+«casi» lo mismo**. Si cada comando montara el suyo, el día que alguien
+cambiara el orden —crear primero y cruzar después— uno de los dos
+dejaría de deduplicar y no se enteraría hasta ver dos fichas del mismo
+negocio.
+
+### Qué garantiza la carga
+
+| | |
+|---|---|
+| **No pisa.** | Si el destino ya tiene teléfono, se queda el suyo; el del archivo se ignora (`enriquecer` nunca sobrescribe). |
+| **Se puede correr dos veces.** | La segunda no crea nada: `duplicados` en vez de `creados`. Si se corta a mitad, se vuelve a correr. |
+| **Una ficha manual no se publica sola.** | Aunque el archivo diga que estaba publicada: quien publica es el admin (VISION.md). |
+| **La misma puerta que OSM.** | Lo mal formado se rechaza en la puerta; un punto fuera del círculo de 5 km no entra por venir de un archivo. |
+| **`--omitir` para no tocar lo ajeno.** | La base de destino puede tener un municipio trabajado a mano que no debe mezclarse con lo exportado. |
+
+### El paso a producción, tal cual
+
+```bash
+# 1. en local, con la importación ya corrida
+python manage.py exportar_fichas --excluir Moca
+git add backend/data/fichas_nacionales.ndjson.gz
+git commit -m "Datos nacionales (157 municipios)"
+git push origin main          # autoDeploy redespliega y trae el archivo
+
+# 2. en el Shell de Render (una vez)
+python manage.py cargar_fichas data/fichas_nacionales.ndjson.gz
+
+# 3. comprobación
+#    GET /api/businesses/?page_size=1  ->  "count" sin los de Moca
+```
+
+El paso 2 **no** va en `buildCommand`: se corre una vez a mano. Si
+alguna vez hace falta repetirlo, se repite — es idempotente.
+
+### Nota sobre Overpass
+
+`osm.consultar` prueba los tres servidores y, si ninguno contesta, **vuelve
+a intentarlo una vez tras 20 s** (`VUELTAS`, `PAUSA_SEGUNDOS`). Un `504`
+de Overpass **no** significa que el municipio esté vacío: se distingue
+`None` («no hubo red») de `[]` («no hay nada»), y lo primero sale como
+`sin_datos` en el resultado, no como municipio sin fichas.
+
