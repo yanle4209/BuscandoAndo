@@ -12,6 +12,9 @@ la web llamaba a ``featured-by-search`` y siempre recibia ``[]``.
 """
 import datetime
 import io
+import json
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -26,7 +29,7 @@ from publication_status.models import PublicationStatus
 from business_locations.models import BusinessLocation
 from business_contacts.models import BusinessContact
 from business_hours.models import BusinessHours
-from . import geografia, osm, validacion
+from . import geografia, osm, portar, validacion
 from .levantamiento import LIMITE_ENVIOS_POR_MINUTO
 from .models import Business, Correction, Colaborador, Envio
 
@@ -1143,6 +1146,64 @@ class ValidacionDeEntradaTests(TestCase):
         self.assertIsNone(validacion.duplicado(indice, 'Farmacia Central'))
 
 
+class _Respuesta:
+    """Lo minimo de una respuesta HTTP para usarla en ``with`` + ``read``."""
+
+    def __init__(self, cuerpo):
+        self._cuerpo = cuerpo
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def read(self):
+        return self._cuerpo.encode('utf-8')
+
+
+class ConsultarOverpassTests(TestCase):
+    """``osm.consultar`` tiene que separar tres salidas distintas.
+
+    Contesto y hay datos -> la lista. Nadie contesto -> ``None``. Y la
+    tercera, que es la que se cuela: **contesto pero se le acabo el
+    tiempo en el servidor** — Overpass devuelve 200 con ``elements: []``
+    y un ``remark``. Leer eso como "aqui no hay nada" deja el municipio
+    sin fichas y sin que nadie se entera, que es exactamente lo que la
+    docstring de ``consultar`` dice que hay que evitar.
+    """
+
+    CABECERA = {'lat': 19.76008, 'lng': -71.67318}
+
+    @staticmethod
+    def contestar(cuerpo):
+        return lambda *args, **kwargs: _Respuesta(cuerpo)
+
+    @patch('businesses.osm.PAUSA_SEGUNDOS', 0)
+    @patch('businesses.osm.urllib.request.urlopen')
+    def test_un_remark_no_lo_tomo_como_un_municipio_vacio(self, urlopen):
+        """El primer servidor se le acabo el tiempo; el segundo contesta."""
+        urlopen.side_effect = [
+            _Respuesta(json.dumps({'elements': [], 'remark': 'timeout'})),
+            _Respuesta(json.dumps({'elements': [{'id': 1}]})),
+        ]
+
+        elementos = osm.consultar(self.CABECERA, 5)
+
+        self.assertEqual([e['id'] for e in elementos], [1])
+        self.assertEqual(urlopen.call_count, 2)
+
+    @patch('businesses.osm.PAUSA_SEGUNDOS', 0)
+    @patch('businesses.osm.urllib.request.urlopen')
+    def test_si_nadie_contesto_eso_no_es_un_vacio(self, urlopen):
+        """Si todos responden con remark, es ``None``: sin datos, no vacio."""
+        urlopen.side_effect = self.contestar(
+            json.dumps({'elements': [], 'remark': 'timeout'}),
+        )
+
+        self.assertIsNone(osm.consultar(self.CABECERA, 5))
+
+
 class ImportarMunicipioTests(TestCase):
     """``manage.py importar_municipio`` -> R5 en la practica.
 
@@ -1886,3 +1947,273 @@ class CompletarFichaTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+
+class PortarDeDatosTests(TestCase):
+    """`exportar_fichas` + `cargar_fichas` -> llevar los datos a produccion.
+
+    Es la opcion B de R5: se importa aqui, se exporta un JSONL y en la
+    otra base se carga con `cargar_fichas`. El formato no interesa — es
+    interno—, si la promesa que hace la carga:
+
+    * **no pisa**: lo que la base de destino ya tiene manda (§10-d);
+    * **se puede correr dos veces** sin duplicar nada;
+    * **una ficha creada a mano no se publica sola**, aunque el archivo
+      diga que lo estaba (VISION.md);
+    * **lo mal formado se rechaza en la puerta**, igual que lo que viene
+      de OpenStreetMap — por eso los dos van por `masivo.Lote`.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado',
+        )
+        cls.en_revision = PublicationStatus.objects.create(
+            name='En Revision', slug='en-revision',
+        )
+        cls.abierto = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto',
+        )
+        cls.cerrado = OperationalStatus.objects.create(
+            name='Cerrado', slug='cerrado',
+        )
+        cls.tiendas = Category.objects.create(name='Tiendas', slug='tiendas')
+
+    # ------------------------------ helpers ---------------------------
+    def hacer(self, nombre, *, municipio='Moca', provincia='Espaillat',
+              lat=19.3970, lng=-70.5270, telefono='809-555-1111',
+              procedencia='importado', sin_publicar=False,
+              sin_ubicacion=False):
+        """Una ficha completa, como la dejaria el importador."""
+        negocio = Business.objects.create(
+            name=nombre,
+            description='',
+            category=self.tiendas,
+            publication_status=(
+                self.en_revision if sin_publicar else self.publicado
+            ),
+            operational_status=self.abierto,
+            procedencia=procedencia,
+        )
+        if not sin_ubicacion:
+            BusinessLocation.objects.create(
+                business=negocio, street='Calle 1 #10',
+                municipality=municipio, province=provincia,
+                latitude=lat, longitude=lng,
+            )
+        if telefono:
+            BusinessContact.objects.create(business=negocio, phone=telefono)
+        BusinessHours.objects.create(
+            business=negocio, day='Lunes',
+            open_time='08:00', close_time='17:00',
+        )
+        return negocio
+
+    def datos(self, nombre, **cambios):
+        """Un registro completo del archivo, para los que se escriben a mano."""
+        registro = {
+            'nombre': nombre, 'telefono': '809-555-1111',
+            'whatsapp': '', 'correo': '', 'web': '',
+            'lat': 19.3970, 'lng': -70.5270,
+            'municipio': 'Moca', 'provincia': 'Espaillat',
+            'calle': 'Calle 1 #10', 'sector': '',
+            'categoria': 'Tiendas', 'descripcion': '',
+            'horario': [], 'estado': 'abierto', 'cerrado': False,
+            'procedencia': 'importado',
+        }
+        registro.update(cambios)
+        return registro
+
+    def otro_municipio(self):
+        """Una cabecera del padron que no sea Moca, con su propio punto."""
+        return next(
+            cab for cab in geografia.cabeceras()
+            if geografia.normalizar(cab['municipio']) != 'moca'
+        )
+
+    def exportar(self, carpeta, **opciones):
+        ruta = Path(carpeta) / 'fichas.ndjson.gz'
+        salida = io.StringIO()
+        call_command('exportar_fichas', str(ruta), stdout=salida, **opciones)
+        return ruta, salida.getvalue()
+
+    def cargar(self, ruta, **opciones):
+        salida = io.StringIO()
+        call_command('cargar_fichas', str(ruta), stdout=salida, **opciones)
+        return salida.getvalue()
+
+    def renglon(self, clave, valor):
+        """Un renglon del RESULTADO, para compararlo sin pegarlo entero."""
+        return '  %-22s %d' % (clave, valor)
+
+    # --------------------------- el formato ---------------------------
+    def test_una_linea_es_al_diccionario_planito_que_entra_por_osm(self):
+        """Si el formato no fuera el mismo que `osm.a_datos`, la carga
+        pasaria por otro sitio y no por la misma puerta y el mismo
+        cruce."""
+        datos = portar.datos_de(self.hacer('Pan del Dia'))
+
+        regresado = portar.desde_linea(portar.a_linea(datos))
+
+        self.assertEqual(regresado['nombre'], 'Pan del Dia')
+        self.assertEqual(regresado['municipio'], 'Moca')
+        self.assertEqual(regresado['categoria'], 'Tiendas')
+        self.assertEqual(regresado['procedencia'], 'importado')
+        self.assertEqual(regresado['estado'], 'abierto')
+        self.assertEqual(regresado['lat'], 19.397)
+        self.assertEqual(regresado['horario'][0]['day'], 'Lunes')
+        self.assertIsInstance(regresado['horario'][0]['open'], datetime.time)
+
+    def test_el_exportador_escribe_una_linea_por_ficha(self):
+        self.hacer('Pan del Dia')
+        self.hacer('Sin Ubicacion', sin_ubicacion=True)
+
+        with tempfile.TemporaryDirectory() as carpeta:
+            ruta, texto = self.exportar(carpeta)
+            with portar.abrir_texto(ruta, 'rt') as fh:
+                lineas = [linea for linea in fh if linea.strip()]
+
+        # Sin municipio no hay cabecera donde caer, y cargarla seria
+        # crear una ficha que nadie puede buscar: se avisa, no se esconde.
+        self.assertEqual(len(lineas), 1)
+        self.assertIn('1 fichas escritas', texto)
+        self.assertIn('1 sin municipio se quedaron fuera', texto)
+
+    # ------------------------- lo que promete -------------------------
+    def test_cargar_en_base_vacia_recrea_la_ficha_entera(self):
+        self.hacer('Pan del Dia')
+
+        with tempfile.TemporaryDirectory() as carpeta:
+            ruta, _ = self.exportar(carpeta)
+            Business.objects.all().delete()
+
+            self.cargar(ruta)
+
+        pan = Business.objects.get(name='Pan del Dia')
+
+        self.assertEqual(pan.contact.phone, '809-555-1111')
+        self.assertEqual(pan.location.municipality, 'Moca')
+        self.assertEqual(float(pan.location.latitude), 19.397)
+        self.assertEqual(pan.category.name, 'Tiendas')
+        self.assertEqual(pan.operational_status.slug, 'abierto')
+        self.assertEqual(pan.procedencia, 'importado')
+        # Cumple el trio, y ademas no es manual: la publica el sistema.
+        self.assertEqual(pan.publication_status.slug, 'publicado')
+        self.assertTrue(pan.hours.exists())
+
+    def test_correr_la_carga_dos_veces_no_duplica(self):
+        self.hacer('Pan del Dia')
+
+        with tempfile.TemporaryDirectory() as carpeta:
+            ruta, _ = self.exportar(carpeta)
+            Business.objects.all().delete()
+
+            self.cargar(ruta)
+            segunda = self.cargar(ruta)
+
+        self.assertEqual(Business.objects.filter(name='Pan del Dia').count(), 1)
+        self.assertIn(self.renglon('creados', 0), segunda)
+        self.assertIn(self.renglon('duplicados', 1), segunda)
+
+    def test_no_pisa_lo_que_la_base_de_destino_ya_tiene(self):
+        """§10-d: si aqui ya habia telefono, se queda el de aqui. El del
+        archivo se ignora — no se sobrescribe nunca."""
+        pan = self.hacer('Pan del Dia')
+
+        with tempfile.TemporaryDirectory() as carpeta:
+            ruta, _ = self.exportar(carpeta)
+            pan.contact.phone = '809-999-9999'
+            pan.contact.save()
+
+            texto = self.cargar(ruta)
+
+        pan = Business.objects.get(pk=pan.pk)
+        self.assertEqual(Business.objects.count(), 1)
+        self.assertEqual(pan.contact.phone, '809-999-9999')
+        self.assertIn(self.renglon('creados', 0), texto)
+
+    def test_el_telefono_del_archivo_completa_la_ficha_que_ya_esta(self):
+        """Lo contrario: lo que falta aqui si se trae de alli."""
+        pan = self.hacer('Pan del Dia')
+
+        with tempfile.TemporaryDirectory() as carpeta:
+            ruta, _ = self.exportar(carpeta)
+            pan.contact.delete()
+
+            texto = self.cargar(ruta)
+
+        pan = Business.objects.get(pk=pan.pk)
+        self.assertEqual(Business.objects.count(), 1)
+        self.assertEqual(pan.contact.phone, '809-555-1111')
+        self.assertIn(self.renglon('enriquecidos', 1), texto)
+
+    def test_una_ficha_manual_no_se_publica_sola(self):
+        """VISION.md: quien publica una ficha manual es el admin, aunque
+        el archivo venga diciendo que estaba publicada."""
+        self.hacer('La Receta', procedencia='manual', sin_publicar=True)
+
+        with tempfile.TemporaryDirectory() as carpeta:
+            ruta, _ = self.exportar(carpeta)
+            Business.objects.all().delete()
+
+            self.cargar(ruta)
+
+        receta = Business.objects.get(name='La Receta')
+
+        self.assertEqual(receta.publication_status.slug, 'en-revision')
+        self.assertEqual(receta.procedencia, 'manual')
+
+    def test_un_municipio_se_puede_dejar_fuera(self):
+        """Para no tocar el que la base de destino ya tenia trabajado."""
+        otra = self.otro_municipio()
+        self.hacer('Pan del Dia')
+        self.hacer(
+            'Café del Pueblo', municipio=otra['municipio'],
+            provincia=otra['provincia'], lat=otra['lat'], lng=otra['lng'],
+        )
+
+        with tempfile.TemporaryDirectory() as carpeta:
+            ruta, _ = self.exportar(carpeta)
+            Business.objects.all().delete()
+
+            texto = self.cargar(ruta, omitir='Moca')
+
+        self.assertEqual(Business.objects.filter(name='Pan del Dia').count(), 0)
+        self.assertEqual(
+            Business.objects.filter(name='Café del Pueblo').count(), 1)
+        self.assertIn(self.renglon('omitidos', 1), texto)
+
+    def test_un_punto_fuera_del_circulo_no_entra(self):
+        """La misma puerta que lo que viene de OSM: el archivo no es un
+        pase franco."""
+        with tempfile.TemporaryDirectory() as carpeta:
+            ruta = Path(carpeta) / 'fichas.ndjson'
+            with portar.abrir_texto(ruta, 'wt') as fh:
+                fh.write(portar.a_linea(self.datos('Lejos', lat=19.6000)) + '\n')
+
+            texto = self.cargar(ruta)
+
+        self.assertEqual(Business.objects.count(), 0)
+        self.assertIn(self.renglon('rechazados', 1), texto)
+
+    def test_excluir_un_municipio_lo_deja_fuera_del_archivo(self):
+        """Produccion ya tiene Moca hecha a mano: exportarla solo puede
+        estorbar (§10-d). Se queda fuera sin tocar nada de alla."""
+        otra = self.otro_municipio()
+        self.hacer('Pan del Dia')
+        self.hacer(
+            'Café del Pueblo', municipio=otra['municipio'],
+            provincia=otra['provincia'], lat=otra['lat'], lng=otra['lng'],
+        )
+
+        with tempfile.TemporaryDirectory() as carpeta:
+            ruta, texto = self.exportar(carpeta, excluir='Moca')
+            with portar.abrir_texto(ruta, 'rt') as fh:
+                lineas = [linea for linea in fh if linea.strip()]
+
+        self.assertEqual(len(lineas), 1)
+        self.assertIn('Café del Pueblo', lineas[0])
+        self.assertIn('1 de municipios excluidos', texto)
+        # La ficha de Moca sigue aqui, intacta: excluir es no exportarla.
+        self.assertEqual(Business.objects.filter(name='Pan del Dia').count(), 1)

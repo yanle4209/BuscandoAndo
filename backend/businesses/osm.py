@@ -16,6 +16,7 @@ cabecera y sobre el circulo de R1.
 """
 import json
 import sys
+import time
 import urllib.parse
 import urllib.request
 from datetime import time as dt_time
@@ -31,6 +32,15 @@ ENDPOINTS = [
 ]
 
 USER_AGENT = 'BuscandoAndo-import/1.0'
+
+# Overpass contesta 504 cuando va cargado o cuando se le pega mucho desde
+# la misma IP (correr dos importaciones a la vez basta). Un 504 NO es
+# "este municipio esta vacio": hay que volver a preguntar, pero con
+# pausa — repetir en el acto desde la misma IP solo empeora el limite.
+# Dos vueltas es el tope: mas que eso no es una consulta fallida, es
+# Overpass caido, y lo que toca es parar la corrida y volver despues.
+VUELTAS = 2
+PAUSA_SEGUNDOS = 20
 
 AMENITIES = (
     'restaurant|fast_food|cafe|bar|pub|ice_cream|pharmacy|'
@@ -211,24 +221,38 @@ def consultar(cabecera, radio_km):
     Se distingue ``None`` de ``[]``: uno es "no hubo red" y el otro es
     "este municipio no tiene nada en OSM". Mezclarlos haria creer que un
     municipio esta vacio cuando en realidad no se pudo consultar.
+
+    Se prueban los tres servidores y, si ninguno contesta, se vuelve a
+    intentar una vez tras una pausa (``VUELTAS``).
     """
     cuerpo = urllib.parse.urlencode(
         {'data': _consulta(cabecera, radio_km)}
     ).encode('utf-8')
 
     ultimo_error = None
-    for url in ENDPOINTS:
-        peticion = urllib.request.Request(url, data=cuerpo, headers={
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': USER_AGENT,
-            'Accept': '*/*',
-        })
-        try:
-            with urllib.request.urlopen(peticion, timeout=90) as respuesta:
-                datos = json.loads(respuesta.read().decode('utf-8'))
+    for vuelta in range(VUELTAS):
+        if vuelta:
+            time.sleep(PAUSA_SEGUNDOS)
+        for url in ENDPOINTS:
+            peticion = urllib.request.Request(url, data=cuerpo, headers={
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': USER_AGENT,
+                'Accept': '*/*',
+            })
+            try:
+                with urllib.request.urlopen(peticion, timeout=90) as respuesta:
+                    datos = json.loads(respuesta.read().decode('utf-8'))
+            except Exception as error:
+                ultimo_error = error
+                continue
+            # Overpass contesta 200 con ``elements: []`` y un ``remark``
+            # cuando la consulta se le acabo el tiempo en el servidor.
+            # Eso no es "aqui no hay nada": es "no se pudo", y devolverlo
+            # como vacio dejaria el municipio sin fichas sin motivo.
+            if datos.get('remark'):
+                ultimo_error = datos['remark']
+                continue
             return datos.get('elements', [])
-        except Exception as error:
-            ultimo_error = error
     # Por stderr: el comando ya informa por stdout de que este municipio
     # no se pudo consultar, y aqui se ve el motivo concreto.
     sys.stderr.write('Overpass: %s\n' % ultimo_error)
