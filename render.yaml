@@ -2,7 +2,15 @@ services:
   - type: web
     name: buscandoando
     runtime: python
-    buildCommand: pip install -r backend/requirements.txt && cd frontend && npm install && npm run build && cd ../backend && python manage.py collectstatic --noinput && python manage.py migrate && python manage.py setup_admin && python manage.py load_initial_data
+    # El ultimo paso es la carga de fichas nacionales: el archivo viaja en
+    # el repo (backend/data/fichas_nacionales.ndjson.gz) y no puede ir al
+    # Shell porque el plan gratis no lo tiene. Es idempotente — recarga la
+    # propia base y da `creados 0, duplicados 16136` — asi que un deploy
+    # mas no duplica nada y ademas repara la base si se recreara.
+    # El `( ... || true)` protege SOLO ese paso: si falla el `migrate` o
+    # el `load_initial_data`, la cadena `&&` se corta antes y el build
+    # sigue fallando como debe.
+    buildCommand: pip install -r backend/requirements.txt && cd frontend && npm install && npm run build && cd ../backend && python manage.py collectstatic --noinput && python manage.py migrate && python manage.py setup_admin && python manage.py load_initial_data && (python manage.py cargar_fichas data/fichas_nacionales.ndjson.gz || true)
     startCommand: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: SECRET_KEY
