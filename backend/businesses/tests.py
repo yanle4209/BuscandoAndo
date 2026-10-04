@@ -17,9 +17,10 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from categories.models import Category
@@ -2217,3 +2218,94 @@ class PortarDeDatosTests(TestCase):
         self.assertIn('1 de municipios excluidos', texto)
         # La ficha de Moca sigue aqui, intacta: excluir es no exportarla.
         self.assertEqual(Business.objects.filter(name='Pan del Dia').count(), 1)
+
+
+@override_settings(STORAGES={
+    **settings.STORAGES,
+    # El admin maquilla las hojas con el storage con manifest, que solo
+    # resuelve despues de `collectstatic`: en los tests no hay manifest y
+    # la pagina ni llegaria a pintarse.
+    'staticfiles': {'BACKEND':
+                    'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class FiltroMunicipioEnAdminTests(TestCase):
+    """La pantalla de Negocios del admin.
+
+    Tiene que dejar filtrar por municipio, y los municipios salen debajo
+    de su provincia: una lista plana de 158 nombres en orden alfabetico
+    pone a Baní al lado de Bani y a Moca, lejos de Espaillat.
+    """
+
+    URL = '/admin/businesses/business/'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado')
+        cls.abierto = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto')
+        cls.tiendas = Category.objects.create(name='Tiendas', slug='tiendas')
+        cls.visita = get_user_model().objects.create_superuser(
+            'admin', 'admin@example.com', 'x')
+
+    # ------------------------------ helpers ---------------------------
+
+    def ficha(self, nombre, municipio, provincia, lat, lng):
+        negocio = Business.objects.create(
+            name=nombre, description='', category=self.tiendas,
+            publication_status=self.publicado,
+            operational_status=self.abierto, procedencia='importado')
+        BusinessLocation.objects.create(
+            business=negocio, municipality=municipio, province=provincia,
+            latitude=lat, longitude=lng)
+
+    def dos_municipios(self):
+        self.ficha('Colmado La Esquina', 'Moca', 'Espaillat',
+                   19.3970, -70.5270)
+        self.ficha('Panadería La Peravia', 'Baní', 'Peravia',
+                   18.2793, -70.3330)
+
+    def lateral(self, respuesta):
+        """Solo la columna de filtros, para no mezclarla con las filas."""
+        texto = respuesta.content.decode()
+        return texto[texto.index('id="changelist-filter"'):]
+
+    # ------------------------------ tests -----------------------------
+
+    def test_un_municipio_y_no_los_demas(self):
+        self.dos_municipios()
+        self.client.force_login(self.visita)
+
+        respuesta = self.client.get(
+            self.URL, {'location__municipality': 'Moca'})
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, 'Colmado La Esquina')
+        self.assertNotContains(respuesta, 'Panadería La Peravia')
+
+    def test_los_municipios_salen_debajo_de_su_provincia(self):
+        self.dos_municipios()
+        self.client.force_login(self.visita)
+
+        lateral = self.lateral(self.client.get(self.URL))
+
+        self.assertIn('Espaillat', lateral)
+        self.assertIn('Peravia', lateral)
+        # Rotulo de la tanda primero, municipio despues; las dos tandas,
+        # en orden de provincia, sin mezclarse.
+        self.assertLess(lateral.index('Espaillat'), lateral.index('Moca'))
+        self.assertLess(lateral.index('Moca'),
+                        lateral.index('Peravia'))
+        self.assertLess(lateral.index('Peravia'), lateral.index('Baní'))
+
+    def test_se_pueden_desmarcar_los_dos(self):
+        self.dos_municipios()
+        self.client.force_login(self.visita)
+
+        lateral = self.lateral(
+            self.client.get(self.URL, {'location__municipality': 'Moca'}))
+
+        # Con uno elegido, el municipio sale marcado y sigue estando el
+        # "Todos" para volver a la lista completa.
+        self.assertIn('Todos', lateral)
+        self.assertIn('class="filtro-municipio selected"', lateral)
