@@ -81,6 +81,87 @@ class CorrectionAdmin(admin.ModelAdmin):
     marcar_como_descartada.short_description = 'Marcar seleccionadas como descartadas'
 
 
+class MunicipioPorProvincia(admin.SimpleListFilter):
+    """El sidebar de Negocios: cada municipio debajo de su provincia.
+
+    Un ``list_filter`` plano con ``location__municipality`` suelta 158
+    nombres en orden alfabetico, donde Bani queda lejos de Peravia y
+    Moca, de Espaillat: una lista imposible de recorrer. El filtro sigue
+    siendo por municipio —el mismo de la API y del padron— pero cada
+    tanda se abre con la provincia que la contiene, que es como esta
+    ordenado el pais.
+
+    El padron lo manda ``geografia.cabeceras``: el mismo que usan el
+    importador y el formulario de colaboradores, para que el admin no
+    este hablando de otros 158 municipios que el resto del sistema.
+    """
+
+    title = 'Municipio'
+    # La ubicacion vive en BusinessLocation (relacion inversa), y es de
+    # ahi de donde sale la columna "Municipio" de la propia lista.
+    parameter_name = 'location__municipality'
+    template = 'admin/filtro_municipio.html'
+
+    def has_output(self):
+        # SimpleListFilter decide con `lookups()`, y aqui las opciones se
+        # arman en `choices()`: sin esto el filtro ni llegaria a salir.
+        return True
+
+    def lookups(self, request, model_admin):
+        return []
+
+    def queryset(self, request, queryset):
+        municipio = (self.value() or '').strip()
+        if not municipio:
+            return queryset
+        return queryset.filter(location__municipality=municipio)
+
+    def _arbol(self):
+        """Provincia y municipio aplanados, con la provincia primero."""
+        padron = {c['municipio']: c['provincia']
+                  for c in geografia.cabeceras()}
+        en_bd = set(
+            BusinessLocation.objects
+            .exclude(municipality__isnull=True)
+            .exclude(municipality='')
+            .values_list('municipality', flat=True)
+            .distinct()
+        )
+        grupos = {}
+        for municipio, provincia in padron.items():
+            grupos.setdefault(provincia, []).append(municipio)
+        # Una ficha cuyo municipio no este en el padron quedaria sin forma
+        # de encontrarla si no cae en ningun grupo.
+        for suelto in sorted(en_bd - set(padron)):
+            grupos.setdefault('Fuera del padron', []).append(suelto)
+
+        items = []
+        for provincia in sorted(grupos):
+            items.append((True, provincia))
+            items.extend((False, municipio)
+                         for municipio in sorted(grupos[provincia]))
+        return items
+
+    def choices(self, changelist):
+        yield {
+            'selected': self.value() is None,
+            'query_string': changelist.get_query_string(
+                remove=[self.parameter_name]),
+            'display': 'Todos',
+        }
+        elegido = self.value()
+        for es_provincia, etiqueta in self._arbol():
+            if es_provincia:
+                yield {'provincia': etiqueta}
+            else:
+                yield {
+                    'selected': elegido == etiqueta,
+                    'query_string': changelist.get_query_string(
+                        {self.parameter_name: etiqueta}),
+                    'display': etiqueta,
+                }
+
+
 @admin.register(Business)
 class BusinessAdmin(admin.ModelAdmin):
     change_list_template = 'admin/businesses/business/changelist.html'
@@ -92,6 +173,9 @@ class BusinessAdmin(admin.ModelAdmin):
         'get_featured_duration', 'get_city', 'created_at',
     ]
     list_filter = [
+        # Primero lo de municipio, que es con lo que se busca: lo demas
+        # es refinar encima.
+        MunicipioPorProvincia,
         'publication_status',
         'operational_status',
         'category',

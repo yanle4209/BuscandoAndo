@@ -1,0 +1,19 @@
+{% load i18n %}
+{# Copia de admin/filter.html con un caso mas: MunicipioPorProvincia no trae una lista plana sino provincia + municipios. #}
+{# La provincia se pinta como titulo de tanda, no como enlace: el que filtra es el municipio. #}
+<details data-filter-title="{{ title }}" open>
+  <summary>
+    {% blocktranslate with filter_title=title %} By {{ filter_title }} {% endblocktranslate %}
+  </summary>
+  <ul>
+  {% for choice in choices %}
+    {% if choice.provincia %}
+      <li class="filtro-provincia"><span>{{ choice.provincia }}</span></li>
+    {% else %}
+      <li class="filtro-municipio{% if choice.selected %} selected{% endif %}">
+        <a href="{{ choice.query_string|iriencode }}">{{ choice.display }}</a>
+      </li>
+    {% endif %}
+  {% endfor %}
+  </ul>
+</details>

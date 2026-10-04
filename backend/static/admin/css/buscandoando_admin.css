@@ -293,6 +293,34 @@ a.addlink:hover, a.changelink:hover { color: var(--white) !important; }
     border-radius: 4px;
 }
 
+/* MunicipioPorProvincia: la provincia es el titulo de cada tanda y los
+   municipios caen debajo, con sangria. */
+#changelist-filter ul li.filtro-provincia {
+    list-style: none;
+    margin: 12px 0 2px;
+    padding: 4px 6px 3px;
+    border-top: 1px solid #333;
+    color: var(--yellow);
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+#changelist-filter ul li.filtro-provincia span {
+    opacity: 0.85;
+}
+
+#changelist-filter ul li.filtro-municipio {
+    padding-left: 10px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+#changelist-filter ul li.filtro-municipio.selected {
+    padding-left: 10px;
+}
+
 /* ===== MODULES / FIELDSETS ===== */
 .module {
     border: 1px solid #333 !important;
