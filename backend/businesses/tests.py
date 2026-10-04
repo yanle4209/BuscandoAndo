@@ -2343,3 +2343,51 @@ class ColaboradorFormTests(TestCase):
                         html.index('value="Baní"'))
         # Y lo que no pertenece a ningun grupo, fuera de los grupos.
         self.assertIn('— sin municipio —', html)
+
+
+@override_settings(STORAGES=STATIC_SIN_MANIFEST)
+class BotonCorregirTests(TestCase):
+    """De un aviso de la bandeja, al formulario del negocio.
+
+    El aviso dice que algo esta mal pero no arrega nada: el arreglo es
+    escribir el dato bueno en la ficha. El boton lleva directo a ESE
+    formulario, sin pasar por la lista de Negocios.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado')
+        cls.abierto = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto')
+        cls.tiendas = Category.objects.create(name='Tiendas', slug='tiendas')
+        cls.negocio = Business.objects.create(
+            name='Colmado La Esquina', description='', category=cls.tiendas,
+            publication_status=cls.publicado,
+            operational_status=cls.abierto, procedencia='importado')
+        cls.correccion = Correction.objects.create(
+            business=cls.negocio, campo='telefono',
+            mensaje='El telefono que ponen no contesta: es 809-555-0000')
+        cls.visita = get_user_model().objects.create_superuser(
+            'admin', 'admin@example.com', 'x')
+
+    def ruta_de_la_ficha(self):
+        return f'/admin/businesses/business/{self.negocio.pk}/change/'
+
+    def test_el_boton_de_dentro_de_la_correccion_abre_su_ficha(self):
+        self.client.force_login(self.visita)
+
+        html = self.client.get(
+            f'/admin/businesses/correction/{self.correccion.pk}/change/'
+        ).content.decode()
+
+        self.assertIn(f'href="{self.ruta_de_la_ficha()}"', html)
+        self.assertIn('Corregir', html)
+
+    def test_el_boton_tambien_esta_en_el_listado(self):
+        self.client.force_login(self.visita)
+
+        html = self.client.get(
+            '/admin/businesses/correction/').content.decode()
+
+        self.assertIn(f'href="{self.ruta_de_la_ficha()}"', html)

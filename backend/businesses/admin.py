@@ -35,14 +35,38 @@ class BusinessContactInline(admin.StackedInline):
 
 @admin.register(Correction)
 class CorrectionAdmin(admin.ModelAdmin):
-    """Bandeja de avisos de datos incorrectos enviados desde el frontend."""
+    """Bandeja de avisos de datos incorrectos enviados desde el frontend.
 
-    list_display = ['business', 'campo', 'estado', 'created_at', 'aviso']
+    El aviso solo dice que algo esta mal: el arreglo se hace en la ficha
+    del negocio. Por eso de aqui sale un boton directo a ESE formulario —
+    sin ir a la lista de Negocios a buscarlo entre 16000, que es donde se
+    pierde el hilo.
+    """
+
+    list_display = ['business', 'campo', 'estado', 'created_at', 'aviso',
+                    'corregir']
     list_filter = ['estado', 'campo', 'created_at']
     search_fields = ['business__name', 'mensaje', 'nota_admin']
     # El aviso es lo que dijo el visitante: no se edita, se RESUELVE
     # cambiando el estado y dejando una nota interna.
-    readonly_fields = ['business', 'campo', 'mensaje', 'created_at']
+    readonly_fields = ['business', 'campo', 'mensaje', 'created_at',
+                       'ir_a_corregir']
+    fieldsets = (
+        (None, {
+            'fields': ('business', 'campo', 'mensaje'),
+        }),
+        ('Corregir', {
+            'fields': ('ir_a_corregir',),
+            'description': (
+                'El boton abre el formulario de ESTE negocio: ahi se '
+                'escribe el dato correcto, se guarda y se publica si hace '
+                'falta. Despues se cierra el aviso aqui abajo.'
+            ),
+        }),
+        ('Resolucion', {
+            'fields': ('estado', 'nota_admin', 'resolved_at', 'created_at'),
+        }),
+    )
     list_editable = ['estado']
     actions = [
         'marcar_como_revisada',
@@ -53,6 +77,31 @@ class CorrectionAdmin(admin.ModelAdmin):
     def aviso(self, obj):
         return f'{obj.mensaje[:60]}…' if len(obj.mensaje) > 60 else obj.mensaje
     aviso.short_description = 'Aviso'
+
+    def _ruta_de(self, business_id):
+        return reverse('admin:businesses_business_change',
+                       args=[business_id])
+
+    def corregir(self, obj):
+        """Columna de la bandeja: del aviso a la ficha en un clic."""
+        if not obj.business_id:
+            return '-'
+        return format_html(
+            '<a class="boton-corregir" href="{}">Corregir</a>',
+            self._ruta_de(obj.business_id),
+        )
+    corregir.short_description = 'Ficha'
+
+    def ir_a_corregir(self, obj):
+        """El mismo boton, dentro de la correccion que se esta leyendo."""
+        if not obj or not obj.business_id:
+            return '(guarda la correccion y aqui saldra el boton)'
+        return format_html(
+            '<a class="boton-corregir" href="{}">Corregir &ldquo;{}&rdquo;</a>',
+            self._ruta_de(obj.business_id),
+            obj.business.name,
+        )
+    ir_a_corregir.short_description = 'Accion'
 
     def _cambiar_estado(self, request, queryset, estado):
         """Solo staff llega aqui (el admin ya lo garantiza)."""
