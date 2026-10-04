@@ -644,6 +644,15 @@ eslabón de la cadena, en `render.yaml`:
   la base si alguna vez se recrea.
 - Para repetirla *fuera* de un deploy haría falta el plan Starter
   (Shell u One-Off Jobs); mientras tanto, un push la vuelve a correr.
+- **`render.yaml` no gobierna este servicio.** Se dio de alta desde el
+  panel, no desde un Blueprint, así que el Build Command real vive en
+  *Settings → Build Command*. Cambiar el `buildCommand` del YAML **no
+  redespliega nada** — hay que cambiarlo también en el panel. El del
+  archivo quedó, para referencia, a la par con el de allí.
+- Carga real en producción: `leidos 16136, creados 16136, rechazados 0,
+  sin_cabecera 0`; `GET /api/businesses/?page_size=1` pasó de **325** a
+  **1839** = los 325 de Moca (intactos) + los 1514 que ya cumplían el
+  trío.
 
 ### Nota sobre Overpass
 
