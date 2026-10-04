@@ -406,6 +406,15 @@
   color: #f6a5a5;
 }
 
+/* El cierre del aviso: dice que la lista de arriba ya esta al dia, que
+   es lo que el colaborador tiene que comprobar antes de seguir. */
+.lev-resultado p.lev-resultado-nota {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #3a3a3a;
+  color: #a9a9a9;
+}
+
 .lev-lista {
   margin: 4px 0 8px 18px;
   font-size: 14px;

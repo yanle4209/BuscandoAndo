@@ -373,9 +373,6 @@ export default function Levantamiento() {
       // Listo para el siguiente: solo se borra la ficha, no el token ni
       // el municipio, que son lo que se repite en una ronda de campo.
       limpiarFicha();
-      // Y se relee el reporte enseguida — la ficha acaba de cambiar de
-      // estado, y de ahí sale el siguiente negocio a completar.
-      if (token.trim()) cargarReporte(token.trim()).catch(() => {});
     } catch (err) {
       const status = err.response?.status;
       const data = err.response?.data || {};
@@ -397,6 +394,13 @@ export default function Levantamiento() {
       }
     } finally {
       setEnviando(false);
+      // El reporte se relee con CADA envío, también con los que no
+      // entraron: lo que se ve arriba tiene que ser lo que hay ahora
+      // mismo y no lo que había al abrir la pantalla. Un envío
+      // rechazado no mueve la base, pero si un segundo colaborador acaba
+      // de completar una ficha de este municipio, el listado viejo
+      // engaña — y de ahí salen las dobles cargas.
+      if (token.trim()) cargarReporte(token.trim()).catch(() => {});
     }
   };
 
@@ -774,16 +778,20 @@ const COMPLETADOS = {
 };
 
 function Resultado({ r }) {
+  // Los tres que el servidor ACEPTO llevan la palomita delante: es la
+  // unica señal de que el envío entró, y tiene que leerse de un vistazo.
   const titulo = {
-    publicado: ['Publicado', 'lev-ok'],
-    pendiente: ['Recibido, le falta el trio', 'lev-ok'],
-    duplicado: ['Ya existía: se completó', 'lev-ok'],
+    publicado: ['✓ Aceptado y publicado', 'lev-ok'],
+    pendiente: ['✓ Aceptado: se queda en el reporte', 'lev-ok'],
+    duplicado: ['✓ Aceptado: ficha existente completada', 'lev-ok'],
     rechazado: ['No se aceptó', 'lev-malo'],
     firma: ['Token no válido', 'lev-malo'],
     otro: ['A este token le toca otro municipio', 'lev-malo'],
     techo: ['Demasiados envíos', 'lev-malo'],
     'sin-red': ['Sin conexión', 'lev-malo'],
   }[r.tipo] || ['Respuesta', 'lev-malo'];
+
+  const aceptado = ['publicado', 'pendiente', 'duplicado'].includes(r.tipo);
 
   const faltan = (r.faltan || []).map((c) => ETIQUETAS[c] || c);
   const completado = (r.completado || []).map((c) => COMPLETADOS[c] || c);
@@ -830,6 +838,15 @@ function Resultado({ r }) {
       )}
       {r.tipo === 'techo' && <p>Espera un minuto y vuelve a intentarlo.</p>}
       {r.tipo === 'sin-red' && <p>No se pudo hablar con el servidor. Intenta otra vez.</p>}
+
+      {aceptado && (
+        <p className="lev-resultado-nota">
+          El reporte de tu municipio <strong>ya se actualizó</strong> con este
+          envío: la lista de arriba está al día y el negocio que acabas de
+          enviar ya no aparece como pendiente. Elige el siguiente cuando
+          quieras.
+        </p>
+      )}
     </div>
   );
 }
