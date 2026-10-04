@@ -621,17 +621,29 @@ negocio.
 python manage.py exportar_fichas --excluir Moca
 git add backend/data/fichas_nacionales.ndjson.gz
 git commit -m "Datos nacionales (157 municipios)"
-git push origin main          # autoDeploy redespliega y trae el archivo
+git push origin main    # autoDeploy redespliega, trae el archivo y lo carga
 
-# 2. en el Shell de Render (una vez)
-python manage.py cargar_fichas data/fichas_nacionales.ndjson.gz
-
-# 3. comprobación
+# 2. comprobación
 #    GET /api/businesses/?page_size=1  ->  "count" sin los de Moca
 ```
 
-El paso 2 **no** va en `buildCommand`: se corre una vez a mano. Si
-alguna vez hace falta repetirlo, se repite — es idempotente.
+La carga **sí va en `buildCommand`**, y no por gusto: el plan gratis de
+Render **no tiene Shell** («Shell is not supported for free compute
+plans»), así que no existe consola donde correrla a mano. Es el último
+eslabón de la cadena, en `render.yaml`:
+
+```sh
+... && python manage.py load_initial_data \
+    && (python manage.py cargar_fichas data/fichas_nacionales.ndjson.gz || true)
+```
+
+- El `(... || true)` protege **solo ese paso**: si falla el `migrate`,
+  la cadena `&&` se corta antes y el build sigue fallando como debe.
+- Como `cargar_fichas` es idempotente, redesplegar no duplica nada —
+  `creados 0, duplicados 16136` sobre la propia base — y además repara
+  la base si alguna vez se recrea.
+- Para repetirla *fuera* de un deploy haría falta el plan Starter
+  (Shell u One-Off Jobs); mientras tanto, un push la vuelve a correr.
 
 ### Nota sobre Overpass
 
@@ -640,4 +652,19 @@ a intentarlo una vez tras 20 s** (`VUELTAS`, `PAUSA_SEGUNDOS`). Un `504`
 de Overpass **no** significa que el municipio esté vacío: se distingue
 `None` («no hubo red») de `[]` («no hay nada»), y lo primero sale como
 `sin_datos` en el resultado, no como municipio sin fichas.
+
+Hay una tercera salida, y es la que se cuela: Overpass contesta **200
+con `elements: []` y un `remark`** cuando la consulta se le acaba el
+tiempo *en el servidor*. Leída como «no hay nada», dejaba municipios
+enteros sin fichas sin que nadie se enterara — lo contrario exacto de
+la regla de arriba. Un `remark` ya se trata como `sin_datos`
+(reintentable) y está cubierto por `ConsultarOverpassTests`.
+
+**Cobertura real: 142 de 158 municipios.** Los otros 16 contestaron
+limpio y no tienen ni un `shop` ni un `amenity` mapeado a 5 km de su
+cabecera (Montecristi, Pueblo Viejo, Quisqueya, Duvergé…). La
+comparación «todo lo que tiene nombre» contra «lo que pide la
+importación» lo confirma: en esos pueblos solo aparecen barrios y
+caminos, no negocios. No es el filtro: es la cobertura de OSM en
+municipios pequeños de RD.
 
