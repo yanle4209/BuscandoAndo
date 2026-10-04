@@ -1,3 +1,9 @@
+# NOTA: este archivo no gobierna el servicio que ya existe. `buscandoando`
+# se dio de alta desde el panel, no desde un Blueprint, así que su Build
+# Command real vive en Settings -> Build Command y aquí abajo solo sirve
+# como referencia (Render solo aplica render.yaml al crear el servicio).
+# Si cambias buildCommand aquí, cámbialo también en el panel: por aquí no
+# se redespliega nada.
 services:
   - type: web
     name: buscandoando
