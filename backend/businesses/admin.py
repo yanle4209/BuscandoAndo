@@ -397,6 +397,15 @@ class ColaboradorForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         padron = {c['municipio']: c['provincia']
                   for c in geografia.cabeceras()}
+        # Un ``Select`` pinta lo que aqui venga como lista como
+        # ``<optgroup>``: la provincia por encima y sus municipios dentro,
+        # que es como se pide en la pantalla de Negocios. Sin el rotulo de
+        # provincia al lado de cada municipio porque ya esta arriba.
+        grupos = {}
+        for municipio, provincia in sorted(
+                padron.items(), key=lambda par: (par[1], par[0])):
+            grupos.setdefault(provincia, []).append((municipio, municipio))
+
         opciones = [('', '— sin municipio —')]
         # Un valor ya guardado y fuera del padron se muestra tal cual: si
         # no, el desplegable lo dejaria sin seleccionar y al guardar se
@@ -406,12 +415,7 @@ class ColaboradorForm(forms.ModelForm):
             opciones.append(
                 (actual, '%s (fuera del padron)' % actual)
             )
-        opciones += [
-            (municipio, '%s (%s)' % (municipio, provincia))
-            for municipio, provincia in sorted(
-                padron.items(), key=lambda par: (par[1], par[0])
-            )
-        ]
+        opciones += list(grupos.items())
         self.fields['municipio'].widget = forms.Select(choices=opciones)
         self.fields['municipio'].help_text = (
             'El unico municipio que este token puede leer en el reporte de '
