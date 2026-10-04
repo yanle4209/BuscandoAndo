@@ -321,6 +321,25 @@ a.addlink:hover, a.changelink:hover { color: var(--white) !important; }
     padding-left: 10px;
 }
 
+/* "Corregir": de un aviso de la bandeja de correcciones directo al
+   formulario del negocio que hay que arreglar. */
+a.boton-corregir {
+    display: inline-block;
+    background: var(--yellow) !important;
+    color: #1a1a1a !important;
+    padding: 6px 16px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 13px;
+    text-decoration: none !important;
+    letter-spacing: 0.03em;
+}
+
+a.boton-corregir:hover {
+    background: var(--yellow-light) !important;
+    color: #1a1a1a !important;
+}
+
 /* ===== MODULES / FIELDSETS ===== */
 .module {
     border: 1px solid #333 !important;
