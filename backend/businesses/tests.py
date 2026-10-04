@@ -41,6 +41,15 @@ CABECERAS_URL = '/api/cabeceras/'
 PENDIENTES_URL = '/api/pendientes/'
 LEVANTAMIENTO_URL = '/api/levantamiento/'
 
+# El admin maquilla las hojas con el storage con manifest, que solo
+# resuelve despues de `collectstatic`: en los tests no hay manifest y la
+# pagina de admin ni llegaria a pintarse.
+STATIC_SIN_MANIFEST = {
+    **settings.STORAGES,
+    'staticfiles': {'BACKEND':
+                    'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}
+
 
 class CorrectionApiTests(TestCase):
     """Formulario "Corregir" del frontend.
@@ -2220,14 +2229,7 @@ class PortarDeDatosTests(TestCase):
         self.assertEqual(Business.objects.filter(name='Pan del Dia').count(), 1)
 
 
-@override_settings(STORAGES={
-    **settings.STORAGES,
-    # El admin maquilla las hojas con el storage con manifest, que solo
-    # resuelve despues de `collectstatic`: en los tests no hay manifest y
-    # la pagina ni llegaria a pintarse.
-    'staticfiles': {'BACKEND':
-                    'django.contrib.staticfiles.storage.StaticFilesStorage'},
-})
+@override_settings(STORAGES=STATIC_SIN_MANIFEST)
 class FiltroMunicipioEnAdminTests(TestCase):
     """La pantalla de Negocios del admin.
 
@@ -2309,3 +2311,35 @@ class FiltroMunicipioEnAdminTests(TestCase):
         # "Todos" para volver a la lista completa.
         self.assertIn('Todos', lateral)
         self.assertIn('class="filtro-municipio selected"', lateral)
+
+
+@override_settings(STORAGES=STATIC_SIN_MANIFEST)
+class ColaboradorFormTests(TestCase):
+    """Al crear un colaborador, el municipio sale anidado por provincia.
+
+    Lo mismo que en la lista de Negocios: 158 nombres seguidos no se
+    recorren, y el que ya sabe de que provincia es Moca no necesita que
+    se lo repitan al lado.
+    """
+
+    URL = '/admin/businesses/colaborador/add/'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.visita = get_user_model().objects.create_superuser(
+            'admin', 'admin@example.com', 'x')
+
+    def test_el_desplegable_anida_los_municipios_por_provincia(self):
+        self.client.force_login(self.visita)
+
+        html = self.client.get(self.URL).content.decode()
+
+        self.assertIn('<optgroup label="Espaillat">', html)
+        self.assertIn('<optgroup label="Peravia">', html)
+        # El rotulo de la provincia antes que el municipio que lo sigue.
+        self.assertLess(html.index('<optgroup label="Espaillat">'),
+                        html.index('value="Moca"'))
+        self.assertLess(html.index('<optgroup label="Peravia">'),
+                        html.index('value="Baní"'))
+        # Y lo que no pertenece a ningun grupo, fuera de los grupos.
+        self.assertIn('— sin municipio —', html)
