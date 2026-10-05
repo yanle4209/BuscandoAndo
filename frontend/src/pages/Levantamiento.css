@@ -18,6 +18,58 @@
   max-width: 720px;
 }
 
+/* -------------------------- pantalla de acceso ----------------------
+   Una sola cosa aqui: el campo del token. El reporte y el formulario
+   viven en la pantalla de trabajo, que solo se abre si el servidor
+   acepta el token. */
+.lev-acceso-card {
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.lev-acceso-titulo {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.lev-acceso-texto {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--grey);
+  margin-bottom: 18px;
+}
+
+.lev-acceso-texto strong { color: var(--white); }
+
+.lev-acceso-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lev-acceso-error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #f6a5a5;
+}
+
+/* Quien esta firmando en la pantalla de trabajo. */
+.lev-firma-quien {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0 0 14px;
+  font-size: 15px;
+}
+
+.lev-firma-token {
+  font-size: 12px;
+  color: var(--grey);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
 /* ------------------------------- cabecera -------------------------- */
 .lev-top {
   display: flex;

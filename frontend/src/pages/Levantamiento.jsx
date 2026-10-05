@@ -69,6 +69,12 @@ const distanciaKm = (lat1, lng1, lat2, lng2) => {
 export default function Levantamiento() {
   const [token, setToken] = useState('');
   const [tokenVisible, setTokenVisible] = useState(false);
+  // Dos pantallas: primero SOLO el token y, cuando el servidor lo
+  // acepta, la de trabajo. El formulario no puede vivir dentro del
+  // login: el acceso es una cosa y el trabajo otra.
+  const [dentro, setDentro] = useState(false);
+  const [validando, setValidando] = useState(false);
+  const [errorAcceso, setErrorAcceso] = useState(null);
   const [cabeceras, setCabeceras] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [municipioClave, setMunicipioClave] = useState('');
@@ -151,31 +157,34 @@ export default function Levantamiento() {
     }
   };
 
-  useEffect(() => {
-    const t = token.trim();
-    if (!t) {
+  // La validacion ES la carga del reporte: se manda el token y, si el
+  // servidor lo acepta, la pantalla de trabajo se abre con el reporte de
+  // SU municipio ya cargado. Si lo rechaza no se abre nada y el error se
+  // queda debajo del campo, en el login.
+  const entrarConToken = async (t) => {
+    setValidando(true);
+    setErrorAcceso(null);
+    setReporte((r) => ({ ...r, cargando: true }));
+    try {
+      await cargarReporte(t);
+      setDentro(true);
+      return true;
+    } catch (err) {
       setReporte({ fila: null, detalle: null, aviso: null, cargando: false });
-      return undefined;
-    }
-    let vivo = true;
-    // Con retardo: se teclea el token y sin esto se peticiona cada letra.
-    const reloj = setTimeout(() => {
-      setReporte((r) => ({ ...r, cargando: true }));
-      cargarReporte(t, () => vivo).catch((err) => {
-        if (!vivo) return;
-        // El 400 lo manda el propio backend con su mensaje («este token
-        // no tiene municipio»); el 401 es un token que no vale. El resto
-        // —malo, bloqueado, caído el servidor— lo dice el envío, que es
-        // la única acción que de verdad importa aquí.
-        const detalle = err.response?.status === 401
+      // El 400 lo manda el propio backend con su mensaje («este token no
+      // tiene municipio»); el 401 es un token que no vale.
+      setErrorAcceso(
+        err.response?.status === 401
           ? 'Token no válido o bloqueado. Pídelo al coordinador.'
           : err.response?.status === 400
-            ? err.response.data?.detail : null;
-        setReporte({ fila: null, detalle: null, aviso: detalle, cargando: false });
-      });
-    }, 400);
-    return () => { vivo = false; clearTimeout(reloj); };
-  }, [token]);
+            ? (err.response.data?.detail || 'Este token no tiene municipio asignado.')
+            : 'No se pudo hablar con el servidor. Intenta otra vez.',
+      );
+      return false;
+    } finally {
+      setValidando(false);
+    }
+  };
 
   const verReporte = () => {
     const t = token.trim();
@@ -252,7 +261,13 @@ export default function Levantamiento() {
   useEffect(() => {
     try {
       const guardado = localStorage.getItem(CLAVE_TOKEN);
-      if (guardado) setToken(guardado);
+      if (guardado) {
+        setToken(guardado);
+        // Token ya usado en este navegador: se valida en silencio y, si
+        // vale, la pantalla de trabajo se abre sola. Si no vale, se queda
+        // en el acceso con el error debajo del campo.
+        entrarConToken(guardado);
+      }
     } catch {
       // Sin localStorage (modo privado): se pega el token a mano cada vez.
     }
@@ -272,6 +287,30 @@ export default function Levantamiento() {
     } catch {
       // No se puede recordar, pero se puede usar.
     }
+  };
+
+  // Botón «Entrar» del login: valida y, si pasa, abre la pantalla de
+  // trabajo. No se peticiona cada letra como antes — se manda una vez.
+  const entrar = async (e) => {
+    e.preventDefault();
+    const t = token.trim();
+    if (!t) {
+      setErrorAcceso('Pega el token que te dieron.');
+      return;
+    }
+    guardarToken(t);
+    await entrarConToken(t);
+  };
+
+  // Se vuelve al acceso. No hay sesión que cerrar (el token sigue en
+  // este navegador): se sale del trabajo y se deja el formulario limpio.
+  const salir = () => {
+    limpiarFicha();
+    setReporte({ fila: null, detalle: null, aviso: null, cargando: false });
+    setHechas([]);
+    setResultado(null);
+    setErrorAcceso(null);
+    setDentro(false);
   };
 
   const porProvincia = useMemo(() => {
@@ -470,9 +509,10 @@ export default function Levantamiento() {
   // El reporte se va AL LADO del formulario (y en el telefono sigue
   // debajo, en el mismo orden de siempre): es la lista con la que se
   // trabaja, no un tramite previo que haya que salir a buscar.
-  const hayReporte = Boolean(
-    token.trim() && (reporte.cargando || reporte.aviso || reporte.fila),
-  );
+  // En la pantalla de trabajo el reporte esta SIEMPRE: es la razon de
+  // estar aqui, y su columna existe aunque el municipio no tenga nada
+  // pendiente (ahi se dice «todavía no hay fichas»).
+  const hayReporte = dentro;
 
   // Lo que todavia le falta a la ficha abierta, medido con el formulario
   // de AHORA: la fila cambia de color mientras se teclea, sin esperar a
@@ -544,6 +584,67 @@ export default function Levantamiento() {
     return f.activa ? `${base} lev-ficha--activa` : base;
   };
 
+  // -------------------------- pantalla de acceso ----------------------
+  // Solo el token. Nada de formulario ni de reporte aqui: eso es la
+  // pantalla de trabajo, que se abre cuando el servidor acepta el token.
+  if (!dentro) {
+    return (
+      <div className="lev-page lev-acceso">
+        <header className="lev-top">
+          <div>
+            <p className="lev-top-eyebrow">Herramienta interna</p>
+            <h1 className="lev-top-title">Levantamiento</h1>
+          </div>
+          <a className="lev-top-volver" href="/">Volver al buscador</a>
+        </header>
+
+        <section className="lev-card lev-acceso-card">
+          <h2 className="lev-acceso-titulo">Acceso del colaborador</h2>
+          <p className="lev-acceso-texto">
+            Pega el token que te dieron. El sistema lo valida, carga el reporte de{' '}
+            <strong>tu municipio</strong> y te abre la pantalla de trabajo.
+          </p>
+
+          <form className="lev-acceso-form" onSubmit={entrar}>
+            <div className="lev-field">
+              <label htmlFor="lev-token">Token de colaborador</label>
+              <div className="lev-token-row">
+                <input
+                  id="lev-token"
+                  type={tokenVisible ? 'text' : 'password'}
+                  value={token}
+                  onChange={(e) => {
+                    guardarToken(e.target.value);
+                    if (errorAcceso) setErrorAcceso(null);
+                  }}
+                  placeholder="Pega aquí el token que te dieron"
+                  autoComplete="off"
+                  spellCheck={false}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  className="lev-btn-ghost"
+                  onClick={() => setTokenVisible((v) => !v)}
+                >
+                  {tokenVisible ? 'Ocultar' : 'Ver'}
+                </button>
+              </div>
+              <small>Se guarda solo en este navegador.</small>
+            </div>
+
+            {errorAcceso && <p className="lev-acceso-error">{errorAcceso}</p>}
+
+            <button type="submit" className="lev-enviar" disabled={validando}>
+              {validando ? 'Validando…' : 'Entrar'}
+            </button>
+          </form>
+        </section>
+      </div>
+    );
+  }
+
+  // ------------------------- pantalla de trabajo ----------------------
   return (
     <div className={`lev-page${hayReporte ? ' lev-page--lado' : ''}`}>
       <header className="lev-top">
@@ -567,28 +668,20 @@ export default function Levantamiento() {
       >
         <section className="lev-card lev-firma">
           <h2 className="lev-card-title">Tu firma</h2>
-          <div className="lev-field">
-            <label htmlFor="lev-token">Token de colaborador</label>
-            <div className="lev-token-row">
-              <input
-                id="lev-token"
-                type={tokenVisible ? 'text' : 'password'}
-                value={token}
-                onChange={(e) => guardarToken(e.target.value)}
-                placeholder="Pega aquí el token que te dieron"
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <button
-                type="button"
-                className="lev-btn-ghost"
-                onClick={() => setTokenVisible((v) => !v)}
-              >
-                {tokenVisible ? 'Ocultar' : 'Ver'}
-              </button>
-            </div>
-            <small>Se guarda solo en este navegador.</small>
-          </div>
+          {/* Quien esta firmando: el municipio que trae el token y los
+              cuatro ultimos caracteres, para comprobar sin exponerlo. */}
+          <p className="lev-firma-quien">
+            <strong>
+              {reporte.fila?.municipio || fichaMunicipio || 'Municipio del token'}
+              {reporte.fila?.provincia ? ` (${reporte.fila.provincia})` : ''}
+            </strong>
+            <span className="lev-firma-token">
+              {token.trim() ? `token ••••${token.trim().slice(-4)}` : 'sin token'}
+            </span>
+          </p>
+          <button type="button" className="lev-btn-ghost" onClick={salir}>
+            Salir
+          </button>
         </section>
 
         {/* §11.1 + lo decidido: el reporte de incompletas POR MUNICIPIO,
@@ -601,6 +694,12 @@ export default function Levantamiento() {
             <h2 className="lev-card-title">Lo que falta en tu municipio</h2>
 
             {reporte.aviso && <p className="lev-aviso">{reporte.aviso}</p>}
+
+            {/* Token valido pero sin nada que contar: que se note que el
+                reporte se leyo, no que se rompio. */}
+            {!reporte.aviso && !reporte.cargando && !reporte.fila && (
+              <p className="lev-aviso">Todavía no hay fichas en tu municipio.</p>
+            )}
 
             {reporte.fila && (
               <>
