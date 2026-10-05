@@ -20,7 +20,7 @@ class BusinessLocationInline(admin.StackedInline):
     model = BusinessLocation
     extra = 1
     max_num = 1
-    fields = ['street', 'sector', 'municipality', 'district', 'province', 'postal_code', 'country', 'latitude', 'longitude']
+    fields = ['street', 'sector', 'referencias', 'municipality', 'district', 'province', 'postal_code', 'country', 'latitude', 'longitude']
 
 
 class BusinessContactInline(admin.StackedInline):

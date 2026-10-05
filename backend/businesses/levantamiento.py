@@ -185,6 +185,7 @@ def _a_datos(cuerpo):
         'provincia': '',
         'calle': texto('calle', 200),
         'sector': texto('sector', 100),
+        'referencias': texto('referencias', 300),
         'categoria': texto('categoria', 100),
         'descripcion': texto('descripcion', 300),
         'horario': _horario(cuerpo.get('horario')),

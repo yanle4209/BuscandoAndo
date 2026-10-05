@@ -64,6 +64,11 @@
   font-size: 15px;
 }
 
+.lev-firma-municipio {
+  font-size: 14px;
+  color: #c9c9c9;
+}
+
 .lev-firma-token {
   font-size: 12px;
   color: var(--grey);
@@ -396,6 +401,84 @@
 .lev-btn-quitar {
   color: var(--grey);
   padding: 6px 9px;
+}
+
+/* Copiar el horario de otro dia: el mismo boton del admin, aqui. */
+.lev-horario-copiar {
+  background: transparent;
+  border: 1px solid var(--grey);
+  border-radius: 6px;
+  color: var(--white);
+  padding: 5px 7px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lev-horario-copiar:hover {
+  border-color: var(--yellow);
+}
+
+.lev-copiar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.lev-copiar-popup {
+  background: var(--dark);
+  border: 2px solid var(--yellow);
+  border-radius: 10px;
+  padding: 20px;
+  width: 100%;
+  max-width: 320px;
+  color: var(--white);
+}
+
+.lev-copiar-popup h3 {
+  margin: 0 0 12px;
+  color: var(--yellow);
+  font-size: 16px;
+}
+
+.lev-copiar-popup > button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  margin-bottom: 6px;
+  background: #2a2a2a;
+  color: var(--white);
+  border: 1px solid #555;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.lev-copiar-popup > button:hover {
+  border-color: var(--yellow);
+  background: #333;
+}
+
+.lev-copiar-popup > .lev-copiar-cancelar {
+  text-align: center;
+  background: transparent;
+  color: var(--grey);
+  margin-top: 12px;
+  margin-bottom: 0;
+  font-size: 13px;
+}
+
+.lev-copiar-vacio {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--grey);
 }
 
 .lev-desplegar {
