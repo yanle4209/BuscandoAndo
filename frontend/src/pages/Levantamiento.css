@@ -269,24 +269,6 @@
   border-color: var(--yellow);
 }
 
-.lev-radio {
-  font-size: 13px;
-  line-height: 1.5;
-  padding: 9px 11px;
-  border-radius: 6px;
-  margin-bottom: 14px;
-}
-
-.lev-radio--dentro {
-  background: rgba(34, 197, 94, 0.12);
-  color: #7ee2a8;
-}
-
-.lev-radio--fuera {
-  background: rgba(239, 68, 68, 0.12);
-  color: #f6a5a5;
-}
-
 .lev-aviso {
   font-size: 13px;
   color: var(--grey);

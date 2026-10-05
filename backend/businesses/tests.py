@@ -1100,7 +1100,9 @@ class ValidacionDeEntradaTests(TestCase):
         self.assertIn('incompletas', motivos[0])
 
     def test_el_radio_es_5_km_por_defecto(self):
-        """R1: el canal de envio no puede admitir a mas de 5 km."""
+        """R1: por defecto el circulo sigue siendo de 5 km, que es lo que
+        mide el importador. El canal de envio lo apaga, con radio_km
+        None: el municipio ya lo garantiza el token."""
         motivos = self.validar(lat=19.4400, lng=-70.5274)  # ~4.85 km
 
         self.assertEqual(motivos, [])
@@ -1108,6 +1110,14 @@ class ValidacionDeEntradaTests(TestCase):
         motivos = self.validar(lat=19.4460, lng=-70.5274)  # ~5.51 km
 
         self.assertEqual(len(motivos), 1)
+
+        # Sin circulo no hay distancia que enrostrar: la MISMA coordenada
+        # pasa limpia.
+        motivos = self.validar(
+            lat=19.4460, lng=-70.5274, radio_km=None,
+        )
+
+        self.assertEqual(motivos, [])
 
     # --------------------------- normalizacion --------------------------
     def test_el_prefijo_tel_de_osm_no_llega_a_la_base(self):
@@ -1550,12 +1560,16 @@ class CanalDeEnvioTests(TestCase):
         self.assertIn('telefono', ' '.join(response.data['motivos']).lower())
         self.assertEqual(Business.objects.count(), 0)
 
-    def test_fuera_del_circulo_de_5_km_se_rechaza(self):
-        """R1/§10-j: el canal no puede ensanchar el radio."""
+    def test_un_punto_lejano_de_la_cabecera_si_entra(self):
+        """Ya nadie mide contra la cabecera: el municipio lo garantiza el
+        token (§11-i). Esas coordenadas estan a unos 9.8 km del centro —
+        justo el aviso que salia en la pantalla— y dejan de ser motivo de
+        rechazo: el circulo de 5 km es el del BUSCADOR (R1), no el de
+        quien levanta la ficha."""
         response = self.enviar(lat=19.6000)
 
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(Business.objects.count(), 0)
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(Business.objects.count(), 1)
 
     def test_un_municipio_desconocido_se_rechaza(self):
         response = self.enviar(municipio='Villa Que No Existe')

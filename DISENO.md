@@ -417,8 +417,13 @@ sirve como **ficha de trabajo** para el corrector asignado.
 
 - **Sale de lo ya decidido**: §9 da el municipio y su cabecera; R5 da el trío y
   los campos pendientes. **Es un cálculo — no hay que guardar nada nuevo.**
-- **Contenido**: municipio + cabecera + círculo de 5 km · fichas con pendientes
+- **Contenido**: municipio + cabecera · fichas con pendientes
   agrupadas por **campo faltante** · nombre, punto, procedencia.
+- **Sin círculo en el envío**: el punto **ya no se mide contra la cabecera**.
+  El municipio lo garantiza el token (§11-i) y un negocio a 9 km del centro
+  sigue siendo del municipio. El círculo de 5 km sigue siendo el del
+  **buscador** (R1) y del **importador** (§12) — no de quien levanta la ficha
+  ni del aviso en pantalla. *(el canal de envío llama a `validar(..., radio_km=None)`)*
 - **Formato**: en pantalla o exportable, para **pasárselo a los correctores**.
 
 **Implicación que no se ve a primera vista:** el reporte **por municipio**

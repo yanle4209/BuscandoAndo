@@ -296,8 +296,11 @@ def levantamiento(request):
         cabecera = geografia.cabecera_para(datos['municipio'])
         if cabecera is not None:
             datos['provincia'] = cabecera['provincia']
-        # Aqui entra R1 sin ampliaciones: el radio es el de geografia
-        # (5 km), y el canal no lo puede ensanchar (§10-j).
+        # Sin circulo. El municipio lo garantiza el token (§11-i), no
+        # una medicion desde la cabecera: un negocio a 9 km del centro
+        # sigue siendo de ahi, y el circulo de 5 km es el del BUSCADOR
+        # (R1), no el de quien levanta la ficha. El importador, que viene
+        # de OSM y no de un token, sigue midiendo.
         motivos = validacion.validar(
             nombre=datos['nombre'],
             telefono=datos['telefono'],
@@ -305,6 +308,7 @@ def levantamiento(request):
             lng=datos['lng'],
             municipio=datos['municipio'],
             cabecera=cabecera,
+            radio_km=None,
         )
 
     # Solo se BUSCA: aqui teclea una persona y una errata no debe abrirle
