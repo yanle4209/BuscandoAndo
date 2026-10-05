@@ -42,6 +42,13 @@ const TRIO = ['nombre', 'telefono', 'punto'];
 
 const CONTACTO = ['whatsapp', 'correo', 'web'];
 
+// Los once campos del reporte, en el mismo orden que pendientes.py. Aqui
+// solo se usan para medir en vivo cuanto le queda a la ficha abierta.
+const CAMPOS = [
+  'nombre', 'telefono', 'punto', 'categoria', 'direccion', 'horario',
+  'whatsapp', 'correo', 'web', 'descripcion', 'estado',
+];
+
 const aCoordenada = (valor) => {
   if (valor === '' || valor === null || valor === undefined) return null;
   const n = Number(valor);
@@ -93,6 +100,12 @@ export default function Levantamiento() {
     fila: null, detalle: null, aviso: null, cargando: false,
   });
 
+  // Las fichas que YA no le deben nada en ESTA sesion. El backend solo
+  // manda las pendientes —en cuanto se completan desaparecen del
+  // reporte—, y sin este registro la fila se borraria en vez de ponerse
+  // verde: es la confirmacion del trabajo hecho, no un dato del servidor.
+  const [hechas, setHechas] = useState([]);
+
   // Una sola carga, usada al validar el token y al refrescar: primero la
   // fila del municipio y, si tiene pendientes, el detalle. El detalle va
   // SOLO, sin esperar un clic: el token ya se validó, y eso es lo que
@@ -109,7 +122,21 @@ export default function Levantamiento() {
     }
     const fila = data[0] || null;
     const espera = Boolean(fila) && fila.con_pendientes > 0;
-    if (vivo()) setReporte({ fila, detalle: null, aviso: null, cargando: espera });
+    // El detalle anterior se conserva mientras llega el nuevo: sin eso la
+    // lista parpadearia vacia con cada envio y se perdia justo la
+    // confirmacion que el colaborador acaba de ganarse. Solo si sigue
+    // siendo su municipio y todavia hay pendientes; si ya no queda nada,
+    // el reporte vacio es exactamente lo que hay que enseñar.
+    if (vivo()) {
+      setReporte((x) => ({
+        fila,
+        detalle: espera && x.detalle && normal(x.detalle.municipio) === normal(fila.municipio)
+          ? x.detalle
+          : null,
+        aviso: null,
+        cargando: espera,
+      }));
+    }
     if (!espera) return;
     try {
       const r = await api.get('/pendientes/', {
@@ -345,6 +372,11 @@ export default function Levantamiento() {
     setEnviando(true);
     setResultado(null);
 
+    // Se anota ANTES de esperar: limpiarFicha() suelta la ficha al
+    // terminar, y hace falta saber cual se acaba de completar.
+    const idFicha = fichaId;
+    const nombreFicha = datos.nombre.trim();
+
     const cuerpo = {
       ...datos,
       municipio: cabecera ? cabecera.municipio : '',
@@ -370,6 +402,19 @@ export default function Levantamiento() {
         faltan: data.faltan || [],
         completado: data.completado || [],
       });
+      // Se pone verde: si el servidor ya no le debe nada a esta ficha
+      // (faltan vacio), queda registrada como hecha. El backend la saca
+      // del reporte en el refresco de abajo; aqui se conserva para que
+      // la fila no desaparezca sino que CAMBIE DE COLOR.
+      if (idFicha !== null && (data.faltan || []).length === 0) {
+        setHechas((h) => (h.some((x) => x.id === idFicha)
+          ? h
+          : [...h, {
+            id: idFicha,
+            nombre: nombreFicha || `Ficha ${idFicha}`,
+            municipio: cabecera ? cabecera.municipio : '',
+          }]));
+      }
       // Listo para el siguiente: solo se borra la ficha, no el token ni
       // el municipio, que son lo que se repite en una ronda de campo.
       limpiarFicha();
@@ -422,8 +467,85 @@ export default function Levantamiento() {
     ? <span className="lev-falta-marca">falta</span>
     : null);
 
+  // El reporte se va AL LADO del formulario (y en el telefono sigue
+  // debajo, en el mismo orden de siempre): es la lista con la que se
+  // trabaja, no un tramite previo que haya que salir a buscar.
+  const hayReporte = Boolean(
+    token.trim() && (reporte.cargando || reporte.aviso || reporte.fila),
+  );
+
+  // Lo que todavia le falta a la ficha abierta, medido con el formulario
+  // de AHORA: la fila cambia de color mientras se teclea, sin esperar a
+  // que el servidor conteste.
+  const restanFicha = useMemo(() => {
+    if (fichaId === null) return faltanFicha;
+    const lleno = {
+      nombre: datos.nombre.trim() !== '',
+      telefono: datos.telefono.trim() !== '',
+      punto: punto[0] !== null && punto[1] !== null,
+      categoria: datos.categoria !== '',
+      direccion: datos.calle.trim() !== '',
+      horario: franjas.some((f) => f.day && f.desde && f.hasta),
+      whatsapp: datos.whatsapp.trim() !== '',
+      correo: datos.correo.trim() !== '',
+      web: datos.web.trim() !== '',
+      descripcion: datos.descripcion.trim() !== '',
+      estado: estado !== '',
+    };
+    return CAMPOS.filter((c) => !lleno[c]);
+  }, [fichaId, faltanFicha, datos, punto, franjas, estado]);
+
+  // El conteo por campo con la ficha abierta descontada en vivo: cuando
+  // ya no le falta telefono a NINGUNA, el chip se tacha y pasa a verde.
+  const porCampoVivo = useMemo(() => {
+    if (!reporte.detalle) return [];
+    const hechos = new Set(
+      fichaId !== null ? faltanFicha.filter((c) => !restanFicha.includes(c)) : [],
+    );
+    return reporte.detalle.por_campo.map((f) => ({
+      ...f,
+      cantidad: Math.max(0, f.cantidad - (hechos.has(f.campo) ? 1 : 0)),
+    }));
+  }, [reporte.detalle, fichaId, faltanFicha, restanFicha]);
+
+  // Lo que se ve: las que quedaron verdes en esta sesion (el backend deja
+  // de mandarlas) unidas a las que faltan, ordenadas por nombre para que
+  // NADA se mueva de sitio al completarse — el color es la confirmacion,
+  // y una confirmacion que salta de lugar no se lee.
+  const filas = useMemo(() => {
+    const muni = reporte.detalle?.municipio || reporte.fila?.municipio || '';
+    const listas = hechas.filter((h) => normal(h.municipio) === normal(muni));
+    const quedan = (reporte.detalle?.fichas || [])
+      .filter((f) => !listas.some((h) => h.id === f.id))
+      .map((f) => ({
+        id: f.id,
+        nombre: f.nombre,
+        estado: f.estado,
+        activa: f.id === fichaId,
+        restan: f.id === fichaId ? restanFicha : f.faltan,
+        hecha: false,
+      }));
+    const yaHechas = listas.map((h) => ({
+      id: h.id, nombre: h.nombre, activa: false, restan: [], hecha: true,
+    }));
+    return [...quedan, ...yaHechas]
+      .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
+  }, [reporte.detalle, reporte.fila, hechas, fichaId, restanFicha]);
+
+  const listasAhora = filas.filter((f) => f.restan.length === 0).length;
+  const avance = filas.length > 0
+    ? Math.round((listasAhora / filas.length) * 100)
+    : 0;
+
+  const claseFila = (f) => {
+    let base = 'lev-ficha--curso';
+    if (f.restan.length === 0) base = 'lev-ficha--hecha';
+    else if (f.restan.some((c) => TRIO.includes(c))) base = 'lev-ficha--bloquea';
+    return f.activa ? `${base} lev-ficha--activa` : base;
+  };
+
   return (
-    <div className="lev-page">
+    <div className={`lev-page${hayReporte ? ' lev-page--lado' : ''}`}>
       <header className="lev-top">
         <div>
           <p className="lev-top-eyebrow">Herramienta interna</p>
@@ -439,8 +561,11 @@ export default function Levantamiento() {
         reporte del municipio para que lo completen.
       </p>
 
-      <form className="lev-form" onSubmit={enviar}>
-        <section className="lev-card">
+      <form
+        className={`lev-form${hayReporte ? ' lev-form--lado' : ''}`}
+        onSubmit={enviar}
+      >
+        <section className="lev-card lev-firma">
           <h2 className="lev-card-title">Tu firma</h2>
           <div className="lev-field">
             <label htmlFor="lev-token">Token de colaborador</label>
@@ -468,9 +593,11 @@ export default function Levantamiento() {
 
         {/* §11.1 + lo decidido: el reporte de incompletas POR MUNICIPIO,
             que es lo que le dice al colaborador que hacer. El backend solo
-            devuelve su renglon; los demas municipios no existen aqui. */}
-        {token.trim() && (reporte.cargando || reporte.aviso || reporte.fila) && (
-          <section className="lev-card">
+            devuelve su renglon; los demas municipios no existen aqui.
+            Con token se coloca AL LADO del formulario (grid-template-areas
+            en el CSS); en el telefono sigue debajo, en el orden de siempre. */}
+        {hayReporte && (
+          <section className="lev-card lev-reporte">
             <h2 className="lev-card-title">Lo que falta en tu municipio</h2>
 
             {reporte.aviso && <p className="lev-aviso">{reporte.aviso}</p>}
@@ -522,29 +649,58 @@ export default function Levantamiento() {
                   </button>
                 )}
 
-                {reporte.detalle && (
+                {(reporte.detalle || filas.length > 0) && (
                   <div className="lev-detalle">
-                    <h3>Por campo faltante</h3>
-                    <ul className="lev-por-campo">
-                      {reporte.detalle.por_campo.map((f) => (
-                        <li key={f.campo} className={f.en_trio ? 'es-trio' : ''}>
-                          {f.etiqueta}
-                          <span className="lev-por-campo-n">{f.cantidad}</span>
-                          {f.en_trio && <span className="lev-trio-marca">bloquea</span>}
-                        </li>
-                      ))}
-                    </ul>
+                    {reporte.detalle && (
+                      <>
+                        <h3>Por campo faltante</h3>
+                        {/* El conteo baja SOLO cuando la ficha abierta
+                            completa ese campo: el chip se tacha y pasa a
+                            verde antes de enviar. */}
+                        <ul className="lev-por-campo">
+                          {porCampoVivo.map((f) => (
+                            <li
+                              key={f.campo}
+                              className={[
+                                f.en_trio ? 'es-trio' : '',
+                                f.cantidad === 0 ? 'es-hecho' : '',
+                              ].filter(Boolean).join(' ')}
+                            >
+                              {f.etiqueta}
+                              <span className="lev-por-campo-n">{f.cantidad}</span>
+                              {f.en_trio && f.cantidad > 0 && (
+                                <span className="lev-trio-marca">bloquea</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
 
                     <h3>Fichas</h3>
+
+                    {/* La confirmacion visual: barra + fila que cambia de
+                        color sin moverse de sitio. */}
+                    <p className="lev-avance">
+                      <span className="lev-avance-barra">
+                        <i style={{ width: `${avance}%` }} />
+                      </span>
+                      <span className={avance === 100 ? 'lev-avance-texto es-listo' : 'lev-avance-texto'}>
+                        {listasAhora} de {filas.length} sin nada pendiente
+                      </span>
+                    </p>
+
                     <ul className="lev-fichas">
-                      {reporte.detalle.fichas.map((f) => (
-                        <li key={f.id}>
+                      {filas.map((f) => (
+                        <li key={f.id} className={`lev-ficha ${claseFila(f)}`}>
                           <span className="lev-ficha-nombre">{f.nombre}</span>
-                          <span className={`lev-ficha-estado ${f.estado}`}>
-                            {f.estado === 'publicado' ? 'publicada' : 'sin publicar'}
+                          <span className={`lev-ficha-estado ${f.hecha ? 'hecha' : f.estado}`}>
+                            {f.hecha ? 'completada' : f.estado === 'publicado' ? 'publicada' : 'sin publicar'}
                           </span>
                           <span className="lev-ficha-falta">
-                            Falta: {f.faltan.map((c) => ETIQUETAS[c] || c).join(', ')}
+                            {f.restan.length === 0
+                              ? (f.hecha ? '✓ Sin nada pendiente' : '✓ Lista para enviar')
+                              : `Falta: ${f.restan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
                           </span>
                         </li>
                       ))}
@@ -558,7 +714,7 @@ export default function Levantamiento() {
           </section>
         )}
 
-        <section className="lev-card">
+        <section className="lev-card lev-donde">
           <h2 className="lev-card-title">Dónde está</h2>
           <div className="lev-field">
             <label htmlFor="lev-municipio">Municipio</label>
@@ -636,7 +792,7 @@ export default function Levantamiento() {
           </div>
         </section>
 
-        <section className="lev-card">
+        <section className="lev-card lev-negocio">
           <h2 className="lev-card-title">El negocio</h2>
           <div className={claseFalta('nombre')}>
             <label htmlFor="lev-nombre">Nombre * {marca('nombre')}</label>
@@ -842,9 +998,8 @@ function Resultado({ r }) {
       {aceptado && (
         <p className="lev-resultado-nota">
           El reporte de tu municipio <strong>ya se actualizó</strong> con este
-          envío: la lista de arriba está al día y el negocio que acabas de
-          enviar ya no aparece como pendiente. Elige el siguiente cuando
-          quieras.
+          envío: la lista de fichas está al día —ya no aparece la que acabas de
+          enviar— y queda en verde. Elige la siguiente cuando quieras.
         </p>
       )}
     </div>

@@ -70,6 +70,12 @@
   gap: 16px;
 }
 
+/* ------------------- el reporte al lado del formulario --------------
+   El grid NO vive aqui a proposito: esta en el @media (min-width: 960px)
+   de mas abajo, con su propia seccion. Debajo de ese ancho la tarjeta se
+   queda en la pila del flex (.lev-form), entre «Tu firma» y «Dónde
+   está», que es el orden en el que siempre se leyó. */
+
 .lev-card {
   background: #252525;
   border: 1px solid #333;
@@ -497,11 +503,15 @@
 .lev-fichas li {
   background: #1a1a1a;
   border: 1px solid #333;
+  border-left: 3px solid #333;
   border-radius: 6px;
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* El color es la confirmacion: tiene que MUDAR delante del
+     colaborador, no aparecer de golpe al refrescar. */
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .lev-ficha-nombre {
@@ -532,6 +542,183 @@
 .lev-ficha-falta {
   font-size: 13px;
   color: var(--grey);
+}
+
+/* -------------------- filas: la confirmacion ------------------------
+   Los colores no son adorno: son el recibo del trabajo.
+   rojo     = le falta algo del trío (nombre, teléfono o punto): esa no
+              se publica sola, hay que completarla.
+   amarillo = incompleta, pero se puede enviar.
+   verde    = ya no le debe nada al servidor.
+   anillo   = la ficha abierta en el formulario.
+   Nada se mueve de sitio al completarse: solo cambia de color. */
+.lev-fichas li.lev-ficha--bloquea {
+  border-left-color: #f6a5a5;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.lev-fichas li.lev-ficha--bloquea .lev-ficha-falta { color: #f6a5a5; }
+
+.lev-fichas li.lev-ficha--curso {
+  border-left-color: var(--yellow);
+  background: rgba(179, 179, 52, 0.09);
+}
+
+.lev-fichas li.lev-ficha--curso .lev-ficha-falta { color: var(--yellow-light); }
+
+.lev-fichas li.lev-ficha--hecha {
+  border-left-color: #7ee2a8;
+  background: rgba(34, 197, 94, 0.13);
+}
+
+.lev-fichas li.lev-ficha--hecha .lev-ficha-nombre,
+.lev-fichas li.lev-ficha--hecha .lev-ficha-falta {
+  color: #7ee2a8;
+}
+
+.lev-fichas li.lev-ficha--hecha .lev-ficha-falta { font-weight: 600; }
+
+.lev-fichas li.lev-ficha--activa {
+  border-left-color: var(--yellow-light);
+  box-shadow: 0 0 0 2px rgba(212, 212, 96, 0.32);
+}
+
+.lev-ficha-estado.hecha {
+  background: rgba(34, 179, 94, 0.16);
+  color: #7ee2a8;
+}
+
+/* ===================== el reporte al lado ===========================
+   Con token, la tarjeta del reporte pasa a su propia columna a la
+   derecha del formulario (grid-template-areas). Sin ancho suficiente —
+   o en el telefono — vuelve a la pila de siempre, entre «Tu firma» y
+   «Dónde está», que es el orden en el que siempre se leyó. */
+
+/* En la pila la lista no puede medir lo que quiera: si no, las 148
+   fichas de un municipio empujan el formulario fuera de la pantalla. */
+.lev-reporte .lev-fichas {
+  max-height: 52vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #4a4a4a transparent;
+}
+
+/* ------------------------ barra de avance -------------------------- */
+.lev-avance {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 2px 0 16px;
+}
+
+.lev-avance-barra {
+  display: block;
+  height: 9px;
+  background: #141414;
+  border: 1px solid #333;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.lev-avance-barra i {
+  display: block;
+  height: 100%;
+  background: var(--yellow);
+  transition: width 0.4s ease;
+}
+
+.lev-avance-texto {
+  font-size: 13px;
+  color: var(--grey);
+}
+
+.lev-avance-texto.es-listo {
+  color: #7ee2a8;
+  font-weight: 600;
+}
+
+/* --------------------- chips del reporte --------------------------- */
+/* Tachado y verde: ya no le falta ese campo a NINGUNA ficha — o a la
+   abierta, mientras se teclea. Va despues de .es-trio a proposito: con
+   la misma especificidad gana el ultimo, y un pendiente resuelto deja
+   de ser «bloquea». */
+.lev-por-campo li.es-hecho {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.5);
+  color: #7ee2a8;
+  text-decoration: line-through;
+}
+
+.lev-por-campo li.es-hecho .lev-por-campo-n {
+  color: #7ee2a8;
+}
+
+/* ------------------- filas: la confirmacion ------------------------ */
+
+/* ---------------------- las dos columnas --------------------------- */
+@media (min-width: 960px) {
+  .lev-page--lado > * {
+    max-width: 1120px;
+  }
+
+  /* El intro vuelve a medir lo que mide la primera columna: sin esto su
+     texto queda desalineado con el formulario de abajo. */
+  .lev-page--lado > .lev-intro {
+    padding-right: 376px; /* 360 del reporte + 16 de aire */
+  }
+
+  .lev-form--lado {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-areas:
+      "firma   reporte"
+      "donde   reporte"
+      "negocio reporte"
+      "enviar  reporte";
+    align-items: start;
+  }
+
+  .lev-form--lado > .lev-firma {
+    grid-area: firma;
+  }
+
+  .lev-form--lado > .lev-donde {
+    grid-area: donde;
+  }
+
+  .lev-form--lado > .lev-negocio {
+    grid-area: negocio;
+  }
+
+  .lev-form--lado > .lev-enviar {
+    grid-area: enviar;
+  }
+
+  /* Pegada mientras se rellena el formulario: es la lista con la que se
+     trabaja, no algo a lo que haya que volver a bajar a buscar. La
+     altura de la pagina es la de la columna izquierda, asi que el
+     bloqueado solo dura lo que dura el scroll. */
+  /* El tope es doble: la ventana (que no tape el boton de enviar) y
+     640 px, que es menos de lo que mide el formulario — la columna
+     izquierda manda, y una tarjeta mas alta que ella estiraria las
+     filas y dejaria huecos entre las tarjetas de la izquierda. */
+  .lev-form--lado > .lev-reporte {
+    grid-area: reporte;
+    position: sticky;
+    top: 16px;
+    align-self: start;
+    max-height: min(calc(100vh - 32px), 640px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #4a4a4a transparent;
+  }
+
+  /* La tarjeta ya se scrollea sola: la lista interior no necesita su
+     propio corte (serian dos barras para lo mismo). */
+  .lev-reporte .lev-fichas {
+    max-height: none;
+    overflow: visible;
+  }
 }
 
 @media (max-width: 560px) {
