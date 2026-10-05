@@ -8,11 +8,6 @@ import './Levantamiento.css';
 // depende de que este guardado.
 const CLAVE_TOKEN = 'buscandoando.levantamiento.token';
 
-// R1 / §10-j: el circulo de un envio. El backend lo vuelve a medir — esto
-// solo es el aviso previo para que nadie mande algo que ya sabe que no
-// va a entrar.
-const RADIO_KM = 5;
-
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 const VACIO = {
@@ -83,17 +78,6 @@ const aCoordenada = (valor) => {
   if (valor === '' || valor === null || valor === undefined) return null;
   const n = Number(valor);
   return Number.isFinite(n) ? n : null;
-};
-
-// La misma formula que el backend: si no, el aviso de "estas a 7 km" del
-// navegador y el rechazo del servidor dirian cosas distintas.
-const distanciaKm = (lat1, lng1, lat2, lng2) => {
-  const a = (Math.PI / 180);
-  const dLat = (lat2 - lat1) * a;
-  const dLng = (lng2 - lng1) * a;
-  const h = Math.sin(dLat / 2) ** 2
-    + Math.cos(lat1 * a) * Math.cos(lat2 * a) * Math.sin(dLng / 2) ** 2;
-  return 2 * 6371 * Math.asin(Math.sqrt(h));
 };
 
 export default function Levantamiento() {
@@ -359,12 +343,6 @@ export default function Levantamiento() {
   );
 
   const punto = useMemo(() => [aCoordenada(lat), aCoordenada(lng)], [lat, lng]);
-  const distancia = useMemo(() => {
-    if (!cabecera || punto[0] === null || punto[1] === null) return null;
-    return distanciaKm(punto[0], punto[1], cabecera.lat, cabecera.lng);
-  }, [cabecera, punto]);
-
-  const dentroDelCirculo = distancia !== null && distancia <= RADIO_KM;
 
   const cambiar = (campo) => (e) => setDatos((d) => ({ ...d, [campo]: e.target.value }));
 
@@ -844,17 +822,6 @@ export default function Levantamiento() {
               />
             </div>
           </div>
-
-          {cabecera && distancia !== null && (
-            <p className={`lev-radio ${dentroDelCirculo ? 'lev-radio--dentro' : 'lev-radio--fuera'}`}>
-              {dentroDelCirculo
-                ? `A ${distancia.toFixed(2)} km de la cabecera de ${cabecera.municipio} — dentro del círculo de ${RADIO_KM} km.`
-                : `A ${distancia.toFixed(2)} km de la cabecera de ${cabecera.municipio}. El envío se rechazará: el círculo es de ${RADIO_KM} km.`}
-            </p>
-          )}
-          {!cabecera && punto[0] !== null && (
-            <p className="lev-aviso">No se reconoce el municipio del reporte: no se puede medir la distancia.</p>
-          )}
 
           <div className="lev-row">
             <div className={claseFalta('direccion')}>

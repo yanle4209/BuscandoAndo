@@ -74,8 +74,11 @@ def validar(*, nombre, telefono, lat, lng, municipio, cabecera,
     practica siempre existe — el municipio sale del padron de la seccion 9.
 
     ``radio_km`` es el circulo con que se comprueba: 5 por defecto, que es
-    el de R1. El importador lo puede ampliar con ``--radio``; el canal de
-    envio no, porque lo que entra por ahi tiene que poder verse a 5 km.
+    el de R1, y el importador lo puede ampliar con ``--radio``. ``None``
+    apaga la medicion — asi entra el canal de envio: el municipio lo
+    garantiza el token (§11-i) y un negocio lejos del centro sigue siendo
+    de ahi. El circulo de 5 km es del BUSCADOR (el que busca a pie, R1),
+    no de quien levanta la ficha.
     """
     motivos = []
 
@@ -96,10 +99,10 @@ def validar(*, nombre, telefono, lat, lng, municipio, cabecera,
     # Sin coordenadas NO se rechaza: falta el punto, y eso es trio
     # incompleto (§10-g -> reporte), no un dato mal formado. Lo que si se
     # rechaza es que vengan a medias, que no es ni una cosa ni la otra.
-    # El circulo solo se puede comprobar cuando hay punto.
+    # El circulo solo se puede comprobar cuando hay punto Y circulo.
     if (lat is None) != (lng is None):
         motivos.append('Coordenadas incompletas: falta latitud o longitud.')
-    elif lat is not None and cabecera is not None:
+    elif lat is not None and cabecera is not None and radio_km is not None:
         distancia = haversine_distance(lat, lng, cabecera['lat'], cabecera['lng'])
         if distancia > radio_km:
             motivos.append(
