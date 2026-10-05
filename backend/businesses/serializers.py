@@ -77,8 +77,9 @@ class BusinessLocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = BusinessLocation
         fields = [
-            'street', 'sector', 'municipality', 'district', 'province',
-            'postal_code', 'country', 'lat', 'lng', 'full_address',
+            'street', 'sector', 'referencias', 'municipality', 'district',
+            'province', 'postal_code', 'country', 'lat', 'lng',
+            'full_address',
         ]
 
 

@@ -20,6 +20,7 @@ const VACIO = {
   telefono: '',
   calle: '',
   sector: '',
+  referencias: '',
   descripcion: '',
   categoria: '',
   whatsapp: '',
@@ -35,6 +36,35 @@ const normal = (texto) => (texto || '')
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, ' ')
   .trim();
+
+// Los siete dias, SIEMPRE en pantalla, igual que en el formulario de
+// creacion del negocio: lo que ya se sabe del horario se coloca solo y
+// lo que falta queda vacio esperando. Un mismo dia con dos franjas
+// (manana y tarde) entra como fila de mas, para no partir el horario de
+// la ficha para que quepa en la pantalla.
+const diasBase = (horario = []) => {
+  const usados = new Set();
+  const filas = DIAS.map((dia, i) => {
+    const h = horario.find((x) => !usados.has(x) && normal(x.dia) === normal(dia));
+    if (h) usados.add(h);
+    return {
+      id: `dia-${i}`,
+      day: dia,
+      desde: (h && h.desde) || '',
+      hasta: (h && h.hasta) || '',
+    };
+  });
+  horario.forEach((h, i) => {
+    if (usados.has(h)) return;
+    filas.push({
+      id: `dia-extra-${i}`,
+      day: h.dia || '',
+      desde: h.desde || '',
+      hasta: h.hasta || '',
+    });
+  });
+  return filas;
+};
 
 // Lo que sin esto no se publica solo (§10-f). Marcarlo distinto al resto
 // porque completarlo es lo que saca la ficha del reporte.
@@ -77,11 +107,10 @@ export default function Levantamiento() {
   const [errorAcceso, setErrorAcceso] = useState(null);
   const [cabeceras, setCabeceras] = useState([]);
   const [categorias, setCategorias] = useState([]);
-  const [municipioClave, setMunicipioClave] = useState('');
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
   const [datos, setDatos] = useState(VACIO);
-  const [franjas, setFranjas] = useState([]);
+  const [franjas, setFranjas] = useState(() => diasBase());
   // El estado operativo que declara el formulario. Va como texto —antes
   // era una casilla «está cerrado permanentemente»— porque el reporte
   // cuenta `estado` como faltante y hay que poder completarlo.
@@ -89,7 +118,9 @@ export default function Levantamiento() {
   const [masDatos, setMasDatos] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState(null);
-  const [geo, setGeo] = useState('');
+  // Que dia pide copiar el horario de otro (null = ninguno). El popup es
+  // de React, no del DOM: sin eso habria dos formas de ver lo mismo.
+  const [copiarDe, setCopiarDe] = useState(null);
 
   // La ficha elegida en el reporte. CON ID el envío pasa a modo
   // completar: se escribe en esa ficha, no se crea otra (Fase D).
@@ -221,6 +252,7 @@ export default function Levantamiento() {
         telefono: data.telefono || '',
         calle: data.calle || '',
         sector: data.sector || '',
+        referencias: data.referencias || '',
         descripcion: data.descripcion || '',
         categoria: data.categoria || '',
         whatsapp: data.whatsapp || '',
@@ -230,18 +262,13 @@ export default function Levantamiento() {
       setLat(data.lat === null || data.lat === undefined ? '' : String(data.lat));
       setLng(data.lng === null || data.lng === undefined ? '' : String(data.lng));
       setEstado(data.operativo || '');
-      setFranjas((data.horario || []).map((h, i) => ({
-        id: `${data.id}-${i}`,
-        day: h.dia || '',
-        desde: h.desde || '',
-        hasta: h.hasta || '',
-      })));
+      // Los siete dias en pantalla, con los que la ficha ya trae
+      // puestos en su sitio.
+      setFranjas(diasBase(data.horario || []));
       setFaltanFicha(Array.isArray(data.faltan) ? data.faltan : []);
+      // El municipio sale solo: es el del reporte, el que trae el token.
+      // No hay desplegable que rellenar.
       setFichaMunicipio(data.municipio || '');
-      // El municipio sale solo: quien eligió la ficha no debería tener
-      // que reelegir lo que ya está claro.
-      const c = cabeceras.find((x) => normal(x.municipio) === normal(data.municipio));
-      if (c) setMunicipioClave(claveCabecera(c));
       // WhatsApp, correo y web van escondidos detrás de un botón; si es
       // lo que falta, hay que abrirlos sin que nadie lo busque.
       setMasDatos((data.faltan || []).some((x) => CONTACTO.includes(x)));
@@ -313,29 +340,18 @@ export default function Levantamiento() {
     setDentro(false);
   };
 
-  const porProvincia = useMemo(() => {
-    const grupos = new Map();
-    cabeceras.forEach((c) => {
-      if (!grupos.has(c.provincia)) grupos.set(c.provincia, []);
-      grupos.get(c.provincia).push(c);
-    });
-    return Array.from(grupos.entries())
-      .map(([provincia, lista]) => ({
-        provincia,
-        lista: lista.slice().sort((a, b) => a.municipio.localeCompare(b.municipio, 'es')),
-      }))
-      .sort((a, b) => a.provincia.localeCompare(b.provincia, 'es'));
-  }, [cabeceras]);
-
-  // Mientras se completa una ficha, el municipio que manda es el de la
-  // ficha; si alguien lo cambia a mano, manda el que eligió.
+  // El municipio ya no se elige: es el del reporte — el que trae el
+  // token— y, si la ficha abierta trae otro (no deberia), manda el de la
+  // ficha. Sin desplegable no hay manera de equivocarse tecleandolo.
   const municipioActual = useMemo(() => {
-    if (fichaMunicipio) {
-      const c = cabeceras.find((x) => normal(x.municipio) === normal(fichaMunicipio));
-      if (c) return claveCabecera(c);
-    }
-    return municipioClave;
-  }, [fichaMunicipio, cabeceras, municipioClave]);
+    const propio = fichaMunicipio
+      || reporte.detalle?.municipio
+      || reporte.fila?.municipio
+      || '';
+    if (!propio) return '';
+    const c = cabeceras.find((x) => normal(x.municipio) === normal(propio));
+    return c ? claveCabecera(c) : '';
+  }, [fichaMunicipio, cabeceras, reporte.detalle, reporte.fila]);
 
   const cabecera = useMemo(
     () => cabeceras.find((c) => claveCabecera(c) === municipioActual) || null,
@@ -350,35 +366,6 @@ export default function Levantamiento() {
 
   const dentroDelCirculo = distancia !== null && distancia <= RADIO_KM;
 
-  const elegirPuntoCercano = (nuevaLat, nuevaLng) => {
-    setLat(String(nuevaLat.toFixed(6)));
-    setLng(String(nuevaLng.toFixed(6)));
-    // El municipio de un envio lo declara quien envia, pero elegirlo a mano
-    // y equivocarse cuesta un rechazo. Si el punto ya esta en un circulo,
-    // el municipio sale solo: el mismo criterio que usa el servidor.
-    const cercana = cabeceras
-      .map((c) => ({ c, d: distanciaKm(nuevaLat, nuevaLng, c.lat, c.lng) }))
-      .filter((x) => x.d <= RADIO_KM)
-      .sort((a, b) => a.d - b.d)[0];
-    if (cercana) setMunicipioClave(claveCabecera(cercana.c));
-  };
-
-  const pedirGps = () => {
-    if (!navigator.geolocation) {
-      setGeo('Este navegador no tiene GPS. Escribe las coordenadas a mano.');
-      return;
-    }
-    setGeo('');
-    navigator.geolocation.getCurrentPosition(
-      (p) => {
-        elegirPuntoCercano(p.coords.latitude, p.coords.longitude);
-        setGeo('');
-      },
-      () => setGeo('No se pudo leer la ubicación. Escribe las coordenadas a mano.'),
-      { maximumAge: 30000, timeout: 15000, enableHighAccuracy: false },
-    );
-  };
-
   const cambiar = (campo) => (e) => setDatos((d) => ({ ...d, [campo]: e.target.value }));
 
   const agregarFranja = () => {
@@ -392,9 +379,26 @@ export default function Levantamiento() {
 
   const quitarFranja = (i) => setFranjas((f) => f.filter((_, j) => j !== i));
 
+  // Copiar el horario de OTRO dia al que se esta rellenando: el mismo
+  // gesto del formulario del admin. Solo dias que ya tengan las dos
+  // horas; el resto no hay nada que copiar.
+  const fuentesDeCopia = useMemo(
+    () => franjas
+      .map((f, i) => ({ f, i }))
+      .filter(({ f, i }) => i !== copiarDe && f.desde && f.hasta),
+    [franjas, copiarDe],
+  );
+
+  const copiarHorario = (origen) => {
+    setFranjas((fs) => fs.map((f, i) => (i === copiarDe
+      ? { ...f, desde: fs[origen].desde, hasta: fs[origen].hasta }
+      : f)));
+    setCopiarDe(null);
+  };
+
   const limpiarFicha = () => {
     setDatos(VACIO);
-    setFranjas([]);
+    setFranjas(diasBase());
     setEstado('');
     setMasDatos(false);
     // ...y se suelta la ficha elegida: lo que sigue empieza en blanco.
@@ -670,11 +674,15 @@ export default function Levantamiento() {
           <h2 className="lev-card-title">Tu firma</h2>
           {/* Quien esta firmando: el municipio que trae el token y los
               cuatro ultimos caracteres, para comprobar sin exponerlo. */}
+          {/* Quien esta firmando: el nombre que le dio el admin al token
+              (lo trae el propio renglon del reporte) y el municipio que
+              le toca. */}
           <p className="lev-firma-quien">
-            <strong>
+            <strong>{reporte.fila?.colaborador || 'Colaborador'}</strong>
+            <span className="lev-firma-municipio">
               {reporte.fila?.municipio || fichaMunicipio || 'Municipio del token'}
               {reporte.fila?.provincia ? ` (${reporte.fila.provincia})` : ''}
-            </strong>
+            </span>
             <span className="lev-firma-token">
               {token.trim() ? `token ••••${token.trim().slice(-4)}` : 'sin token'}
             </span>
@@ -815,37 +823,8 @@ export default function Levantamiento() {
 
         <section className="lev-card lev-donde">
           <h2 className="lev-card-title">Dónde está</h2>
-          <div className="lev-field">
-            <label htmlFor="lev-municipio">Municipio</label>
-            <select
-              id="lev-municipio"
-              value={municipioActual}
-              onChange={(e) => {
-                setMunicipioClave(e.target.value);
-                setFichaMunicipio('');
-              }}
-            >
-              <option value="">Elige el municipio</option>
-              {porProvincia.map((grupo) => (
-                <optgroup key={grupo.provincia} label={grupo.provincia}>
-                  {grupo.lista.map((c) => (
-                    <option key={claveCabecera(c)} value={claveCabecera(c)}>
-                      {c.municipio}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
 
           <div className="lev-geo">
-            <button type="button" className="lev-btn" onClick={pedirGps}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-              </svg>
-              Ubicación del negocio (GPS)
-            </button>
             <div className={`lev-coordenadas${falta('punto') ? ' lev-coordenadas--falta' : ''}`}>
               <input
                 aria-label="Latitud"
@@ -866,8 +845,6 @@ export default function Levantamiento() {
             </div>
           </div>
 
-          {geo && <p className="lev-aviso">{geo}</p>}
-
           {cabecera && distancia !== null && (
             <p className={`lev-radio ${dentroDelCirculo ? 'lev-radio--dentro' : 'lev-radio--fuera'}`}>
               {dentroDelCirculo
@@ -876,7 +853,7 @@ export default function Levantamiento() {
             </p>
           )}
           {!cabecera && punto[0] !== null && (
-            <p className="lev-aviso">Elige el municipio para poder medir la distancia.</p>
+            <p className="lev-aviso">No se reconoce el municipio del reporte: no se puede medir la distancia.</p>
           )}
 
           <div className="lev-row">
@@ -888,6 +865,19 @@ export default function Levantamiento() {
               <label htmlFor="lev-sector">Sector</label>
               <input id="lev-sector" type="text" value={datos.sector} onChange={cambiar('sector')} placeholder="Ensanche" />
             </div>
+          </div>
+
+          {/* No es pendiente ni decide nada: sirve para llegar a pie una
+              vez esten las coordenadas. */}
+          <div className="lev-field">
+            <label htmlFor="lev-referencias">Referencias</label>
+            <input
+              id="lev-referencias"
+              type="text"
+              value={datos.referencias}
+              onChange={cambiar('referencias')}
+              placeholder="Frente a la parada de bus, al lado de la farmacia"
+            />
           </div>
         </section>
 
@@ -935,7 +925,7 @@ export default function Levantamiento() {
             <div className="lev-horario-head">
               <h3>Horario {marca('horario')}</h3>
               <button type="button" className="lev-btn-ghost" onClick={agregarFranja}>
-                + Añadir día
+                + Añadir otra franja
               </button>
             </div>
             {franjas.map((f, i) => (
@@ -944,9 +934,18 @@ export default function Levantamiento() {
                   <option value="">Día</option>
                   {DIAS.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
-                <input aria-label="Desde" type="time" value={f.desde} onChange={cambiarFranja(i, 'desde')} />
+                <input aria-label="Desde" type="time" step={60} value={f.desde} onChange={cambiarFranja(i, 'desde')} />
                 <span className="lev-horario-sep">—</span>
-                <input aria-label="Hasta" type="time" value={f.hasta} onChange={cambiarFranja(i, 'hasta')} />
+                <input aria-label="Hasta" type="time" step={60} value={f.hasta} onChange={cambiarFranja(i, 'hasta')} />
+                <button
+                  type="button"
+                  className="lev-horario-copiar"
+                  title="Copiar horario de otro día"
+                  aria-label="Copiar horario de otro día"
+                  onClick={() => setCopiarDe(i)}
+                >
+                  📋
+                </button>
                 <button
                   type="button"
                   className="lev-btn-ghost lev-btn-quitar"
@@ -958,6 +957,39 @@ export default function Levantamiento() {
               </div>
             ))}
           </div>
+
+          {/* El mismo gesto que en el admin: elegir de que dia se copia
+              las horas, en vez de teclearlas otra vez. */}
+          {copiarDe !== null && (
+            <div className="lev-copiar-overlay" onClick={() => setCopiarDe(null)}>
+              <div
+                className="lev-copiar-popup"
+                role="dialog"
+                aria-label="Copiar horario de"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3>Copiar horario de:</h3>
+                {fuentesDeCopia.length === 0 ? (
+                  <p className="lev-copiar-vacio">
+                    No hay otros días con horarios definidos para copiar.
+                  </p>
+                ) : (
+                  fuentesDeCopia.map(({ f, i }) => (
+                    <button key={f.id} type="button" onClick={() => copiarHorario(i)}>
+                      {f.day} ({f.desde} — {f.hasta})
+                    </button>
+                  ))
+                )}
+                <button
+                  type="button"
+                  className="lev-copiar-cancelar"
+                  onClick={() => setCopiarDe(null)}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
 
           <button
             type="button"
@@ -992,7 +1024,7 @@ export default function Levantamiento() {
           <p className="lev-falta">
             {!token.trim() && 'Falta tu token. '}
             {!datos.nombre.trim() && 'Falta el nombre. '}
-            {!cabecera && 'Falta el municipio.'}
+            {!cabecera && 'No se reconoce el municipio del reporte.'}
           </p>
         )}
       </form>
@@ -1024,6 +1056,7 @@ const COMPLETADOS = {
   website: 'web',
   street: 'calle',
   sector: 'sector',
+  referencias: 'referencias',
   horario: 'horario',
   nombre: 'nombre',
   descripcion: 'descripción',

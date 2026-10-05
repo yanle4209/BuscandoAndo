@@ -410,6 +410,7 @@ def _para_formulario(biz):
         ),
         'calle': (loc.street or '') if loc else '',
         'sector': (loc.sector or '') if loc else '',
+        'referencias': (loc.referencias or '') if loc else '',
         'municipio': municipio,
         'provincia': (loc.province or '') if loc else '',
         'lat': loc.latitude if loc else None,
@@ -565,9 +566,13 @@ def pendientes(request):
                 en_padron['provincia'] if en_padron
                 else _provincia_de(grupos_por_norma.get(clave, []))
             )
-            return Response([
-                _fila(nombre, grupos_por_norma.get(clave, []), provincia),
-            ])
+            fila = _fila(nombre, grupos_por_norma.get(clave, []), provincia)
+            # Quien firma este renglon. Solo aqui: la lista entera del admin
+            # no viene de un token y por lo tanto no trae nombre de nadie.
+            # Lo ve unicamente quien ya tiene el token, que es ese
+            # colaborador — no se abre nada nuevo.
+            fila['colaborador'] = colaborador.nombre
+            return Response([fila])
 
         # El listado es del PADRÓN, no de lo que ya tenga fichas: un
         # municipio sin importar sale con total 0, que es justamente el

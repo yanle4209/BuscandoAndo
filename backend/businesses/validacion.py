@@ -223,6 +223,9 @@ def enriquecer(negocio, datos, *, categoria=None):
         if not (loc.sector or '').strip() and datos.get('sector'):
             loc.sector = datos['sector']
             cambios.append('sector')
+        if not (loc.referencias or '').strip() and datos.get('referencias'):
+            loc.referencias = datos['referencias']
+            cambios.append('referencias')
         # El punto: los DOS juntos o ninguno. Un ficha a medias seria
         # peor que una sin punto, porque pasaria la puerta del circulo
         # sin tener sitio de verdad.

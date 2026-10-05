@@ -19,6 +19,12 @@ class BusinessLocation(models.Model):
         verbose_name='Sector',
         help_text='Ej: Piantini, Naco, Zona Colonial'
     )
+    referencias = models.CharField(
+        max_length=300, blank=True, default='',
+        verbose_name='Referencias',
+        help_text='Ej: frente a la parada de bus, al lado de la farmacia. '
+                  'Sirve para llegar a pie; no sustituye las coordenadas.'
+    )
     municipality = models.CharField(
         max_length=100, blank=True, default='',
         verbose_name='Municipio',

@@ -922,6 +922,23 @@ class ReportePendientesTests(TestCase):
         self.assertEqual(datos[0]['total'], 4)
         self.assertEqual(datos[0]['con_pendientes'], 3)
 
+    def test_el_reporte_le_dice_quien_firma(self):
+        """La tarjeta «Tu firma» enseña el nombre del colaborador al que
+        pertenece el token: viaja en el propio renglon, sin pedirlo por
+        otra via ni adivinarlo en el navegador."""
+        datos = self.con_token(self.colaborador('Moca')).json()
+
+        self.assertEqual(datos[0]['colaborador'], 'Pedro')
+
+    def test_la_lista_del_admin_no_lleva_nombre(self):
+        """Quien no viene de un token no trae nombre de nadie: el
+        listado entero es del admin, y el admin no firma nada."""
+        self.loguear_admin()
+
+        datos = self.client.get(PENDIENTES_URL).json()
+
+        self.assertNotIn('colaborador', datos[0])
+
     def test_el_colaborador_puede_leer_su_municipio(self):
         """Y sin distinguir mayusculas: el nombre del token lo teclea el
         admin a su manera y el del reporte viene de texto libre."""
@@ -1457,6 +1474,18 @@ class CanalDeEnvioTests(TestCase):
         self.assertEqual(Business.objects.count(), 0)
         self.assertEqual(Envio.objects.count(), 0)
 
+    def test_las_referencias_llegan_y_se_guardan(self):
+        """Un campo mas en «Dode esta»: no decide nada — no es del trio
+        ni del reporte — pero sirve para llegar a pie, y tiene que
+        sobrevivir el viaje entero hasta la ficha."""
+        response = self.enviar(referencias='Frente a la parada del bus')
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(
+            BusinessLocation.objects.get().referencias,
+            'Frente a la parada del bus',
+        )
+
     def test_un_token_inventado_no_entra(self):
         response = self.enviar(token='no-existe')
 
@@ -1934,6 +1963,32 @@ class CompletarFichaTests(TestCase):
         self.assertNotIn('telefono', datos['faltan'])
         self.assertIn('whatsapp', datos['faltan'])
         self.assertIn('horario', datos['faltan'])
+
+    def test_el_formulario_devuelve_las_referencias(self):
+        """Lo que ya se sabe del sitio no se pierde al reabrir la ficha:
+        el formulario sale con lo que hay."""
+        ficha = self.hacer_ficha()
+        BusinessLocation.objects.filter(business=ficha).update(
+            referencias='Frente a la parada del bus',
+        )
+
+        datos = self.pedir_ficha(ficha).json()
+
+        self.assertEqual(datos['referencias'], 'Frente a la parada del bus')
+
+    def test_al_completar_llena_las_referencias_que_faltaban(self):
+        """Igual que la calle y el sector: solo si estaba vacio, y sale
+        en «completado» para que se vea que el sistema lo acepto."""
+        ficha = self.hacer_ficha()
+
+        response = self.completar(ficha, referencias='Detras del parque')
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertIn('referencias', response.json()['completado'])
+        self.assertEqual(
+            BusinessLocation.objects.get(business=ficha).referencias,
+            'Detras del parque',
+        )
 
     def test_el_reporte_no_presta_fichas_de_otro_municipio(self):
         ficha = self.hacer_ficha(municipio='Santiago')

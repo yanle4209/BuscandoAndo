@@ -63,6 +63,7 @@ def crear(datos, *, categoria, en_revision, procedencia='importado'):
         business=negocio,
         street=datos.get('calle') or '',
         sector=datos.get('sector') or '',
+        referencias=datos.get('referencias') or '',
         municipality=datos['municipio'],
         province=datos.get('provincia') or '',
         latitude=datos['lat'],
