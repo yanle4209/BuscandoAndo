@@ -2391,3 +2391,48 @@ class BotonCorregirTests(TestCase):
             '/admin/businesses/correction/').content.decode()
 
         self.assertIn(f'href="{self.ruta_de_la_ficha()}"', html)
+
+    def test_el_alta_de_la_bandeja_no_se_cae_con_integrity_error(self):
+        """El boton «Anadir» de Correcciones.
+
+        get_form() hace exclude.extend(get_readonly_fields(...)), asi que
+        si `business` fuese de solo lectura tambien en el alta el campo no
+        llegaria al formulario, el INSERT guardaria un negocio NULL y la
+        FK NOT NULL reventaria. Aqui se pide el formulario, se rellena y
+        se guarda: tiene que salir una correccion creada.
+        """
+        self.client.force_login(self.visita)
+        ruta = '/admin/businesses/correction/add/'
+
+        formulario = self.client.get(ruta)
+        self.assertEqual(formulario.status_code, 200)
+        # El desplegable del negocio tiene que estar en el formulario.
+        self.assertContains(formulario, 'id_business')
+
+        response = self.client.post(ruta, {
+            'business': self.negocio.pk,
+            'campo': 'direccion',
+            'mensaje': 'La calle esta mal escrita: es J. Sanchez',
+            'estado': 'pendiente',
+            'nota_admin': '',
+            'resolved_at_0': '',
+            'resolved_at_1': '',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Correction.objects.filter(
+            business=self.negocio, campo='direccion').exists())
+
+    def test_leyendo_la_correccion_sigue_todo_de_solo_lectura(self):
+        """El arreglo del alta no toca la vista de lectura: ahi el aviso
+        del visitante se MUESTRA pero no se edita."""
+        self.client.force_login(self.visita)
+
+        html = self.client.get(
+            f'/admin/businesses/correction/{self.correccion.pk}/change/'
+        ).content.decode()
+
+        self.assertIn('El telefono que ponen no contesta: es 809-555-0000',
+                      html)
+        self.assertNotIn('<textarea name="mensaje"', html)
+        self.assertNotIn('<select name="business"', html)

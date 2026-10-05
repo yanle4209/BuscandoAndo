@@ -51,6 +51,21 @@ class CorrectionAdmin(admin.ModelAdmin):
     # cambiando el estado y dejando una nota interna.
     readonly_fields = ['business', 'campo', 'mensaje', 'created_at',
                        'ir_a_corregir']
+
+    def get_readonly_fields(self, request, obj=None):
+        """Al CREAR hace falta poder elegir el negocio.
+
+        Django arma el formulario en get_form() con
+        `exclude.extend(self.get_readonly_fields(request, obj))`: si
+        `business` es de solo lectura en el alta, el campo no llega al
+        formulario y el INSERT intenta guardar un business NULL. Como la
+        FK no admite nulos, de ahi sale el IntegrityError del boton
+        "Anadir". Leyendo (obj con valor) no cambia absolutamente nada.
+        """
+        if obj is None:
+            # Alta: solo lo que no tiene sentido escribir a mano.
+            return ['created_at', 'ir_a_corregir']
+        return self.readonly_fields
     fieldsets = (
         (None, {
             'fields': ('business', 'campo', 'mensaje'),
