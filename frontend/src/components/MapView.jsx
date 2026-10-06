@@ -32,17 +32,26 @@ const USER_ICON = L.divIcon({
   iconAnchor: [6, 6],
 });
 
+// Vista por defecto mientras no hay punto activo (sin municipio y sin
+// GPS): el mapa se abre mirando el pais entero. No es un "punto", asi
+// que no lleva marcador de usuario.
+const CENTRO_PAIS = [18.7357, -70.1627];
+const ZOOM_PAIS = 8;
+
 export default function MapView({ businesses, selected, center, onMarkerClick, onMapClick }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markersRef = useRef([]);
+  // true mientras el mapa siga en la vista del pais: el primer centro
+  // que llegue entra con zoom de municipio (12), no con el 8 del pais.
+  const sinCentroRef = useRef(!center);
 
-  // Initialize map
+  // Initialize map: siempre, con punto o sin el
   useEffect(() => {
     if (mapRef.current && !mapInstance.current) {
       mapInstance.current = L.map(mapRef.current, {
-        center: center,
-        zoom: 12,
+        center: center || CENTRO_PAIS,
+        zoom: center ? 12 : ZOOM_PAIS,
         zoomControl: false,
       });
 
@@ -116,9 +125,13 @@ export default function MapView({ businesses, selected, center, onMarkerClick, o
   // Con center estable (useMemo en Home) esto solo salta en un refresco, no
   // en cada render, asi que se puede arrastrar el mapa.
   useEffect(() => {
-    if (mapInstance.current && center) {
-      mapInstance.current.setView(center, mapInstance.current.getZoom());
-    }
+    if (!mapInstance.current || !center) return;
+    // Si el mapa arranco en la vista del pais (sin punto), el primer
+    // centro entra a zoom de municipio; despues se respeta el zoom que
+    // tenga el usuario.
+    const desdeElPais = sinCentroRef.current;
+    sinCentroRef.current = false;
+    mapInstance.current.setView(center, desdeElPais ? 12 : mapInstance.current.getZoom());
   }, [center]);
 
   // Cleanup

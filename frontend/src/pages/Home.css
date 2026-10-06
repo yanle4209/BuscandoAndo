@@ -1,14 +1,26 @@
+/* Tres secciones: la cabecera ocupa todo el ancho del viewport en la
+   fila 1; debajo (fila 2) van la barra izquierda y la rejilla. */
 .home-layout {
-  display: flex;
+  display: grid;
+  grid-template-columns: max(22%, 220px) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100vh;
   width: 100%;
 }
 
+.home-layout > .right-brand {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+.home-layout > .left-panel,
+.home-layout > .right-panel {
+  grid-row: 2;
+}
+
 /* ===== LEFT PANEL: sidebar clara ===== */
 .left-panel {
-  width: 35%;
-  min-width: 380px;
-  max-width: 500px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -148,29 +160,9 @@
   background: var(--yellow);
 }
 
-/* No results */
-.no-results {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--ink-soft);
-}
-
-.no-results p:first-child {
-  font-size: 18px;
-  color: var(--ink);
-  margin-bottom: 8px;
-  font-weight: 700;
-}
-
-.no-results-hint {
-  font-size: 14px;
-  color: var(--ink-soft);
-}
-
 /* Overlay de "sin resultados": sustituye a "No se encontraron negocios"
-   (DISENO.md a1 / m2) y a la portada cuando no hay punto activo (R4.1).
-   El overlay es position:absolute, asi que este envoltorio es el ancla. */
+   (DISENO.md a1 / m2). El overlay es position:absolute, asi que este
+   envoltorio es el ancla. */
 .sin-resultados {
   position: relative;
   grid-column: 1 / -1;
@@ -179,39 +171,16 @@
   overflow: hidden;
 }
 
-/* ===== BENTO GRID: 3 cols x 4 rows = 12 = pagina llena ===== */
-.mobile-overlay-wrapper {
-  display: none;
-}
-
-.right-bento-grid {
+/* ===== PORTADA: el overlay ocupa el hueco de la rejilla =====
+   Antes de la primera busqueda no hay tarjetas (los destacados ya no
+   se piden sin buscar): el overlay va en el sitio del grid, a la
+   derecha. Ancla position:relative porque .map-overlay es absolute. */
+.right-portada {
+  position: relative;
   flex: 1;
-  padding: 16px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(4, minmax(350px, auto));
-  gap: 12px;
-  overflow-y: auto;
-  background: transparent;
+  min-height: 420px;
   border-radius: var(--radius-sm);
-  margin: 0 12px 12px 0;
-}
-
-.right-bento-grid::-webkit-scrollbar {
-  width: 6px;
-}
-
-.right-bento-grid::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.right-bento-grid::-webkit-scrollbar-thumb {
-  background: #c4c3a6;
-  border-radius: 3px;
-}
-
-.right-bento-grid::-webkit-scrollbar-thumb:hover {
-  background: var(--yellow);
+  overflow: hidden;
 }
 
 /* ===== LOADING ===== */
@@ -382,7 +351,8 @@
 
 @media (max-width: 768px) {
   .home-layout {
-    flex-direction: column;
+    /* una sola columna: la barra izquierda no existe aqui */
+    grid-template-columns: 1fr;
     height: auto;
     min-height: 100vh;
   }
@@ -412,16 +382,6 @@
     font-size: 20px;
   }
 
-  /* Bento grid: single column on mobile */
-  .right-bento-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-auto-rows: minmax(200px, auto);
-    gap: 12px;
-    padding: 12px;
-    overflow-y: auto;
-  }
-
   /* Search results: single column */
   .right-results-scroll {
     padding: 12px;
@@ -441,27 +401,8 @@
     padding: 16px 0 8px;
   }
 
-  /* Mobile overlay replaces bento grid */
-  .mobile-overlay-wrapper {
-    display: block;
-    position: relative;
-    width: 100%;
-    min-height: 500px;
-    border-radius: var(--radius-sm);
-    margin: 0 12px 12px 0;
-    overflow: hidden;
-  }
-
-  .mobile-overlay-wrapper .map-overlay {
-    position: absolute;
-    inset: 0;
-  }
-
-  .right-bento-grid {
-    display: none;
-  }
-
-  .right-bento-grid + .pagination {
-    display: none;
+  /* Portada: el overlay llena la pantalla en movil */
+  .right-portada {
+    min-height: 60vh;
   }
 }
