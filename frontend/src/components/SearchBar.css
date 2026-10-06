@@ -1,5 +1,10 @@
+/* La barra izquierda es ahora el 22% del viewport (~234px en un
+   portatil): el padding lateral baja de 24 a 12 y el input admite
+   encogerse (min-width: 0) para que la lupa y el boton "Buscar"
+   quepan dentro del wrapper. Las acciones se envuelven (flex-wrap)
+   porque "Filtros" + "Mi ubicacion" ya no caben en una fila. */
 .search-bar-container {
-  padding: 8px 24px 14px;
+  padding: 8px 12px 14px;
 }
 
 .search-form {
@@ -40,6 +45,10 @@
 
 .search-input {
   flex: 1;
+  /* min-width:auto de un flex item es su ancho minimo de contenido y
+     no deja encoger el input: la lupa y "Buscar" se iban fuera del
+     wrapper. */
+  min-width: 0;
   background: transparent;
   border: none;
   outline: none;
@@ -64,6 +73,7 @@
   font-family: var(--font);
   transition: background 0.2s;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .search-btn:hover {
@@ -72,6 +82,7 @@
 
 .search-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
 }

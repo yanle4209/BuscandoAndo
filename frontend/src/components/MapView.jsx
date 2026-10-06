@@ -57,9 +57,11 @@ export default function MapView({ businesses, selected, center, onMarkerClick, o
 
       L.control.zoom({ position: 'topright' }).addTo(mapInstance.current);
 
-      // OpenStreetMap via CDN (free, no API key)
-      L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, Tiles: <a href="https://hot.openstreetmap.org/">Humanitarian OSM Team</a>',
+      // OpenStreetMap oficial (gratis, sin API key). Se cambiaba del
+      // estilo "hot" de tile.openstreetmap.fr porque ahi las teselas
+      // salian rotas (naturalWidth 0) y el mapa se quedaba gris.
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 19,
       }).addTo(mapInstance.current);
 
