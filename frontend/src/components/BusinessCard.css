@@ -57,7 +57,7 @@
   overflow: hidden;
 }
 
-/* Placeholder: fondo blanco con la marca tenue (35% de opacidad).
+/* Placeholder: fondo blanco con la marca tenue (50% de opacidad).
    El marron oscuro de antes pesaba demasiado a la vista. La marca
    sube un poco para no chocar con la banda inferior del velo. */
 .biz-card__cover-ph {
@@ -75,8 +75,8 @@
   font-weight: 800;
   letter-spacing: 1px;
   color: var(--brown);
-  /* Transparencia del 35%: la marca acompana sin gritar. */
-  opacity: 0.35;
+  /* Transparencia del 50%: la marca acompana sin gritar. */
+  opacity: 0.5;
 }
 
 .biz-card__cover-ph-brand b {
