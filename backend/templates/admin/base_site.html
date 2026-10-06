@@ -1,15 +1,11 @@
 {% extends "admin/base.html" %}
 {% load static %}
 
-{# Esta plantilla sustituye a admin/base_site.html, pero extiende directamente
-   admin/base.html: por eso los bloques que Django define en su base_site
-   (branding, title) nunca llegaban y la cabecera salia vacia. Aqui van. #}
+{# Sustituye a admin/base_site.html pero extiende admin/base.html: por eso los bloques que Django define en su base_site (branding, title) nunca llegaban. Los comentarios de plantilla no admiten salto de linea, por eso van de uno en uno. #}
 {% block title %}{{ title }}{% if title %} | {% endif %}BuscandoAndo Admin{% endblock %}
 
 {% block branding %}
-{# Logotipo partido para poder pintar cada palabra: "Buscando" en marron
-   y "Ando" en amarillo, plano. El sufijo replica el site_header de
-   config/admin.py. #}
+{# Logotipo partido: "Buscando" en marron y "Ando" en amarillo. El sufijo replica el site_header de config/admin.py. #}
 <div id="site-name"><a href="{% url 'admin:index' %}"><span class="site-brand-main">Buscando</span><span class="site-brand-accent">Ando</span><span class="site-brand-suffix"> - Panel de Administracion</span></a></div>
 {% endblock %}
 
