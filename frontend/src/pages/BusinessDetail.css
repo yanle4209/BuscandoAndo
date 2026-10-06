@@ -44,7 +44,7 @@
   display: inline-block;
   font-size: 12px;
   color: var(--ink-soft);
-  background: rgba(136, 137, 138, 0.15);
+  background: rgba(31, 26, 26, 0.07);
   padding: 3px 10px;
   border-radius: 4px;
   margin-right: 8px;
@@ -62,8 +62,8 @@
 
 .detail-status--abierto,
 .detail-status--abierto---horario {
-  background: rgba(34, 197, 94, 0.15);
-  color: #15803d;
+  background: rgba(135, 179, 50, 0.18);
+  color: #1a512d;
 }
 
 .detail-status--cerrado {
@@ -139,7 +139,7 @@
 }
 
 .detail-contact-row--wa a {
-  color: #16a34a;
+  color: #1a512d;
 }
 
 /* Hours */

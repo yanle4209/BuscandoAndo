@@ -4,12 +4,12 @@
 {% block object-tools %}
 <ul class="object-tools">
   <li>
-    <a href="{% url 'import_json' %}" class="addlink" style="background: #B3B334; color: #1a1a1a; padding: 6px 12px; border-radius: 8px; text-decoration: none; margin-right: 5px; font-weight: bold;">
+    <a href="{% url 'import_json' %}" class="addlink" style="background: #B3B334; color: #1f1a1a; padding: 6px 12px; border-radius: 8px; text-decoration: none; margin-right: 5px; font-weight: bold;">
       Importar JSON
     </a>
   </li>
   <li>
-    <a href="{% url 'export_json' %}" class="viewlink" style="background: transparent; color: #543335; border: 1px solid #B3B334; padding: 6px 12px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+    <a href="{% url 'export_json' %}" class="viewlink" style="background: transparent; color: #7f471a; border: 1px solid #B3B334; padding: 6px 12px; border-radius: 8px; text-decoration: none; font-weight: bold;">
       Exportar JSON
     </a>
   </li>
@@ -21,13 +21,13 @@
   <strong>Destacados:</strong>
   {% for tier, s in featured_stats.items %}
     {% if tier != 'total' %}
-      <span style="margin-left:12px;padding:3px 10px;border-radius:6px;font-weight:bold;font-size:12px;background:{% if s.count < s.limit %}rgba(34,197,94,0.15){% else %}rgba(220,53,69,0.14){% endif %};color:{% if s.count < s.limit %}#15803d{% else %}#b91c1c{% endif %};">
+      <span style="margin-left:12px;padding:3px 10px;border-radius:6px;font-weight:bold;font-size:12px;background:{% if s.count < s.limit %}rgba(135,179,50,0.18){% else %}rgba(220,53,69,0.14){% endif %};color:{% if s.count < s.limit %}#1a512d{% else %}#b91c1c{% endif %};">
         {{ s.label }}: {{ s.count }}/{{ s.limit }}
       </span>
     {% endif %}
   {% endfor %}
   {% with t=featured_stats.total %}
-    <span style="margin-left:12px;padding:3px 10px;border-radius:6px;font-weight:bold;font-size:12px;background:{% if t.count < t.limit %}rgba(34,197,94,0.15){% else %}rgba(220,53,69,0.14){% endif %};color:{% if t.count < t.limit %}#15803d{% else %}#b91c1c{% endif %};">
+    <span style="margin-left:12px;padding:3px 10px;border-radius:6px;font-weight:bold;font-size:12px;background:{% if t.count < t.limit %}rgba(135,179,50,0.18){% else %}rgba(220,53,69,0.14){% endif %};color:{% if t.count < t.limit %}#1a512d{% else %}#b91c1c{% endif %};">
       {{ t.label }}: {{ t.count }}/{{ t.limit }}
     </span>
   {% endwith %}

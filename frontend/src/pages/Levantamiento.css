@@ -540,7 +540,7 @@
 }
 
 .lev-resultado.lev-ok h2 {
-  color: #15803d;
+  color: #1a512d;
 }
 
 .lev-resultado.lev-malo h2 {
@@ -666,7 +666,7 @@
 
 .lev-ficha-estado.publicado {
   background: rgba(34, 197, 94, 0.16);
-  color: #15803d;
+  color: #1a512d;
 }
 
 .lev-ficha-estado.en-revision {
@@ -688,7 +688,7 @@
    anillo   = la ficha abierta en el formulario.
    Nada se mueve de sitio al completarse: solo cambia de color. */
 .lev-fichas li.lev-ficha--bloquea {
-  border-left-color: #dc2626;
+  border-left-color: #b91c1c;
   background: rgba(239, 68, 68, 0.1);
 }
 
@@ -702,13 +702,13 @@
 .lev-fichas li.lev-ficha--curso .lev-ficha-falta { color: var(--yellow-ink); }
 
 .lev-fichas li.lev-ficha--hecha {
-  border-left-color: #16a34a;
+  border-left-color: #87b332;
   background: rgba(34, 197, 94, 0.13);
 }
 
 .lev-fichas li.lev-ficha--hecha .lev-ficha-nombre,
 .lev-fichas li.lev-ficha--hecha .lev-ficha-falta {
-  color: #15803d;
+  color: #1a512d;
 }
 
 .lev-fichas li.lev-ficha--hecha .lev-ficha-falta { font-weight: 600; }
@@ -720,7 +720,7 @@
 
 .lev-ficha-estado.hecha {
   background: rgba(34, 179, 94, 0.16);
-  color: #15803d;
+  color: #1a512d;
 }
 
 /* ===================== el reporte al lado ===========================
@@ -735,7 +735,7 @@
   max-height: 52vh;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: #c9c9c4 transparent;
+  scrollbar-color: #c4c3a6 transparent;
 }
 
 /* ------------------------ barra de avance -------------------------- */
@@ -768,7 +768,7 @@
 }
 
 .lev-avance-texto.es-listo {
-  color: #15803d;
+  color: #1a512d;
   font-weight: 600;
 }
 
@@ -779,13 +779,13 @@
    de ser «bloquea». */
 .lev-por-campo li.es-hecho {
   background: rgba(34, 197, 94, 0.1);
-  border-color: rgba(34, 197, 94, 0.5);
-  color: #15803d;
+  border-color: rgba(135, 179, 50, 0.6);
+  color: #1a512d;
   text-decoration: line-through;
 }
 
 .lev-por-campo li.es-hecho .lev-por-campo-n {
-  color: #15803d;
+  color: #1a512d;
 }
 
 /* ------------------- filas: la confirmacion ------------------------ */
@@ -845,7 +845,7 @@
     max-height: min(calc(100vh - 32px), 640px);
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: #c9c9c4 transparent;
+    scrollbar-color: #c4c3a6 transparent;
   }
 
   /* La tarjeta ya se scrollea sola: la lista interior no necesita su

@@ -13,7 +13,7 @@ L.Icon.Default.mergeOptions({
 
 const YELLOW_ICON = L.divIcon({
   className: 'custom-marker',
-  html: `<div style="width:14px;height:14px;background:#B3B334;border:2px solid #1a1a1a;border-radius:50%;box-shadow:0 0 6px rgba(179,179,52,0.5);"></div>`,
+  html: `<div style="width:14px;height:14px;background:#B3B334;border:2px solid #1f1a1a;border-radius:50%;box-shadow:0 0 6px rgba(179,179,52,0.5);"></div>`,
   iconSize: [14, 14],
   iconAnchor: [7, 7],
 });
