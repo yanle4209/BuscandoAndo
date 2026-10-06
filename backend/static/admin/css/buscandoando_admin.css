@@ -115,6 +115,15 @@ h4 { font-size: 13px !important; font-weight: 700 !important; color: var(--ink) 
     font-weight: 800;
 }
 
+/* Logotipo del admin: "Buscando" marron, "Ando" amarillo. El amarillo
+   casi no contrasta con el blanco de la cabecera, asi que lleva filete
+   marron (los logotipos estan exentos de la norma de contraste). */
+#site-name .site-brand-accent {
+    color: var(--yellow) !important;
+    -webkit-text-stroke: 0.8px var(--brown);
+    paint-order: stroke fill;
+}
+
 #user-tools { color: var(--ink-soft) !important; }
 #user-tools a { color: var(--ink-soft) !important; font-weight: 600; }
 #user-tools a:hover { color: var(--brown) !important; }

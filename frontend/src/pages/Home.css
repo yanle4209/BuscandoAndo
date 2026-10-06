@@ -29,17 +29,22 @@
 .sidebar-brand-title {
   font-size: 24px;
   font-weight: 900;
-  color: var(--ink);
+  color: var(--brown);
   letter-spacing: 1px;
   margin: 0;
 }
 
-/* El acento no se pinta de amarillo: sobre blanco no se lee. Lleva el
-   amarillo por detras, como un subrayado de rotulador. */
+/* Logotipo: "Buscando" en marron y "Ando" en amarillo canario. El
+   amarillo es el color de la marca pero casi no contrasta con el crema,
+   asi que "Ando" lleva un filete marron (el mismo de "Buscando"): se
+   lee sin salirse de la paleta. Los logotipos estan exentos de la
+   norma de contraste de WCAG, pero aun asi no queda borroso. */
 .sidebar-brand-accent,
 .right-brand-accent {
-  color: var(--ink);
-  background: linear-gradient(transparent 62%, rgba(179, 179, 52, 0.55) 62%);
+  color: var(--yellow);
+  -webkit-text-stroke: 1.2px var(--brown);
+  paint-order: stroke fill;
+  background: none;
 }
 
 .contact-link {
@@ -98,7 +103,7 @@
 .right-brand-title {
   font-size: 42px;
   font-weight: 800;
-  color: var(--ink);
+  color: var(--brown);
   letter-spacing: 2px;
   margin: 0;
   line-height: 1;

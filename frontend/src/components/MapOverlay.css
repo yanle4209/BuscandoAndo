@@ -55,19 +55,19 @@
   animation-delay: 1s;
 }
 
-/* Title */
+/* Title: mismo logotipo que la portada, "Buscando" marron y "Ando"
+   amarillo con filete marron. */
 .map-overlay__title {
   font-size: 28px;
   font-weight: 900;
-  color: var(--ink);
+  color: var(--brown);
   letter-spacing: 2px;
   margin: 0;
 }
-/* El acento no se pinta de amarillo: sobre blanco no se lee. Lleva el
-   amarillo por detras, como un subrayado de rotulador. */
 .map-overlay__title span {
-  color: var(--ink);
-  background: linear-gradient(transparent 62%, rgba(179, 179, 52, 0.55) 62%);
+  color: var(--yellow);
+  -webkit-text-stroke: 1px var(--brown);
+  paint-order: stroke fill;
 }
 
 /* Rotating message */
