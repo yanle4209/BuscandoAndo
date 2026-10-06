@@ -57,26 +57,30 @@
   overflow: hidden;
 }
 
-/* Placeholder: el logotipo, siempre presente. Sin BD ni storage:
-   es marca pintada en HTML sobre marron, legible bajo el velo. */
+/* Placeholder: fondo blanco con la marca tenue (35% de opacidad).
+   El marron oscuro de antes pesaba demasiado a la vista. La marca
+   sube un poco para no chocar con la banda inferior del velo. */
 .biz-card__cover-ph {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--brown);
+  padding-bottom: 28px;
+  background: #ffffff;
 }
 
 .biz-card__cover-ph-brand {
   font-size: 21px;
   font-weight: 800;
   letter-spacing: 1px;
-  color: #f7f2e4;
+  color: var(--brown);
+  /* Transparencia del 35%: la marca acompana sin gritar. */
+  opacity: 0.35;
 }
 
 .biz-card__cover-ph-brand b {
-  color: var(--yellow);
+  color: var(--gold);
   font-weight: 800;
 }
 
@@ -90,6 +94,18 @@
     rgba(28, 21, 4, 0.9) 0%,
     rgba(28, 21, 4, 0.62) 42%,
     rgba(28, 21, 4, 0.12) 100%
+  );
+}
+
+/* Portada SIN foto: el velo solo oscurece la banda inferior, para que
+   el fondo blanco de arriba se quede blanco. El nombre y la categoria
+   siguen en blanco sobre esa banda, igual que con foto. */
+.biz-card__cover--sin-foto .biz-card__cover-veil {
+  background: linear-gradient(
+    to top,
+    rgba(28, 21, 4, 0.92) 0%,
+    rgba(28, 21, 4, 0.9) 22%,
+    rgba(28, 21, 4, 0) 48%
   );
 }
 

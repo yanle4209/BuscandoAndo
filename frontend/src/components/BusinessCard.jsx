@@ -43,7 +43,7 @@ export default function BusinessCard({ business, highlighted, level, onClick, on
     >
       {/* Portada: siempre. La foto (o el placeholder de marca) es la
           misma en la bento de la portada y en los resultados. */}
-      <div className="biz-card__cover">
+      <div className={`biz-card__cover${hasImages ? '' : ' biz-card__cover--sin-foto'}`}>
         {hasImages ? (
           <ImageCarousel images={images} cover autoplay={highlighted} />
         ) : (
