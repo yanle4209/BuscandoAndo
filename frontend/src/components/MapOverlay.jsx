@@ -36,21 +36,21 @@ export default function MapOverlay({ visible, hint }) {
         {/* Animated logo */}
         <div className="map-overlay__logo">
           <svg viewBox="0 0 120 120" className="map-overlay__icon">
-            <circle cx="60" cy="60" r="55" fill="none" stroke="#6f6f14" strokeWidth="2" className="map-overlay__circle" />
-            <circle cx="60" cy="60" r="45" fill="none" stroke="#6f6f14" strokeWidth="1" opacity="0.35" className="map-overlay__circle-inner" />
+            <circle cx="60" cy="60" r="55" fill="none" stroke="#7f471a" strokeWidth="2" className="map-overlay__circle" />
+            <circle cx="60" cy="60" r="45" fill="none" stroke="#7f471a" strokeWidth="1" opacity="0.35" className="map-overlay__circle-inner" />
             {/* Pin icon. El transform de posicion va en un g AYUDANTE: el
                CSS de .map-overlay__pin anima transform y pisa el atributo,
                y el chinchete se iba a la esquina superior izquierda. */}
             <g transform="translate(60, 35)">
               <g className="map-overlay__pin">
                 <path d="M0,-20 C-11,-20 -20,-11 -20,0 C-20,13 0,30 0,30 C0,30 20,13 20,0 C20,-11 11,-20 0,-20Z"
-                  fill="var(--yellow)" stroke="#543335" strokeWidth="2" opacity="0.95" />
+                  fill="var(--yellow)" stroke="#7f471a" strokeWidth="2" opacity="0.95" />
                 <circle cx="0" cy="-2" r="7" fill="var(--dark)" />
               </g>
             </g>
             {/* Pulse rings */}
-            <circle cx="60" cy="63" r="8" fill="none" stroke="#6f6f14" strokeWidth="1.5" className="map-overlay__pulse" />
-            <circle cx="60" cy="63" r="8" fill="none" stroke="#6f6f14" strokeWidth="1" className="map-overlay__pulse map-overlay__pulse--delay" />
+            <circle cx="60" cy="63" r="8" fill="none" stroke="#7f471a" strokeWidth="1.5" className="map-overlay__pulse" />
+            <circle cx="60" cy="63" r="8" fill="none" stroke="#7f471a" strokeWidth="1" className="map-overlay__pulse map-overlay__pulse--delay" />
           </svg>
           <h2 className="map-overlay__title">
             Buscando<span>Ando</span>

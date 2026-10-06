@@ -138,7 +138,7 @@
 }
 
 .right-results-list::-webkit-scrollbar-thumb {
-  background: #c9c9c4;
+  background: #c4c3a6;
   border-radius: 3px;
 }
 
@@ -204,7 +204,7 @@
 }
 
 .right-bento-grid::-webkit-scrollbar-thumb {
-  background: #c9c9c4;
+  background: #c4c3a6;
   border-radius: 3px;
 }
 
@@ -227,7 +227,7 @@
  * Bug real: aquí se usaba .modal-content, un selector que no existe en
  * ningún CSS del proyecto. Consecuencias medidas en producción:
  *   - background: rgba(0,0,0,0)  → transparente
- *   - el título, en var(--dark) #1a1a1a, quedaba sobre el overlay
+ *   - el título, en var(--dark) #1f1a1a, quedaba sobre el overlay
  *     rgba(0,6,0,0.7) → negro sobre negro: ilegible
  *   - position: static → .modal-close (absolute, top/right 14px) se
  *     anclaba al overlay, dejando la ✕ en la esquina de la pantalla
@@ -302,7 +302,7 @@
 }
 
 .right-results-scroll::-webkit-scrollbar-thumb {
-  background: #c9c9c4;
+  background: #c4c3a6;
   border-radius: 3px;
 }
 

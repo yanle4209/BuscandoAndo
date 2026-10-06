@@ -27,7 +27,7 @@
 
 .correction__desc {
   font-size: 14px;
-  color: #666;
+  color: #5b564d;
   line-height: 1.5;
   margin: 0 0 24px;
 }
@@ -50,7 +50,7 @@
   width: 100%;
   box-sizing: border-box;
   background: #fff;
-  border: 1px solid #ddd;
+  border: 1px solid #dedcc4;
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 14px;
@@ -73,7 +73,7 @@
 
 .correction__hint {
   font-size: 12px;
-  color: #888;
+  color: #6f6a5e;
   text-align: left;
   margin: -10px 0 16px;
 }
@@ -106,8 +106,8 @@
 
 .correction__cancel {
   background: #fff;
-  border: 1px solid #ddd;
-  color: #666;
+  border: 1px solid #dedcc4;
+  color: #5b564d;
 }
 
 .correction__cancel:hover:not(:disabled) {

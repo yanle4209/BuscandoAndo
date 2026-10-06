@@ -4,37 +4,41 @@
   padding: 0;
 }
 
-/* Paleta BuscandoAndo + acabado bento.
-   El fondo es claro (White Smoke) y lo que encima son superficies
-   blancas con borde fino y sombra minima. El amarillo vive en los
-   RELLENOS (botones, chips, bordes), nunca como texto sobre blanco:
-   para eso esta --yellow-ink, el mismo amarillo ya oscurecido. */
+/* Paleta BuscandoAndo (Palette.txt) + acabado bento.
+   Lienzo crema #eeeed5 y encima superficies blancas con borde fino y
+   sombra minima: nada de fondo oscuro. El color vive en los rellenos
+   (amarillo canario, verde hierba, ocre) y en los textos oscuros de la
+   misma familia (marron 7f471a para enlaces y etiquetas, verde bosque
+   1a512d para lo que esta bien). El amarillo nunca va como texto. */
 :root {
-  /* --- marca --- */
-  --yellow: #B3B334;        /* Canary Yellow: rellenos y acentos */
-  --yellow-light: #d4d460;  /* su estado hover */
-  --yellow-ink: #6f6f14;    /* el mismo amarillo, legible sobre claro */
-  --brown: #543335;         /* Chocolate Plum: marcas y enlaces */
-  --grey: #88898a;          /* Grey Olive: metadatos e iconos */
+  /* --- marca y paleta --- */
+  --yellow: #b3b334;        /* Canary Yellow: rellenos y acentos */
+  --yellow-light: #d7d796;  /* verde oliva palido: hover suave */
+  --yellow-ink: #7f471a;    /* marron calido: etiquetas legibles sobre claro */
+  --brown: #7f471a;         /* marron: enlaces, marcas y titulos */
+  --grey: #6f6a5e;          /* gris-oliva calido: metadatos e iconos */
+  --grass: #87b332;         /* verde hierba: rellenos de "disponible" */
+  --green: #1a512d;         /* verde bosque: texto de ok */
+  --ochre: #9f6d1e;         /* ocre: avisos en relleno */
 
   /* --- tinta y superficies (bento) --- */
-  --ink: #1a1a1a;
-  --ink-soft: #4a4b4d;
-  --bg: #f3f3f3;            /* White Smoke: fondo de pagina */
+  --ink: #1f1a1a;
+  --ink-soft: #5b564d;
+  --bg: #eeeed5;            /* crema: fondo de pagina */
   --surface: #ffffff;
-  --surface-2: #fafaf8;
-  --border: #e6e6e0;
-  --border-strong: #d9d9d3;
+  --surface-2: #f5f5e6;
+  --border: #e2e1c9;
+  --border-strong: #d4d3b6;
   --radius: 14px;
   --radius-sm: 8px;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 26px rgba(0, 0, 0, 0.05);
-  --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.06), 0 18px 36px rgba(0, 0, 0, 0.09);
+  --shadow: 0 1px 2px rgba(31, 26, 26, 0.05), 0 10px 26px rgba(31, 26, 26, 0.06);
+  --shadow-lift: 0 2px 6px rgba(31, 26, 26, 0.07), 0 18px 36px rgba(31, 26, 26, 0.10);
 
   /* --- nombres viejos, por si algun CSS suelto sigue usandolos:
          --dark ya NO es un fondo, es tinta; --white ya NO es texto. --- */
-  --dark: #1a1a1a;
+  --dark: #1f1a1a;
   --dark-card: #ffffff;
-  --white: #f3f3f3;
+  --white: #eeeed5;
   --white-pure: #ffffff;
 
   --font: 'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;

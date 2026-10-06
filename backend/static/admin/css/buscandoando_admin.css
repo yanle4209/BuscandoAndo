@@ -1,75 +1,76 @@
 /**
- * BuscandoAndo Admin — Light Theme (acabado bento)
- * Fondo White Smoke, tarjetas blancas con borde fino y sombra minima,
- * acentos Canary Yellow. Sin fondo oscuro: --body-bg es claro y todo lo
- * que encima (modules, tabla, filtros) es una superficie blanca.
+ * BuscandoAndo Admin — Light Theme (acabado bento + paleta Palette.txt)
+ * Lienzo crema, tarjetas blancas con borde fino y sombra minima, acentos
+ * Canary Yellow / verde hierba / ocre y texto en marron calido. Sin fondo
+ * oscuro: --body-bg es claro y todo lo que encima (modules, tabla,
+ * filtros) es una superficie blanca.
  */
 
 /* ===== OVERRIDE VARIABLES DE DJANGO ADMIN ===== */
 :root {
     --yellow: #B3B334 !important;
-    --yellow-light: #d4d460 !important;
-    --yellow-ink: #6f6f14 !important;   /* el amarillo, legible sobre claro */
-    --dark: #1a1a1a !important;         /* tinta, ya no es fondo */
+    --yellow-light: #d7d796 !important;
+    --yellow-ink: #7f471a !important;   /* el amarillo, legible sobre claro */
+    --dark: #1f1a1a !important;         /* tinta, ya no es fondo */
     --dark-card: #ffffff !important;    /* superficie de tarjeta */
-    --white: #f3f3f3 !important;
+    --white: #eeeed5 !important;
     --white-pure: #ffffff !important;
-    --brown: #543335 !important;        /* Chocolate Plum: marcas y enlaces */
-    --grey: #88898a !important;         /* Grey Olive: metadatos */
-    --ink: #1a1a1a !important;
-    --ink-soft: #4a4b4d !important;
-    --border: #e6e6e0 !important;
-    --border-strong: #d9d9d3 !important;
+    --brown: #7f471a !important;        /* Chocolate Plum: marcas y enlaces */
+    --grey: #6f6a5e !important;         /* Grey Olive: metadatos */
+    --ink: #1f1a1a !important;
+    --ink-soft: #5b564d !important;
+    --border: #e2e1c9 !important;
+    --border-strong: #d4d3b6 !important;
     --font: 'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 
     --primary: #B3B334 !important;
-    --secondary: #1a1a1a !important;
+    --secondary: #1f1a1a !important;
     --accent: #B3B334 !important;
-    --primary-fg: #1a1a1a !important;
+    --primary-fg: #1f1a1a !important;
 
-    --body-fg: #1a1a1a !important;
-    --body-bg: #f3f3f3 !important;
-    --body-quiet-color: #6b6c6e !important;
-    --body-medium-color: #4a4b4d !important;
-    --body-loud-color: #1a1a1a !important;
+    --body-fg: #1f1a1a !important;
+    --body-bg: #eeeed5 !important;
+    --body-quiet-color: #6f6a5e !important;
+    --body-medium-color: #5b564d !important;
+    --body-loud-color: #1f1a1a !important;
 
-    --header-color: #1a1a1a !important;
-    --header-branding-color: #543335 !important;
+    --header-color: #1f1a1a !important;
+    --header-branding-color: #7f471a !important;
     --header-bg: #ffffff !important;
-    --header-link-color: #4a4b4d !important;
+    --header-link-color: #5b564d !important;
 
-    --breadcrumbs-fg: #6b6c6e !important;
-    --breadcrumbs-link-fg: #543335 !important;
+    --breadcrumbs-fg: #6f6a5e !important;
+    --breadcrumbs-link-fg: #7f471a !important;
     --breadcrumbs-bg: #ffffff !important;
 
-    --link-fg: #543335 !important;
-    --link-hover-color: #1a1a1a !important;
-    --link-selected-fg: #1a1a1a !important;
+    --link-fg: #7f471a !important;
+    --link-hover-color: #1f1a1a !important;
+    --link-selected-fg: #1f1a1a !important;
 
-    --hairline-color: #e6e6e0 !important;
-    --border-color: #e6e6e0 !important;
+    --hairline-color: #e2e1c9 !important;
+    --border-color: #e2e1c9 !important;
 
     --error-fg: #b91c1c !important;
 
-    --message-success-bg: rgba(34, 197, 94, 0.14) !important;
+    --message-success-bg: rgba(135, 179, 50, 0.18) !important;
     --message-warning-bg: rgba(179, 179, 52, 0.16) !important;
     --message-error-bg: rgba(220, 53, 69, 0.12) !important;
 
-    --darkened-bg: #f7f7f5 !important;
+    --darkened-bg: #e7e7cf !important;
     --selected-bg: rgba(179, 179, 52, 0.18) !important;
     --selected-row: rgba(179, 179, 52, 0.16) !important;
 
-    --button-fg: #1a1a1a !important;
+    --button-fg: #1f1a1a !important;
     --button-bg: #B3B334 !important;
-    --button-hover-bg: #d4d460 !important;
+    --button-hover-bg: #d7d796 !important;
     --default-button-bg: #B3B334 !important;
-    --default-button-hover-bg: #d4d460 !important;
-    --close-button-bg: #e6e6e0 !important;
-    --close-button-hover-bg: #d9d9d3 !important;
+    --default-button-hover-bg: #d7d796 !important;
+    --close-button-bg: #e2e1c9 !important;
+    --close-button-hover-bg: #d4d3b6 !important;
     --delete-button-bg: #dc3545 !important;
     --delete-button-hover-bg: #a41515 !important;
 
-    --object-tools-fg: #543335 !important;
+    --object-tools-fg: #7f471a !important;
     --object-tools-bg: #ffffff !important;
     --object-tools-hover-bg: #B3B334 !important;
 }
@@ -83,19 +84,19 @@ body, input, select, textarea, button {
 *,
 *::before,
 *::after {
-    border-color: #e6e6e0 !important;
+    border-color: #e2e1c9 !important;
 }
 
 /* ===== BODY ===== */
 body {
-    color: #1a1a1a !important;
-    background: #f3f3f3 !important;
+    color: #1f1a1a !important;
+    background: #eeeed5 !important;
     line-height: 1.5 !important;
 }
 
 p { color: var(--ink-soft) !important; }
 label { color: var(--ink) !important; }
-.help, .help-block { color: #6b6c6e !important; }
+.help, .help-block { color: #6f6a5e !important; }
 
 /* ===== TITULOS ===== */
 h1 { font-size: 22px !important; font-weight: 800 !important; color: var(--ink) !important; }
@@ -144,7 +145,7 @@ div.breadcrumbs a:hover { color: var(--ink) !important; }
 
 #nav-sidebar .module td {
     color: var(--ink-soft) !important;
-    border-bottom: 1px solid #efefe9 !important;
+    border-bottom: 1px solid #e9e9d3 !important;
 }
 
 #nav-sidebar a:link,
@@ -256,7 +257,7 @@ a.addlink:hover, a.changelink:hover { color: var(--ink) !important; }
 }
 
 #result_list th {
-    background: #f7f7f4 !important;
+    background: #e7e7cf !important;
     color: var(--ink) !important;
     font-weight: 700;
     border-bottom: 1px solid var(--border) !important;
@@ -264,7 +265,7 @@ a.addlink:hover, a.changelink:hover { color: var(--ink) !important; }
 
 #result_list td {
     color: var(--ink) !important;
-    border-bottom: 1px solid #efefe9 !important;
+    border-bottom: 1px solid #e9e9d3 !important;
 }
 
 #result_list tr:hover td {
@@ -339,7 +340,7 @@ a.addlink:hover, a.changelink:hover { color: var(--ink) !important; }
 a.boton-corregir {
     display: inline-block;
     background: var(--yellow) !important;
-    color: #1a1a1a !important;
+    color: #1f1a1a !important;
     padding: 6px 16px;
     border-radius: 6px;
     font-weight: bold;
@@ -350,7 +351,7 @@ a.boton-corregir {
 
 a.boton-corregir:hover {
     background: var(--yellow-light) !important;
-    color: #1a1a1a !important;
+    color: #1f1a1a !important;
 }
 
 /* ===== MODULES / FIELDSETS ===== */
@@ -381,7 +382,7 @@ a.boton-corregir:hover {
 }
 
 .inline-group .inline-related h3 {
-    background: #f7f7f4 !important;
+    background: #e7e7cf !important;
     color: var(--ink) !important;
     padding: 10px 14px;
     border-radius: 10px 10px 0 0;
@@ -396,7 +397,7 @@ a.boton-corregir:hover {
 
 /* ===== FORM ELEMENTS ===== */
 .form-row label { color: var(--ink) !important; font-weight: 600 !important; }
-.form-row .help { color: #6b6c6e !important; font-style: italic; }
+.form-row .help { color: #6f6a5e !important; font-style: italic; }
 
 select, input[type="text"], input[type="email"], input[type="url"],
 input[type="password"], input[type="number"], textarea,
@@ -421,7 +422,7 @@ input[type="datetime-local"]:focus {
 input[type="checkbox"] { accent-color: var(--yellow); }
 
 .field-get_featured_stats {
-    background: #fafaf8 !important;
+    background: #f9f9ef !important;
     padding: 12px !important;
     border-radius: 8px !important;
     border: 1px solid var(--border) !important;
@@ -478,9 +479,9 @@ input[type="checkbox"] { accent-color: var(--yellow); }
 }
 
 .messages .success {
-    background: rgba(34, 197, 94, 0.14) !important;
-    border: 1px solid rgba(34, 197, 94, 0.5) !important;
-    color: #15803d !important;
+    background: rgba(135, 179, 50, 0.18) !important;
+    border: 1px solid rgba(135, 179, 50, 0.6) !important;
+    color: #1a512d !important;
 }
 
 .messages .warning {
@@ -510,12 +511,12 @@ input[type="checkbox"] { accent-color: var(--yellow); }
 }
 
 /* ===== CONTENT ===== */
-#content { background: #f3f3f3 !important; }
-#content-main { background: #f3f3f3 !important; }
+#content { background: #eeeed5 !important; }
+#content-main { background: #eeeed5 !important; }
 
 /* ===== FOOTER ===== */
 #footer {
-    color: #6b6c6e !important;
+    color: #6f6a5e !important;
     background: transparent !important;
     border-top: 1px solid var(--border) !important;
 }
@@ -547,8 +548,8 @@ input[type="checkbox"] { accent-color: var(--yellow); }
 
 /* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #ececea; }
-::-webkit-scrollbar-thumb { background: #c9c9c4; border-radius: 4px; }
+::-webkit-scrollbar-track { background: #e6e6d2; }
+::-webkit-scrollbar-thumb { background: #c4c3a6; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--yellow); }
 
 /* ===== ANIMATIONS ===== */

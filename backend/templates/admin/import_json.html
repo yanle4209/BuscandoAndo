@@ -8,7 +8,7 @@
   <div class="module">
     <h2>{{ title }}</h2>
     
-    <p style="margin: 10px 0; color: #4a4b4d;">
+    <p style="margin: 10px 0; color: #5b564d;">
       Sube un archivo <strong>.json</strong> con negocios para importarlos al sistema.<br>
       Los negocios con un slug que ya exista serán omitidos.
     </p>
@@ -24,7 +24,7 @@
         <div style="margin-top: 5px;">
           {{ field }}
           {% if field.help_text %}
-          <p class="help" style="color: #6b6c6e; font-size: 12px; margin-top: 3px;">
+          <p class="help" style="color: #6f6a5e; font-size: 12px; margin-top: 3px;">
             {{ field.help_text }}
           </p>
           {% endif %}
@@ -42,10 +42,10 @@
       <div class="submit-row" style="margin-top: 20px;">
         <input type="submit" value="Importar Negocios" 
                class="default" 
-               style="background: #B3B334; color: #1a1a1a; padding: 8px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 700;">
+               style="background: #B3B334; color: #1f1a1a; padding: 8px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 700;">
         
         <a href="{% url 'admin:businesses_business_changelist' %}" 
-           style="margin-left: 10px; color: #543335;">
+           style="margin-left: 10px; color: #7f471a;">
           ← Volver a Negocios
         </a>
       </div>
@@ -54,7 +54,7 @@
 
   <div class="module" style="margin-top: 20px;">
     <h2>Formato Esperado del JSON</h2>
-    <pre style="background: #fafaf8; padding: 15px; border: 1px solid #e6e6e0; border-radius: 8px; overflow-x: auto; font-size: 13px;">
+    <pre style="background: #f9f9ef; padding: 15px; border: 1px solid #e2e1c9; border-radius: 8px; overflow-x: auto; font-size: 13px;">
 [
   {
     "name": "Mi Negocio",
@@ -93,7 +93,7 @@
     <ul style="list-style: none; padding: 0;">
       <li style="margin: 8px 0;">
         <a href="{% url 'export_json' %}" 
-           style="color: #543335; text-decoration: none; padding: 5px 10px; border: 1px solid #B3B334; border-radius: 8px;">
+           style="color: #7f471a; text-decoration: none; padding: 5px 10px; border: 1px solid #B3B334; border-radius: 8px;">
           📥 Exportar todos los negocios a JSON
         </a>
       </li>
