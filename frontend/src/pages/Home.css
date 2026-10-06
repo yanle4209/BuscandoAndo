@@ -94,7 +94,12 @@
    blanca del lienzo blanco: el rectangulo se retrae 8px y baja 12px,
    de modo que por arriba no se asoma. Sin borde: la separacion es la
    sombra, no un filete. */
+/* z-index: la sombra asoma 4px + blur por debajo de la cabecera, y la
+   barra y la rejilla (hermanas posteriores, fondo blanco opaco) se la
+   comian: con la cabecera apilada encima vuelve a verse. */
 .right-brand {
+  position: relative;
+  z-index: 1;
   text-align: center;
   padding: 24px 20px 16px;
   flex-shrink: 0;

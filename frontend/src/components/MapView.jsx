@@ -60,10 +60,34 @@ export default function MapView({ businesses, selected, center, onMarkerClick, o
       // OpenStreetMap oficial (gratis, sin API key). Se cambiaba del
       // estilo "hot" de tile.openstreetmap.fr porque ahi las teselas
       // salian rotas (naturalWidth 0) y el mapa se quedaba gris.
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      // Si OSM falla (429 por trafico, caida), se cambia a CARTO: lo
+      // que no puede pasar es dejar un rectangulo gris.
+      const fuentes = [
+        {
+          url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        },
+        {
+          url: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        },
+      ];
+      let fallos = 0;
+      let cambiada = false;
+      const capa = L.tileLayer(fuentes[0].url, {
+        attribution: fuentes[0].attribution,
         maxZoom: 19,
       }).addTo(mapInstance.current);
+      capa.on('tileerror', () => {
+        fallos += 1;
+        if (cambiada || fallos < 4) return;
+        cambiada = true;
+        mapInstance.current.removeLayer(capa);
+        L.tileLayer(fuentes[1].url, {
+          attribution: fuentes[1].attribution,
+          maxZoom: 19,
+        }).addTo(mapInstance.current);
+      });
 
       mapInstance.current.on('click', (e) => {
         if (onMapClick) {
@@ -71,6 +95,28 @@ export default function MapView({ businesses, selected, center, onMarkerClick, o
         }
       });
     }
+  }, []);
+
+  // Leaflet calcula la posicion de las teselas al crearse. Si el
+  // contenedor todavia no tiene su alto definitivo (la barra es flex:1
+  // y baja cuando aparece "Filtros" o al cambiar el tamano de la
+  // ventana), las teselas se quedan descolocadas y se ve gris. El
+  // ResizeObserver avisa de cada cambio y el invalidateSize las vuelve
+  // a colocar.
+  useEffect(() => {
+    const cont = mapRef.current;
+    const mapa = mapInstance.current;
+    if (!cont || !mapa || typeof ResizeObserver === 'undefined') return undefined;
+    let ultimo = { w: 0, h: 0 };
+    const ro = new ResizeObserver(() => {
+      const r = cont.getBoundingClientRect();
+      const ahora = { w: Math.round(r.width), h: Math.round(r.height) };
+      if (ahora.w === ultimo.w && ahora.h === ultimo.h) return;
+      ultimo = ahora;
+      mapa.invalidateSize();
+    });
+    ro.observe(cont);
+    return () => ro.disconnect();
   }, []);
 
   // Update markers
