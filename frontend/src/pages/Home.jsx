@@ -31,15 +31,7 @@ const THROTTLE_MS = 30000;
 const CLAVE_MUNICIPIO = 'buscandoando.municipio';
 
 // Grid: 3 cols x 4 rows = 12 cards per page; la paginacion aparece
-// cuando la pagina se llena (POR_PAGINA / paginateFeatured = 12).
-// Posiciones resaltadas (0-indexadas) repartidas en diagonal para que
-// no se agrupen en una esquina con la rejilla de 3 columnas.
-const POSITION_LEVEL_MAP = {
-  0: '1',  // Fila 1, col 1
-  4: '2',  // Fila 2, col 2
-  8: '3',  // Fila 3, col 3
-  10: '4', // Fila 4, col 2
-};
+// cuando la pagina se llena (POR_PAGINA = 12).
 
 const FILTROS_VACIOS = { text: '', category: '' };
 
@@ -206,28 +198,8 @@ function reducer(estado, accion) {
   }
 }
 
-function paginateFeatured(allFeatured) {
-  const pages = [];
-  for (let i = 0; i < allFeatured.length; i += 12) {
-    pages.push(allFeatured.slice(i, i + 12));
-  }
-  return pages.length > 0 ? pages : [[]];
-}
-
-function assignGrid(businesses) {
-  return businesses.map((biz, i) => ({
-    ...biz,
-    _highlighted: i in POSITION_LEVEL_MAP,
-    _level: POSITION_LEVEL_MAP[i] || null,
-    _position: i + 1,
-  }));
-}
-
 export default function Home() {
   const [estado, dispatch] = useReducer(reducer, ESTADO_INICIAL);
-  const [allFeatured, setAllFeatured] = useState([]);
-  const [featuredPages, setFeaturedPages] = useState([]);
-  const [featuredPage, setFeaturedPage] = useState(0);
   const [searchFeatured, setSearchFeatured] = useState([]);
   const [businesses, setBusinesses] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -405,59 +377,24 @@ export default function Home() {
   }, [fetchBusinesses, estado.haBuscado, estado.pagina]);
 
   // ------------------------------------------------------------------
-  // Portada (R4.1): destacados a 5 km del punto activo, su fallback de
-  // recientes TAMBIEN a 5 km, y sin punto activo -> solo overlay.
+  // Portada: ya no se piden destacados sin buscar (R4.1 retirado); los
+  // destacados solo salen de una busqueda (.search-featured-top). Lo
+  // que si se borra es lo que hubiera de una consulta anterior: sin
+  // punto activo no hay circulo de 5 km que mostrar.
   // ------------------------------------------------------------------
   useEffect(() => {
-    if (!estado.punto) {
-      setAllFeatured([]);
-      setFeaturedPages([[]]);
-      setFeaturedPage(0);
-      setBusinesses([]);
-      setSearchFeatured([]);
-      setTotalResults(0);
-      setTotalPages(1);
-      return undefined;
-    }
-    // Mientras se miran resultados la portada no se ve: no se gastan las
-    // 1-2 peticiones. Al volver (filtro vacio) el efecto se dispara otra
-    // vez y la refresca con el punto que haya entonces.
-    if (estado.haBuscado) return undefined;
-    let vivo = true;
-    const { lat, lng } = estado.punto;
-    api.get('/businesses/', {
-      params: { featured: 'true', lat, lng, radius: RADIO_KM, page_size: 50 },
-    })
-      .then(({ data }) => {
-        const destacados = data.results || [];
-        if (destacados.length > 0) return destacados;
-        return api.get('/businesses/', {
-          params: { lat, lng, radius: RADIO_KM, page_size: 15 },
-        }).then(({ data: recientes }) => recientes.results || []);
-      })
-      .then((resultados) => {
-        if (!vivo) return;
-        setAllFeatured(resultados);
-        setFeaturedPages(paginateFeatured(resultados));
-        setFeaturedPage(0);
-      })
-      .catch(() => {
-        if (!vivo) return;
-        setAllFeatured([]);
-        setFeaturedPages([[]]);
-      });
-    return () => { vivo = false; };
-  }, [estado.punto, estado.haBuscado]);
+    if (estado.punto) return undefined;
+    setBusinesses([]);
+    setSearchFeatured([]);
+    setTotalResults(0);
+    setTotalPages(1);
+    return undefined;
+  }, [estado.punto]);
 
   const handleSearch = (parcial) => dispatch({ type: 'buscar', parcial });
 
   const handlePageChange = (newPage) => {
     dispatch({ type: 'pagina', n: newPage });
-    document.querySelector('.right-panel')?.scrollTo(0, 0);
-  };
-
-  const handleFeaturedPageChange = (newPage) => {
-    setFeaturedPage(newPage);
     document.querySelector('.right-panel')?.scrollTo(0, 0);
   };
 
@@ -502,13 +439,9 @@ export default function Home() {
     ? 'Elige tu municipio o activa tu ubicación para empezar'
     : null;
 
-  // Current page of featured businesses for bento grid
-  const currentFeatured = featuredPages[featuredPage] || [];
-  const displayedGrid = assignGrid(currentFeatured);
-  const featuredTotalPages = featuredPages.length;
-
-  // Map shows current page featured + search results
-  const mapBusinesses = estado.haBuscado ? businesses : currentFeatured;
+  // El mapa de la barra: los resultados cuando hay busqueda; en la
+  // portada no hay marcadores (los destacados ya no se piden sin buscar).
+  const mapBusinesses = estado.haBuscado ? businesses : [];
 
   // Identidad estable: si no, el mapa se recentra en cada render y no se
   // puede arrastrar. Recentra SOLO cuando cambia el punto (R2.1).
@@ -529,33 +462,32 @@ export default function Home() {
 
   return (
     <div className="home-layout">
+      {/* Cabecera a todo el ancho del viewport: debajo van la barra
+          izquierda (20-25% del ancho) y la rejilla de resultados. */}
+      <div className={`right-brand ${estado.haBuscado ? 'right-brand--compact' : ''}`}>
+        <h1 className="right-brand-title" onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>Buscando<span className="right-brand-accent">Ando</span></h1>
+      </div>
+
       <div className="left-panel">
         <div className="sidebar-top">
           <button className="contact-link" onClick={() => setShowContact(true)}>Contactanos</button>
         </div>
         <SearchBar {...searchProps} />
+        {/* El mapa esta SIEMPRE, debajo del selector de municipio: se
+            centra en el municipio elegido o, si no lo hay, en lo que
+            haya captado el GPS. Sin punto aun -> vista del pais. */}
         <div className="sidebar-map">
-          <MapOverlay
-            visible={!estado.haBuscado || sinPunto}
-            hint={avisoSinPunto}
+          <MapView
+            businesses={mapBusinesses}
+            selected={selected}
+            center={centroMapa}
+            onMarkerClick={(biz) => setModalBiz(biz)}
+            onMapClick={elegirPuntoDelMapa}
           />
-          {estado.haBuscado && !sinPunto ? (
-            <MapView
-              businesses={mapBusinesses}
-              selected={selected}
-              center={centroMapa}
-              onMarkerClick={(biz) => setModalBiz(biz)}
-              onMapClick={elegirPuntoDelMapa}
-            />
-          ) : null}
         </div>
       </div>
 
       <div className="right-panel">
-        <div className={`right-brand ${estado.haBuscado ? 'right-brand--compact' : ''}`}>
-          <h1 className="right-brand-title" onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>Buscando<span className="right-brand-accent">Ando</span></h1>
-        </div>
-
         {/* Mobile search bar */}
         <div className="mobile-search">
           <SearchBar {...searchProps} />
@@ -610,46 +542,11 @@ export default function Home() {
             </div>
           </>
         ) : (
-          <>
-            {/* Mobile overlay - shows when not searched */}
-            <div className="mobile-overlay-wrapper">
-              <MapOverlay visible hint={avisoSinPunto} />
-            </div>
-            <div className="right-bento-grid">
-              {sinPunto ? (
-                // R4.1 condicion 3: sin punto activo, solo overlay.
-                // "5 km desde un punto inventado" no significa nada.
-                <div className="sin-resultados">
-                  <MapOverlay visible hint={avisoSinPunto} />
-                </div>
-              ) : (
-                <>
-                  {displayedGrid.map((biz) => (
-                    <BusinessCard
-                      key={biz.id || biz.slug}
-                      business={biz}
-                      highlighted={biz._highlighted}
-                      level={biz._level}
-                      onClick={() => setModalBiz(biz)}
-                      onReport={() => setCorrectionBiz(biz)}
-                    />
-                  ))}
-                  {displayedGrid.length === 0 && (
-                    <div className="no-results">
-                      <p>No hay negocios destacados.</p>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-            {!sinPunto && featuredTotalPages > 1 && (
-              <div className="pagination">
-                <button className="pagination-btn" disabled={featuredPage <= 0} onClick={() => handleFeaturedPageChange(featuredPage - 1)}>Anterior</button>
-                <span className="pagination-info">{featuredPage + 1} / {featuredTotalPages}</span>
-                <button className="pagination-btn" disabled={featuredPage >= featuredTotalPages - 1} onClick={() => handleFeaturedPageChange(featuredPage + 1)}>Siguiente</button>
-              </div>
-            )}
-          </>
+          // Portada: el overlay ocupa el hueco de la rejilla, a la
+          // derecha, hasta que se hace la primera busqueda.
+          <div className="right-portada">
+            <MapOverlay visible hint={avisoSinPunto} />
+          </div>
         )}
       </div>
 
