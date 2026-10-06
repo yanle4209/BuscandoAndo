@@ -7,7 +7,10 @@
 {% block title %}{{ title }}{% if title %} | {% endif %}BuscandoAndo Admin{% endblock %}
 
 {% block branding %}
-<div id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:"BuscandoAndo" }}</a></div>
+{# Logotipo partido para poder pintar cada palabra: "Buscando" en marron,
+   "Ando" en amarillo con filete marron. El sufijo replica el site_header
+   de config/admin.py. #}
+<div id="site-name"><a href="{% url 'admin:index' %}"><span class="site-brand-main">Buscando</span><span class="site-brand-accent">Ando</span><span class="site-brand-suffix"> - Panel de Administracion</span></a></div>
 {% endblock %}
 
 {% block extrahead %}
