@@ -44,7 +44,8 @@
   display: inline-block;
   font-size: 12px;
   color: var(--ink-soft);
-  background: rgba(31, 26, 26, 0.07);
+  background: var(--surface);
+  border: 1px solid var(--border);
   padding: 3px 10px;
   border-radius: 4px;
   margin-right: 8px;
