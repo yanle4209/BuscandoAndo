@@ -9,7 +9,7 @@
   max-width: 550px;
   overflow-y: auto;
   padding: 24px 30px;
-  background: var(--dark);
+  background: var(--surface);
   border-right: 2px solid var(--yellow);
 }
 
@@ -21,7 +21,7 @@
 .detail-back {
   display: inline-block;
   font-size: 13px;
-  color: var(--yellow);
+  color: var(--brown);
   text-decoration: none;
   margin-bottom: 16px;
   font-weight: 600;
@@ -29,14 +29,13 @@
 
 .detail-back:hover {
   text-decoration: underline;
-  color: var(--white);
+  color: var(--ink);
 }
 
 .detail-name {
   font-size: 26px;
   font-weight: 800;
-  color: var(--yellow);
-  text-shadow: 0 0 10px rgba(179, 179, 52, 0.3);
+  color: var(--brown);
   margin-bottom: 10px;
   letter-spacing: 0.5px;
 }
@@ -44,7 +43,7 @@
 .detail-category {
   display: inline-block;
   font-size: 12px;
-  color: var(--grey);
+  color: var(--ink-soft);
   background: rgba(136, 137, 138, 0.15);
   padding: 3px 10px;
   border-radius: 4px;
@@ -64,17 +63,17 @@
 .detail-status--abierto,
 .detail-status--abierto---horario {
   background: rgba(34, 197, 94, 0.15);
-  color: #22c55e;
+  color: #15803d;
 }
 
 .detail-status--cerrado {
   background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
+  color: #b91c1c;
 }
 
 .detail-status--por-horario {
-  background: rgba(179, 179, 52, 0.15);
-  color: var(--yellow);
+  background: rgba(179, 179, 52, 0.18);
+  color: var(--yellow-ink);
 }
 
 .detail-badge {
@@ -82,7 +81,7 @@
   font-size: 12px;
   font-weight: 700;
   background: var(--yellow);
-  color: var(--dark);
+  color: var(--ink);
   padding: 3px 10px;
   border-radius: 4px;
   margin-left: 8px;
@@ -90,7 +89,7 @@
 
 .detail-desc {
   font-size: 14px;
-  color: var(--white);
+  color: var(--ink);
   line-height: 1.6;
   margin: 16px 0;
 }
@@ -99,15 +98,14 @@
 .detail-section {
   margin-top: 20px;
   padding-top: 16px;
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--border);
 }
 
 .detail-section h2 {
   font-size: 15px;
   font-weight: 700;
-  color: var(--yellow);
+  color: var(--ink);
   margin-bottom: 10px;
-  text-shadow: 0 0 6px rgba(179, 179, 52, 0.2);
 }
 
 .detail-postal {
@@ -131,16 +129,17 @@
 }
 
 .detail-contact-row a {
-  color: var(--white);
+  color: var(--ink);
   text-decoration: none;
 }
 
 .detail-contact-row a:hover {
-  color: var(--yellow);
+  color: var(--brown);
+  text-decoration: underline;
 }
 
 .detail-contact-row--wa a {
-  color: #25d366;
+  color: #16a34a;
 }
 
 /* Hours */
@@ -158,23 +157,23 @@
 }
 
 .detail-hours-day {
-  color: var(--white);
+  color: var(--ink);
   font-weight: 600;
 }
 
 .detail-hours-time {
-  color: var(--yellow);
+  color: var(--yellow-ink);
 }
 
 .detail-hours-closed {
-  color: #ef4444;
+  color: #b91c1c;
   font-style: italic;
 }
 
 /* Loading / Error */
 .detail-loading {
   text-align: center;
-  color: var(--yellow);
+  color: var(--yellow-ink);
   font-size: 16px;
   padding-top: 100px;
 }
@@ -185,7 +184,7 @@
 }
 
 .detail-error p {
-  color: var(--white);
+  color: var(--ink);
   font-size: 16px;
   margin-bottom: 12px;
 }
@@ -195,7 +194,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  background: var(--dark-card);
-  color: var(--grey);
+  background: var(--surface-2);
+  color: var(--ink-soft);
   font-size: 14px;
 }

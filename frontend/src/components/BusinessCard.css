@@ -1,11 +1,11 @@
 .biz-card {
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
   padding: 12px 14px;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
   overflow: visible;
@@ -14,7 +14,7 @@
 
 .biz-card:hover {
   border-color: var(--yellow);
-  box-shadow: 0 4px 16px rgba(179, 179, 52, 0.15);
+  box-shadow: var(--shadow-lift);
   transform: translateY(-2px);
 }
 
@@ -28,8 +28,9 @@
 
 /* ===== LEVEL STYLES ===== */
 .biz-card--level-1 {
-  border: 2px solid #ffffff;
+  border: 1px solid var(--border-strong);
   background: linear-gradient(135deg, #ffffff 0%, #fafde8 50%, #f5f8c8 100%);
+  box-shadow: var(--shadow-lift);
   transform: scale(1.03);
   z-index: 2;
 }
@@ -38,7 +39,7 @@
 }
 
 .biz-card--level-2 {
-  border: 2px solid #ffffff;
+  border: 1px solid var(--border-strong);
   background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 50%, #ececec 100%);
   transform: scale(1.02);
   z-index: 1;
@@ -48,7 +49,7 @@
 }
 
 .biz-card--level-3 {
-  border: 2px solid #ffffff;
+  border: 1px solid var(--border-strong);
   background: linear-gradient(135deg, #ffffff 0%, #fdf5ee 50%, #f8e8d5 100%);
   transform: scale(1.01);
 }
@@ -57,7 +58,7 @@
 }
 
 .biz-card--level-4 {
-  border: 2px solid #ffffff;
+  border: 1px solid var(--border-strong);
   background: linear-gradient(135deg, #ffffff 0%, #faf8f5 50%, #f2ede6 100%);
 }
 .biz-card--level-4:hover {
@@ -102,7 +103,7 @@
 }
 
 .biz-card__level {
-  color: #fff;
+  color: var(--ink);
   font-size: 10px;
   font-weight: 700;
   padding: 2px 8px;
@@ -163,7 +164,7 @@
 }
 
 .biz-card__row a:hover {
-  color: var(--yellow);
+  color: var(--yellow-ink);
 }
 
 .biz-card__row--whatsapp svg {
@@ -219,8 +220,8 @@
    justify-content: space-between. */
 .biz-card__fix {
   background: transparent;
-  border: 1px solid #ddd;
-  color: #888;
+  border: 1px solid var(--border-strong);
+  color: var(--ink-soft);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;

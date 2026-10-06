@@ -4,15 +4,15 @@
   width: 100%;
 }
 
-/* ===== LEFT PANEL: Dark sidebar ===== */
+/* ===== LEFT PANEL: sidebar clara ===== */
 .left-panel {
   width: 35%;
   min-width: 380px;
   max-width: 500px;
   display: flex;
   flex-direction: column;
-  background: var(--dark);
-  border-right: none;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
   overflow: hidden;
 }
 
@@ -22,29 +22,32 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  border-bottom: 1px solid #2a2a2a;
-  background: var(--dark);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .sidebar-brand-title {
   font-size: 24px;
   font-weight: 900;
-  color: var(--yellow);
+  color: var(--ink);
   letter-spacing: 1px;
-  text-shadow: 0 0 10px rgba(179, 179, 52, 0.3);
   margin: 0;
 }
 
-.sidebar-brand-accent {
-  color: var(--white);
+/* El acento no se pinta de amarillo: sobre blanco no se lee. Lleva el
+   amarillo por detras, como un subrayado de rotulador. */
+.sidebar-brand-accent,
+.right-brand-accent {
+  color: var(--ink);
+  background: linear-gradient(transparent 62%, rgba(179, 179, 52, 0.55) 62%);
 }
 
 .contact-link {
   background: transparent;
   border: 1px solid var(--yellow);
-  color: var(--yellow);
+  color: var(--yellow-ink);
   padding: 6px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -54,7 +57,7 @@
 
 .contact-link:hover {
   background: var(--yellow);
-  color: var(--dark);
+  color: var(--ink);
 }
 
 /* ===== MAP IN SIDEBAR ===== */
@@ -62,14 +65,14 @@
   width: 100%;
   flex: 1;
   min-height: 250px;
-  border-top: 1px solid #2a2a2a;
+  border-top: 1px solid var(--border);
   position: relative;
 }
 
 /* ===== RIGHT PANEL ===== */
 .right-panel {
   flex: 1;
-  background: var(--dark);
+  background: var(--bg);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -80,7 +83,8 @@
   text-align: center;
   padding: 24px 20px 16px;
   flex-shrink: 0;
-  background: var(--dark);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 
 .right-brand--compact {
@@ -94,30 +98,25 @@
 .right-brand-title {
   font-size: 42px;
   font-weight: 800;
-  color: var(--yellow);
+  color: var(--ink);
   letter-spacing: 2px;
-  text-shadow: 0 0 15px rgba(179, 179, 52, 0.2);
   margin: 0;
   line-height: 1;
   transition: font-size 0.3s;
 }
 
-.right-brand-accent {
-  color: #ffffff;
-}
-
 /* Section header */
 .right-section-header {
   padding: 16px 24px 12px;
-  border-bottom: 1px solid #2a2a2a;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  background: var(--dark);
+  background: var(--bg);
 }
 
 .right-section-header h2 {
   font-size: 17px;
   font-weight: 700;
-  color: #aaa;
+  color: var(--ink-soft);
   margin: 0;
 }
 
@@ -135,11 +134,11 @@
 }
 
 .right-results-list::-webkit-scrollbar-track {
-  background: #1a1a1a;
+  background: transparent;
 }
 
 .right-results-list::-webkit-scrollbar-thumb {
-  background: #444;
+  background: #c9c9c4;
   border-radius: 3px;
 }
 
@@ -152,19 +151,19 @@
   grid-column: 1 / -1;
   text-align: center;
   padding: 60px 20px;
-  color: #666;
+  color: var(--ink-soft);
 }
 
 .no-results p:first-child {
   font-size: 18px;
-  color: #ccc;
+  color: var(--ink);
   margin-bottom: 8px;
   font-weight: 700;
 }
 
 .no-results-hint {
   font-size: 14px;
-  color: #888;
+  color: var(--ink-soft);
 }
 
 /* Overlay de "sin resultados": sustituye a "No se encontraron negocios"
@@ -174,7 +173,7 @@
   position: relative;
   grid-column: 1 / -1;
   min-height: 420px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
@@ -191,8 +190,8 @@
   grid-template-rows: repeat(3, minmax(350px, auto));
   gap: 12px;
   overflow-y: auto;
-  background: #252525;
-  border-radius: 8px;
+  background: transparent;
+  border-radius: var(--radius-sm);
   margin: 0 12px 12px 0;
 }
 
@@ -201,11 +200,11 @@
 }
 
 .right-bento-grid::-webkit-scrollbar-track {
-  background: #1a1a1a;
+  background: transparent;
 }
 
 .right-bento-grid::-webkit-scrollbar-thumb {
-  background: #444;
+  background: #c9c9c4;
   border-radius: 3px;
 }
 
@@ -215,7 +214,7 @@
 
 /* ===== LOADING ===== */
 .loading-text {
-  color: var(--yellow);
+  color: var(--yellow-ink);
   font-weight: 600;
 }
 
@@ -247,13 +246,13 @@
 .modal-contact-title {
   font-size: 22px;
   font-weight: 800;
-  color: var(--dark);
+  color: var(--ink);
   margin: 0 0 8px;
 }
 
 .modal-contact-desc {
   font-size: 14px;
-  color: #666;
+  color: var(--ink-soft);
   margin: 0 0 24px;
   line-height: 1.5;
 }
@@ -273,18 +272,18 @@
 }
 
 .modal-contact-info svg {
-  color: var(--yellow);
+  color: var(--yellow-ink);
   flex-shrink: 0;
 }
 
 .modal-contact-info a {
-  color: var(--dark);
+  color: var(--ink);
   text-decoration: none;
   font-weight: 600;
 }
 
 .modal-contact-info a:hover {
-  color: var(--yellow);
+  color: var(--brown);
 }
 
 /* ===== SEARCH RESULTS SCROLL ===== */
@@ -299,11 +298,11 @@
 }
 
 .right-results-scroll::-webkit-scrollbar-track {
-  background: #1a1a1a;
+  background: transparent;
 }
 
 .right-results-scroll::-webkit-scrollbar-thumb {
-  background: #444;
+  background: #c9c9c4;
   border-radius: 3px;
 }
 
@@ -340,17 +339,17 @@
   justify-content: center;
   gap: 16px;
   padding: 20px 0 10px;
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--border);
   margin-top: 20px;
-  background: var(--dark);
+  background: transparent;
 }
 
 .pagination-btn {
-  background: var(--dark);
-  color: #ddd;
-  border: 1px solid #444;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border-strong);
   padding: 8px 22px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
@@ -359,17 +358,17 @@
 
 .pagination-btn:hover:not(:disabled) {
   background: var(--yellow);
-  color: var(--dark);
+  color: var(--ink);
   border-color: var(--yellow);
 }
 
 .pagination-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .pagination-info {
-  color: #aaa;
+  color: var(--ink-soft);
   font-size: 14px;
   font-weight: 700;
 }
@@ -396,7 +395,7 @@
 
   .right-panel {
     width: 100%;
-    background: var(--dark);
+    background: var(--bg);
   }
 
   .right-brand {
@@ -446,7 +445,7 @@
     position: relative;
     width: 100%;
     min-height: 500px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     margin: 0 12px 12px 0;
     overflow: hidden;
   }

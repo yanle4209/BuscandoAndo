@@ -9,9 +9,9 @@
 .search-input-wrapper {
   display: flex;
   align-items: center;
-  background: var(--dark-card);
-  border: 2px solid #444;
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   transition: border-color 0.3s, box-shadow 0.3s;
   animation: searchGlow 2s ease-in-out;
@@ -19,15 +19,15 @@
 
 .search-input-wrapper:focus-within {
   border-color: var(--yellow);
-  box-shadow: 0 0 12px rgba(179, 179, 52, 0.25);
+  box-shadow: 0 0 0 3px rgba(179, 179, 52, 0.22);
 }
 
 @keyframes searchGlow {
-  0% { box-shadow: 0 0 0 rgba(179, 179, 52, 0); border-color: #444; }
-  30% { box-shadow: 0 0 20px rgba(179, 179, 52, 0.5); border-color: var(--yellow); }
-  60% { box-shadow: 0 0 8px rgba(179, 179, 52, 0.2); border-color: #666; }
-  80% { box-shadow: 0 0 16px rgba(179, 179, 52, 0.4); border-color: var(--yellow); }
-  100% { box-shadow: 0 0 0 rgba(179, 179, 52, 0); border-color: #444; }
+  0% { box-shadow: 0 0 0 rgba(179, 179, 52, 0); border-color: var(--border-strong); }
+  30% { box-shadow: 0 0 16px rgba(179, 179, 52, 0.45); border-color: var(--yellow); }
+  60% { box-shadow: 0 0 6px rgba(179, 179, 52, 0.2); border-color: var(--border-strong); }
+  80% { box-shadow: 0 0 12px rgba(179, 179, 52, 0.35); border-color: var(--yellow); }
+  100% { box-shadow: 0 0 0 rgba(179, 179, 52, 0); border-color: var(--border-strong); }
 }
 
 .search-icon {
@@ -43,19 +43,19 @@
   background: transparent;
   border: none;
   outline: none;
-  color: var(--white);
+  color: var(--ink);
   font-size: 14px;
   padding: 10px 12px;
   font-family: var(--font);
 }
 
 .search-input::placeholder {
-  color: #666;
+  color: #6b6c6e;
 }
 
 .search-btn {
   background: var(--yellow);
-  color: var(--dark);
+  color: var(--ink);
   border: none;
   padding: 10px 20px;
   font-weight: 700;
@@ -82,10 +82,10 @@
   align-items: center;
   gap: 5px;
   background: transparent;
-  border: 1px solid #444;
-  color: var(--grey);
+  border: 1px solid var(--border-strong);
+  color: var(--ink-soft);
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -96,7 +96,7 @@
 .filter-toggle:hover,
 .geo-btn:hover {
   border-color: var(--yellow);
-  color: var(--yellow);
+  color: var(--yellow-ink);
 }
 
 .filters-panel {
@@ -104,9 +104,9 @@
   gap: 12px;
   margin-top: 10px;
   padding: 12px;
-  background: var(--dark-card);
-  border: 1px solid #333;
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
 }
 
 .filter-group {
@@ -118,7 +118,7 @@
 
 .filter-group label {
   font-size: 11px;
-  color: var(--grey);
+  color: var(--ink-soft);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 600;
@@ -126,11 +126,11 @@
 
 .filter-group select,
 .filter-group input[type="text"] {
-  background: var(--dark);
-  border: 1px solid #444;
-  color: var(--white);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--ink);
   padding: 6px 8px;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 13px;
   font-family: var(--font);
 }
@@ -139,6 +139,7 @@
 .filter-group input[type="text"]:focus {
   border-color: var(--yellow);
   outline: none;
+  box-shadow: 0 0 0 3px rgba(179, 179, 52, 0.18);
 }
 
 /* El selector de municipio va FUERA del panel de filtros: sin GPS, elegir

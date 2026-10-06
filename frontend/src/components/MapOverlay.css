@@ -5,7 +5,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at center, rgba(26,26,26,0.92) 0%, rgba(26,26,26,0.97) 100%);
+  /* Velo claro, no oscuro: el resto de la interfaz ya es blanca y este
+     velo tapa el mapa de fondo igual que antes. */
+  background: radial-gradient(ellipse at center, rgba(243, 243, 243, 0.94) 0%, rgba(243, 243, 243, 0.99) 100%);
   pointer-events: none;
 }
 
@@ -57,19 +59,21 @@
 .map-overlay__title {
   font-size: 28px;
   font-weight: 900;
-  color: var(--yellow);
+  color: var(--ink);
   letter-spacing: 2px;
   margin: 0;
-  text-shadow: 0 0 20px rgba(179, 179, 52, 0.4);
 }
+/* El acento no se pinta de amarillo: sobre blanco no se lee. Lleva el
+   amarillo por detras, como un subrayado de rotulador. */
 .map-overlay__title span {
-  color: #ffffff;
+  color: var(--ink);
+  background: linear-gradient(transparent 62%, rgba(179, 179, 52, 0.55) 62%);
 }
 
 /* Rotating message */
 .map-overlay__message {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--ink-soft);
   margin: 16px 0 12px;
   min-height: 20px;
   transition: opacity 0.4s ease;
@@ -84,7 +88,7 @@
   margin: 14px 0 0;
   font-size: 13px;
   font-weight: 700;
-  color: var(--yellow);
+  color: var(--yellow-ink);
   letter-spacing: 0.4px;
 }
 
@@ -98,7 +102,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(26, 26, 26, 0.22);
   transition: all 0.3s ease;
 }
 .map-overlay__dot--active {
