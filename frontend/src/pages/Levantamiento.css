@@ -1,12 +1,12 @@
 /* Herramienta de levantamiento — ruta interna /levantamiento.
-   Oscura a proposito: no es el sitio publico ni el admin, pero lo que
-   mas importa aqui es que se lea bien en la calle, con una sola columna
-   y botones gordos para el telefono. */
+   Acabado bento: fondo White Smoke, tarjetas blancas con borde fino y
+   sombra minima. Lo que mas importa aqui es que se lea bien en la calle,
+   con una sola columna y botones gordos para el telefono. */
 
 .lev-page {
   min-height: 100%;
-  background: var(--dark);
-  color: var(--white);
+  background: var(--bg);
+  color: var(--ink);
   padding: 20px 16px 56px;
   display: flex;
   flex-direction: column;
@@ -36,11 +36,11 @@
 .lev-acceso-texto {
   font-size: 14px;
   line-height: 1.55;
-  color: var(--grey);
+  color: var(--ink-soft);
   margin-bottom: 18px;
 }
 
-.lev-acceso-texto strong { color: var(--white); }
+.lev-acceso-texto strong { color: var(--ink); }
 
 .lev-acceso-form {
   display: flex;
@@ -52,7 +52,7 @@
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
-  color: #f6a5a5;
+  color: #b91c1c;
 }
 
 /* Quien esta firmando en la pantalla de trabajo. */
@@ -66,7 +66,7 @@
 
 .lev-firma-municipio {
   font-size: 14px;
-  color: #c9c9c9;
+  color: var(--ink-soft);
 }
 
 .lev-firma-token {
@@ -94,30 +94,30 @@
 .lev-top-title {
   font-size: 26px;
   font-weight: 700;
-  color: var(--yellow);
+  color: var(--brown);
 }
 
 .lev-top-volver {
   font-size: 13px;
-  color: var(--grey);
+  color: var(--ink-soft);
   white-space: nowrap;
 }
 
 .lev-top-volver:hover {
-  color: var(--yellow);
+  color: var(--yellow-ink);
 }
 
 .lev-intro {
   font-size: 14px;
   line-height: 1.6;
-  color: #c9c9c9;
+  color: var(--ink-soft);
   border-left: 3px solid var(--yellow);
   padding-left: 12px;
   margin: 16px 0 22px;
 }
 
 .lev-intro strong {
-  color: var(--white);
+  color: var(--ink);
 }
 
 /* --------------------------------- cards --------------------------- */
@@ -131,12 +131,13 @@
    El grid NO vive aqui a proposito: esta en el @media (min-width: 960px)
    de mas abajo, con su propia seccion. Debajo de ese ancho la tarjeta se
    queda en la pila del flex (.lev-form), entre «Tu firma» y «Dónde
-   está», que es el orden en el que siempre se leyó. */
+   está», que es el orden en el al que siempre se leyó. */
 
 .lev-card {
-  background: #252525;
-  border: 1px solid #333;
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
   padding: 18px;
 }
 
@@ -144,7 +145,7 @@
   font-size: 13px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--yellow);
+  color: var(--yellow-ink);
   margin-bottom: 14px;
 }
 
@@ -159,12 +160,12 @@
 
 .lev-field label {
   font-size: 13px;
-  color: var(--white);
+  color: var(--ink);
 }
 
 .lev-field small {
   font-size: 12px;
-  color: var(--grey);
+  color: var(--ink-soft);
   line-height: 1.4;
 }
 
@@ -174,10 +175,10 @@
 .lev-horario-fila input,
 .lev-horario-fila select {
   width: 100%;
-  background: #1a1a1a;
-  border: 1px solid #3a3a3a;
-  border-radius: 6px;
-  color: var(--white);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  color: var(--ink);
   font-family: var(--font);
   font-size: 15px;
   padding: 11px 12px;
@@ -238,9 +239,9 @@
   align-items: center;
   gap: 7px;
   background: var(--yellow);
-  color: var(--dark);
+  color: var(--ink);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-family: var(--font);
   font-size: 14px;
   font-weight: 600;
@@ -255,9 +256,9 @@
 
 .lev-btn-ghost {
   background: transparent;
-  color: var(--yellow);
-  border: 1px solid #4a4a4a;
-  border-radius: 6px;
+  color: var(--yellow-ink);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   font-family: var(--font);
   font-size: 13px;
   padding: 8px 12px;
@@ -271,7 +272,7 @@
 
 .lev-aviso {
   font-size: 13px;
-  color: var(--grey);
+  color: var(--ink-soft);
   margin-bottom: 12px;
 }
 
@@ -287,12 +288,12 @@
 .lev-field .lev-elegir-nota {
   font-size: 12px;
   line-height: 1.5;
-  color: var(--yellow-light);
+  color: var(--yellow-ink);
 }
 
-/* Resaltado de lo que falta. Amarillo sobre oscuro: es el unico color que
-   aqui no significa "roto" ni "apagado", y el que ya usan los chips del
-   reporte — el ojo tiene que reconocer lo mismo en las dos partes. */
+/* Resaltado de lo que falta. Sigue siendo el mismo amarillo de los chips
+   del reporte — el ojo tiene que reconocer lo mismo en las dos partes —
+   pero aquí es un tinte de fondo, no un texto. */
 .lev-falta-marca {
   margin-left: 7px;
   font-size: 10px;
@@ -300,21 +301,21 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   background: var(--yellow);
-  color: var(--dark);
+  color: var(--ink);
   border-radius: 4px;
   padding: 1px 6px;
   vertical-align: 1px;
 }
 
 .lev-field--falta label {
-  color: var(--yellow-light);
+  color: var(--yellow-ink);
 }
 
 .lev-field--falta input,
 .lev-field--falta select,
 .lev-field--falta textarea {
   border-color: var(--yellow);
-  background: rgba(179, 179, 52, 0.07);
+  background: rgba(179, 179, 52, 0.12);
 }
 
 /* Lo que sin esto no se publica: mas enfasis, pero con las MISMAS formas
@@ -322,12 +323,27 @@
 .lev-field--trio input,
 .lev-field--trio select,
 .lev-field--trio textarea {
-  box-shadow: inset 0 0 0 1px rgba(179, 179, 52, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(179, 179, 52, 0.75);
+}
+
+/* Latitud y longitud no van dentro de .lev-field, asi que no cogian el
+   estilo comun del formulario: aqui se le pone para que midan lo mismo
+   que Calle y Sector en vez de quedar a ancho de contenido. */
+.lev-coordenadas input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 15px;
+  padding: 11px 12px;
 }
 
 .lev-coordenadas--falta input {
   border-color: var(--yellow);
-  background: rgba(179, 179, 52, 0.07);
+  background: rgba(179, 179, 52, 0.12);
 }
 
 .lev-horario--falta {
@@ -335,12 +351,12 @@
 }
 
 .lev-horario--falta .lev-horario-head h3 {
-  color: var(--yellow-light);
+  color: var(--yellow-ink);
 }
 
 /* -------------------------------- horario -------------------------- */
 .lev-horario {
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--border);
   padding-top: 14px;
   margin-bottom: 14px;
 }
@@ -356,7 +372,7 @@
 .lev-horario-head h3 {
   font-size: 13px;
   font-weight: 600;
-  color: var(--white);
+  color: var(--ink);
 }
 
 .lev-horario-fila {
@@ -388,9 +404,9 @@
 /* Copiar el horario de otro dia: el mismo boton del admin, aqui. */
 .lev-horario-copiar {
   background: transparent;
-  border: 1px solid var(--grey);
-  border-radius: 6px;
-  color: var(--white);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
   padding: 5px 7px;
   font-size: 14px;
   line-height: 1;
@@ -404,7 +420,7 @@
 .lev-copiar-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.45);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -413,18 +429,19 @@
 }
 
 .lev-copiar-popup {
-  background: var(--dark);
+  background: var(--surface);
   border: 2px solid var(--yellow);
-  border-radius: 10px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lift);
   padding: 20px;
   width: 100%;
   max-width: 320px;
-  color: var(--white);
+  color: var(--ink);
 }
 
 .lev-copiar-popup h3 {
   margin: 0 0 12px;
-  color: var(--yellow);
+  color: var(--yellow-ink);
   font-size: 16px;
 }
 
@@ -434,23 +451,23 @@
   text-align: left;
   padding: 10px 14px;
   margin-bottom: 6px;
-  background: #2a2a2a;
-  color: var(--white);
-  border: 1px solid #555;
-  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
 }
 
 .lev-copiar-popup > button:hover {
   border-color: var(--yellow);
-  background: #333;
+  background: #f4f4e6;
 }
 
 .lev-copiar-popup > .lev-copiar-cancelar {
   text-align: center;
   background: transparent;
-  color: var(--grey);
+  color: var(--ink-soft);
   margin-top: 12px;
   margin-bottom: 0;
   font-size: 13px;
@@ -460,7 +477,7 @@
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--grey);
+  color: var(--ink-soft);
 }
 
 .lev-desplegar {
@@ -471,9 +488,9 @@
 /* -------------------------------- enviar --------------------------- */
 .lev-enviar {
   background: var(--yellow);
-  color: var(--dark);
+  color: var(--ink);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-family: var(--font);
   font-size: 16px;
   font-weight: 700;
@@ -486,24 +503,25 @@
 }
 
 .lev-enviar:disabled {
-  background: #3a3a3a;
+  background: var(--border);
   color: var(--grey);
   cursor: not-allowed;
 }
 
 .lev-falta {
   font-size: 13px;
-  color: var(--grey);
+  color: var(--ink-soft);
   text-align: center;
 }
 
 /* ------------------------------- resultado ------------------------- */
 .lev-resultado {
   margin-top: 20px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 16px 18px;
-  border: 1px solid #333;
-  background: #252525;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .lev-resultado h2 {
@@ -514,19 +532,19 @@
 .lev-resultado p {
   font-size: 14px;
   line-height: 1.6;
-  color: #d0d0d0;
+  color: var(--ink-soft);
 }
 
 .lev-resultado strong {
-  color: var(--white);
+  color: var(--ink);
 }
 
 .lev-resultado.lev-ok h2 {
-  color: #7ee2a8;
+  color: #15803d;
 }
 
 .lev-resultado.lev-malo h2 {
-  color: #f6a5a5;
+  color: #b91c1c;
 }
 
 /* El cierre del aviso: dice que la lista de arriba ya esta al dia, que
@@ -534,32 +552,32 @@
 .lev-resultado p.lev-resultado-nota {
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px dashed #3a3a3a;
-  color: #a9a9a9;
+  border-top: 1px dashed var(--border-strong);
+  color: var(--ink-soft);
 }
 
 .lev-lista {
   margin: 4px 0 8px 18px;
   font-size: 14px;
   line-height: 1.7;
-  color: #f0c9c9;
+  color: #b91c1c;
 }
 
 /* ----------------------------- el reporte -------------------------- */
 .lev-resumen {
   font-size: 14px;
   line-height: 1.6;
-  color: #c9c9c9;
+  color: var(--ink-soft);
   margin-bottom: 12px;
 }
 
 .lev-resumen strong {
-  color: var(--white);
+  color: var(--ink);
 }
 
 .lev-detalle {
   margin-top: 16px;
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--border);
   padding-top: 14px;
 }
 
@@ -567,7 +585,7 @@
   font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--grey);
+  color: var(--ink-soft);
   margin: 14px 0 8px;
 }
 
@@ -583,21 +601,21 @@
   align-items: center;
   gap: 7px;
   font-size: 13px;
-  background: #1a1a1a;
-  border: 1px solid #3a3a3a;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   border-radius: 999px;
   padding: 5px 11px;
-  color: #d0d0d0;
+  color: var(--ink-soft);
 }
 
 .lev-por-campo li.es-trio {
   border-color: var(--yellow);
-  color: var(--white);
+  color: var(--ink);
 }
 
 .lev-por-campo-n {
   font-weight: 700;
-  color: var(--yellow);
+  color: var(--yellow-ink);
 }
 
 .lev-trio-marca {
@@ -605,7 +623,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   background: var(--yellow);
-  color: var(--dark);
+  color: var(--ink);
   border-radius: 4px;
   padding: 1px 5px;
 }
@@ -618,10 +636,10 @@
 }
 
 .lev-fichas li {
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-left: 3px solid #333;
-  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: 10px;
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
@@ -634,7 +652,7 @@
 .lev-ficha-nombre {
   font-size: 14px;
   font-weight: 600;
-  color: var(--white);
+  color: var(--ink);
 }
 
 .lev-ficha-estado {
@@ -648,17 +666,17 @@
 
 .lev-ficha-estado.publicado {
   background: rgba(34, 197, 94, 0.16);
-  color: #7ee2a8;
+  color: #15803d;
 }
 
 .lev-ficha-estado.en-revision {
-  background: rgba(179, 179, 52, 0.16);
-  color: var(--yellow-light);
+  background: rgba(179, 179, 52, 0.18);
+  color: var(--yellow-ink);
 }
 
 .lev-ficha-falta {
   font-size: 13px;
-  color: var(--grey);
+  color: var(--ink-soft);
 }
 
 /* -------------------- filas: la confirmacion ------------------------
@@ -670,39 +688,39 @@
    anillo   = la ficha abierta en el formulario.
    Nada se mueve de sitio al completarse: solo cambia de color. */
 .lev-fichas li.lev-ficha--bloquea {
-  border-left-color: #f6a5a5;
+  border-left-color: #dc2626;
   background: rgba(239, 68, 68, 0.1);
 }
 
-.lev-fichas li.lev-ficha--bloquea .lev-ficha-falta { color: #f6a5a5; }
+.lev-fichas li.lev-ficha--bloquea .lev-ficha-falta { color: #b91c1c; }
 
 .lev-fichas li.lev-ficha--curso {
   border-left-color: var(--yellow);
-  background: rgba(179, 179, 52, 0.09);
+  background: rgba(179, 179, 52, 0.14);
 }
 
-.lev-fichas li.lev-ficha--curso .lev-ficha-falta { color: var(--yellow-light); }
+.lev-fichas li.lev-ficha--curso .lev-ficha-falta { color: var(--yellow-ink); }
 
 .lev-fichas li.lev-ficha--hecha {
-  border-left-color: #7ee2a8;
+  border-left-color: #16a34a;
   background: rgba(34, 197, 94, 0.13);
 }
 
 .lev-fichas li.lev-ficha--hecha .lev-ficha-nombre,
 .lev-fichas li.lev-ficha--hecha .lev-ficha-falta {
-  color: #7ee2a8;
+  color: #15803d;
 }
 
 .lev-fichas li.lev-ficha--hecha .lev-ficha-falta { font-weight: 600; }
 
 .lev-fichas li.lev-ficha--activa {
-  border-left-color: var(--yellow-light);
-  box-shadow: 0 0 0 2px rgba(212, 212, 96, 0.32);
+  border-left-color: var(--yellow);
+  box-shadow: 0 0 0 2px rgba(179, 179, 52, 0.45);
 }
 
 .lev-ficha-estado.hecha {
   background: rgba(34, 179, 94, 0.16);
-  color: #7ee2a8;
+  color: #15803d;
 }
 
 /* ===================== el reporte al lado ===========================
@@ -717,7 +735,7 @@
   max-height: 52vh;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: #4a4a4a transparent;
+  scrollbar-color: #c9c9c4 transparent;
 }
 
 /* ------------------------ barra de avance -------------------------- */
@@ -731,8 +749,8 @@
 .lev-avance-barra {
   display: block;
   height: 9px;
-  background: #141414;
-  border: 1px solid #333;
+  background: var(--border);
+  border: none;
   border-radius: 999px;
   overflow: hidden;
 }
@@ -746,11 +764,11 @@
 
 .lev-avance-texto {
   font-size: 13px;
-  color: var(--grey);
+  color: var(--ink-soft);
 }
 
 .lev-avance-texto.es-listo {
-  color: #7ee2a8;
+  color: #15803d;
   font-weight: 600;
 }
 
@@ -760,14 +778,14 @@
    la misma especificidad gana el ultimo, y un pendiente resuelto deja
    de ser «bloquea». */
 .lev-por-campo li.es-hecho {
-  background: rgba(34, 197, 94, 0.08);
+  background: rgba(34, 197, 94, 0.1);
   border-color: rgba(34, 197, 94, 0.5);
-  color: #7ee2a8;
+  color: #15803d;
   text-decoration: line-through;
 }
 
 .lev-por-campo li.es-hecho .lev-por-campo-n {
-  color: #7ee2a8;
+  color: #15803d;
 }
 
 /* ------------------- filas: la confirmacion ------------------------ */
@@ -827,7 +845,7 @@
     max-height: min(calc(100vh - 32px), 640px);
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: #4a4a4a transparent;
+    scrollbar-color: #c9c9c4 transparent;
   }
 
   /* La tarjeta ya se scrollea sola: la lista interior no necesita su
