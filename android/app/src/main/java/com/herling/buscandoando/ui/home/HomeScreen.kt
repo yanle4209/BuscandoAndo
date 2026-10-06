@@ -99,7 +99,6 @@ import com.herling.buscandoando.ui.theme.BrandBrown
 import com.herling.buscandoando.ui.theme.DarkCard
 import com.herling.buscandoando.ui.theme.DarkSurface
 import com.herling.buscandoando.ui.theme.DividerDark
-import com.herling.buscandoando.ui.theme.FeaturedBorder
 import com.herling.buscandoando.ui.theme.Gold
 import com.herling.buscandoando.ui.theme.GoldInk
 import com.herling.buscandoando.ui.theme.GreyOlive
@@ -812,9 +811,9 @@ private fun FeaturedCard(business: Business, onClick: () -> Unit) {
             .heightIn(min = 100.dp)
             .clip(shape)
             .background(DarkCard)
-            // Sin escalonado por nivel: borde fino para todas y filete
-            // amarillo solo en las destacadas, igual que la web.
-            .border(1.dp, if (featured) FeaturedBorder else DividerDark, shape)
+            // Sin escalonado por nivel y sin filete amarillo: el mismo borde
+            // fino para todas, igual que la web.
+            .border(1.dp, DividerDark, shape)
             .clickable(onClick = onClick)
             .padding(9.dp),
     ) {
@@ -877,7 +876,7 @@ private fun BusinessCard(
 ) {
     // Destacado: is_featured (o un tier valido heredado) -> pastilla
     // "Destacado". SIN escalonado por nivel: todas las tarjetas miden
-    // lo mismo y solo cambia el filete de las destacadas.
+    // lo mismo: mismo borde fino para todas, sin filete amarillo.
     val featured = business.is_featured == true ||
         FeaturedTier.levelOf(business.featured_tier) != null
     val shape = RoundedCornerShape(10.dp)
@@ -890,7 +889,7 @@ private fun BusinessCard(
             .heightIn(min = 152.dp)
             .clip(shape)
             .background(DarkCard)
-            .border(1.dp, if (featured) FeaturedBorder else DividerDark, shape)
+            .border(1.dp, DividerDark, shape)
             .clickable(onClick = onClick),
     ) {
         CardCover(business = business, featured = featured)
