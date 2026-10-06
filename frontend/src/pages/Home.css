@@ -2,7 +2,7 @@
    fila 1; debajo (fila 2) van la barra izquierda y la rejilla. */
 .home-layout {
   display: grid;
-  grid-template-columns: max(25%, 220px) minmax(0, 1fr);
+  grid-template-columns: max(28%, 220px) minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   height: 100vh;
   width: 100%;
