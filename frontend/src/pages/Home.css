@@ -34,16 +34,13 @@
   margin: 0;
 }
 
-/* Logotipo: "Buscando" en marron y "Ando" en amarillo canario. El
-   amarillo es el color de la marca pero casi no contrasta con el crema,
-   asi que "Ando" lleva un filete marron (el mismo de "Buscando"): se
-   lee sin salirse de la paleta. Los logotipos estan exentos de la
-   norma de contraste de WCAG, pero aun asi no queda borroso. */
+/* Logotipo: "Buscando" en marron y "Ando" en amarillo canario, plano
+   (sin filete ni subrayado). El amarillo casi no contrasta con el
+   blanco, pero es marca: WCAG exime a los logotipos de la norma de
+   contraste (1.4.3). */
 .sidebar-brand-accent,
 .right-brand-accent {
   color: var(--yellow);
-  -webkit-text-stroke: 1.2px var(--brown);
-  paint-order: stroke fill;
   background: none;
 }
 
