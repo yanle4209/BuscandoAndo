@@ -7,7 +7,7 @@
      (object-fit: cover).
    - La bento de la portada usa la MISMA portada que los resultados.
      (antes iba sin foto, con banda amarilla y sin carrusel).
-   - PIE: banda crema (#fffdf7) con filete amarillo.
+   - PIE: banda crema (#fffdf7), sin filete amarillo.
    - Hover sin aro amarillo: elevacion suave estilo Colorlib Card V14.
    - Sin escalonado por nivel: todas las tarjetas se elevan un
      poco al pasar el cursor; las destacadas, un poco mas.
@@ -250,7 +250,7 @@
   }
 }
 
-/* ===== PIE: banda crema #fffdf7 con filete amarillo arriba ===== */
+/* ===== PIE: banda crema #fffdf7, sin filete amarillo arriba ===== */
 .biz-card__footer {
   display: flex;
   align-items: center;
@@ -258,7 +258,6 @@
   margin: auto -14px -12px;
   padding: 9px 14px;
   background: #fffdf7;
-  border-top: 1px solid var(--yellow);
   border-radius: 0 0 11px 11px;
 }
 
@@ -280,11 +279,14 @@
 .biz-card__status--por-horario { background: #c2410c; border-color: #c2410c; color: #ffffff; }
 .biz-card__status--default { background: #ffffff; border-color: rgba(31, 26, 26, 0.25); color: #544f47; }
 
-/* ===== BOTON "CORREGIR" ===== */
+/* ===== BOTON "CORREGIR" =====
+   Relleno #e6e2da (tono pedido) sobre el pie crema: con el fondo claro
+   el texto pasa a marron, porque el dorado no llega a 4.5:1 sobre ese
+   fondo (si seguia blanco no se leia nada). */
 .biz-card__fix {
-  background: transparent;
+  background: #e6e2da;
   border: 1px solid var(--yellow);
-  color: var(--yellow-ink);
+  color: var(--brown);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
