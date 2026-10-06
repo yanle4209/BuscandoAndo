@@ -939,6 +939,29 @@ class ReportePendientesTests(TestCase):
 
         self.assertNotIn('colaborador', datos[0])
 
+    def test_con_sesion_de_admin_abierta_el_token_sigue_mandando(self):
+        """La sesion vive en el MISMO navegador que el token. Si alguien
+        tiene el admin logueado y pega un token, tiene que ver SU
+        municipio —no el primero de la lista entera, que era Azua."""
+        self.loguear_admin()
+
+        datos = self.con_token(self.colaborador('Moca')).json()
+
+        self.assertEqual([f['municipio'] for f in datos], ['Moca'])
+        self.assertEqual(datos[0]['colaborador'], 'Pedro')
+
+    def test_un_token_invalido_da_401_aunque_haya_sesion_de_admin(self):
+        """Quien trae un token que no vale no es quien no trae nada: se
+        le avisa, aunque tenga la sesion del admin delante."""
+        self.loguear_admin()
+
+        response = self.client.get(
+            PENDIENTES_URL,
+            headers={'X-Colaborador-Token': 'esto-no-es-un-token'},
+        )
+
+        self.assertEqual(response.status_code, 401)
+
     def test_el_colaborador_puede_leer_su_municipio(self):
         """Y sin distinguir mayusculas: el nombre del token lo teclea el
         admin a su manera y el del reporte viene de texto libre."""
