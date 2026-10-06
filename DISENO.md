@@ -501,6 +501,15 @@ POST público validado  +  token que firma el envío
    municipio. Ahí se arregla y se publica a mano lo que no llegó a
    cumplir el trío.
 
+**Cómo se ve en el admin.** En **Colaboradores**, la columna
+**«Correcciones»** cuenta los `Envio` de cada uno —total con su
+desglose: publicados · pendientes · rechazados · duplicados— y el número
+es un enlace a la bandeja de auditoría ya filtrada por esa persona. En
+la barra lateral, **dos filtros de fecha**: **alta** (¿quién es nuevo?)
+y **último envío** (¿quién acaba de trabajar?, con «Sin fecha» para ver
+a los que no han tocado nada). El total solo no basta: no distingue a
+quien le publican todo de a quien le estan rechazando todo.
+
 **Y lo que NO es:** no hay endpoint de lectura para el colaborador, ni
 permiso que le deje consultar el admin. Si mañana hace falta ver cosas,
 eso es otro canal y otra decisión.
