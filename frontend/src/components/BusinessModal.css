@@ -192,7 +192,7 @@
 .modal-status--abierto { background: rgba(135, 179, 50, 0.18); color: #1a512d; }
 .modal-status--cerrado { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
 .modal-status--por-horario { background: rgba(159, 109, 30, 0.14); color: #7f471a; }
-.modal-status--default { background: #f3f3e6; color: #6f6a5e; }
+.modal-status--default { background: #f3f3e6; color: #66615a; }
 
 /* Description */
 .modal-desc {

@@ -16,7 +16,7 @@
     --white: #eeeed5 !important;
     --white-pure: #ffffff !important;
     --brown: #7f471a !important;        /* Chocolate Plum: marcas y enlaces */
-    --grey: #6f6a5e !important;         /* Grey Olive: metadatos */
+    --grey: #66615a !important;         /* Grey Olive: metadatos */
     --ink: #1f1a1a !important;
     --ink-soft: #5b564d !important;
     --border: #e2e1c9 !important;
@@ -30,7 +30,7 @@
 
     --body-fg: #1f1a1a !important;
     --body-bg: #eeeed5 !important;
-    --body-quiet-color: #6f6a5e !important;
+    --body-quiet-color: #66615a !important;
     --body-medium-color: #5b564d !important;
     --body-loud-color: #1f1a1a !important;
 
@@ -39,7 +39,7 @@
     --header-bg: #ffffff !important;
     --header-link-color: #5b564d !important;
 
-    --breadcrumbs-fg: #6f6a5e !important;
+    --breadcrumbs-fg: #66615a !important;
     --breadcrumbs-link-fg: #7f471a !important;
     --breadcrumbs-bg: #ffffff !important;
 
@@ -96,7 +96,7 @@ body {
 
 p { color: var(--ink-soft) !important; }
 label { color: var(--ink) !important; }
-.help, .help-block { color: #6f6a5e !important; }
+.help, .help-block { color: #66615a !important; }
 
 /* ===== TITULOS ===== */
 h1 { font-size: 22px !important; font-weight: 800 !important; color: var(--ink) !important; }
@@ -248,6 +248,14 @@ a.addlink, a.addlink:visited { color: var(--yellow-ink) !important; }
 a.changelink, a.changelink:visited { color: var(--brown) !important; }
 a.addlink:hover, a.changelink:hover { color: var(--ink) !important; }
 
+/* El enlace de borrar va en rojo con texto blanco: sin esto, la regla
+   de arriba le pinta el marron de enlace sobre el fondo rojo. */
+a.deletelink, a.deletelink:visited {
+    color: #ffffff !important;
+    background: var(--delete-button-bg) !important;
+}
+a.deletelink:hover { color: #ffffff !important; background: var(--delete-button-hover-bg) !important; }
+
 /* ===== TABLA ===== */
 #result_list {
     border: none !important;
@@ -397,7 +405,7 @@ a.boton-corregir:hover {
 
 /* ===== FORM ELEMENTS ===== */
 .form-row label { color: var(--ink) !important; font-weight: 600 !important; }
-.form-row .help { color: #6f6a5e !important; font-style: italic; }
+.form-row .help { color: #66615a !important; font-style: italic; }
 
 select, input[type="text"], input[type="email"], input[type="url"],
 input[type="password"], input[type="number"], textarea,
@@ -443,23 +451,32 @@ input[type="checkbox"] { accent-color: var(--yellow); }
     box-shadow: 0 0 0 3px rgba(179, 179, 52, 0.2);
 }
 
-/* ===== PAGINATION ===== */
-.pagination { border-top: 1px solid var(--border) !important; }
+/* ===== PAGINATION =====
+   Django marca las paginas con .paginator (no .pagination): el enlace de
+   otra pagina va en superficie blanca y la actual, en amarillo con tinta. */
+.pagination,
+.paginator { border-top: 1px solid var(--border) !important; }
 
-.pagination a {
+.pagination a,
+.paginator a:link,
+.paginator a:visited {
+    background: var(--white-pure) !important;
     color: var(--ink) !important;
     border: 1px solid var(--border-strong) !important;
     border-radius: 6px;
     padding: 4px 10px;
+    font-weight: 600;
     transition: all 0.2s !important;
 }
 
-.pagination a:hover {
+.pagination a:hover,
+.paginator a:hover {
     background: var(--yellow) !important;
     color: var(--dark) !important;
 }
 
-.pagination .this-page {
+.pagination .this-page,
+.paginator .this-page {
     background: var(--yellow) !important;
     color: var(--dark) !important;
     border-radius: 6px;
@@ -516,7 +533,7 @@ input[type="checkbox"] { accent-color: var(--yellow); }
 
 /* ===== FOOTER ===== */
 #footer {
-    color: #6f6a5e !important;
+    color: #66615a !important;
     background: transparent !important;
     border-top: 1px solid var(--border) !important;
 }

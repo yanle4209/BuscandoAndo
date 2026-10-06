@@ -504,7 +504,7 @@
 
 .lev-enviar:disabled {
   background: var(--border);
-  color: var(--grey);
+  color: var(--ink-soft);
   cursor: not-allowed;
 }
 
