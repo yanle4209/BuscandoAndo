@@ -30,14 +30,15 @@ const THROTTLE_MS = 30000;
 // para cuando no hay GPS (R3.6). El destino no se reanuda.
 const CLAVE_MUNICIPIO = 'buscandoando.municipio';
 
-// Grid: 4 cols x 3 rows = 12 cards per page
-// Positions 0, 3, 5, 9 (0-indexed) are highlighted with yellow shadow
-// Level mapping: Pos 1=Nivel 1, Pos 4=Nivel 2, Pos 6=Nivel 3, Pos 10=Nivel 4
+// Grid: 3 cols x 4 rows = 12 cards per page; la paginacion aparece
+// cuando la pagina se llena (POR_PAGINA / paginateFeatured = 12).
+// Posiciones resaltadas (0-indexadas) repartidas en diagonal para que
+// no se agrupen en una esquina con la rejilla de 3 columnas.
 const POSITION_LEVEL_MAP = {
-  0: '1',  // Pos 1 → Nivel 1
-  3: '2',  // Pos 4 → Nivel 2
-  5: '3',  // Pos 6 → Nivel 3
-  9: '4',  // Pos 10 → Nivel 4
+  0: '1',  // Fila 1, col 1
+  4: '2',  // Fila 2, col 2
+  8: '3',  // Fila 3, col 3
+  10: '4', // Fila 4, col 2
 };
 
 const FILTROS_VACIOS = { text: '', category: '' };

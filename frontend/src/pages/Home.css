@@ -118,11 +118,11 @@
   margin: 0;
 }
 
-/* Results grid: 4 tarjetas por fila (paginas de 12 = 3 filas) */
+/* Results grid: 3 tarjetas por fila (paginas de 12 = 4 filas) */
 .right-results-list {
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 14px;
   align-content: start;
 }
@@ -175,7 +175,7 @@
   overflow: hidden;
 }
 
-/* ===== BENTO GRID: 4 cols x 3 rows ===== */
+/* ===== BENTO GRID: 3 cols x 4 rows = 12 = pagina llena ===== */
 .mobile-overlay-wrapper {
   display: none;
 }
@@ -184,8 +184,8 @@
   flex: 1;
   padding: 16px;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(3, minmax(350px, auto));
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, minmax(350px, auto));
   gap: 12px;
   overflow-y: auto;
   background: transparent;
@@ -316,10 +316,11 @@
   margin-bottom: 20px;
 }
 
-/* 3 featured cards at top of search */
+/* 3 featured cards at top of search: alineadas con las 3 columnas del
+   grid de resultados que hay debajo */
 .search-featured-top {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 14px;
   margin-bottom: 20px;
 }
