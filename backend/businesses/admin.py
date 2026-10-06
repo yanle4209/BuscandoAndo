@@ -500,8 +500,17 @@ class ColaboradorAdmin(admin.ModelAdmin):
 
     form = ColaboradorForm
     list_display = ['nombre', 'token_corto', 'municipio', 'activo',
-                    'ultimo_envio', 'creado_el']
-    list_filter = ['activo', 'municipio']
+                    'correcciones', 'ultimo_envio', 'creado_el']
+    # Dos fechas porque son dos preguntas distintas: cuando se dio de
+    # alta (quien es nuevo) y cuando trabajo por ultima vez (quien esta
+    # parado). La segunda es opcional, y Django le añade ademas «Sin
+    # fecha» para ver a los que no han tocado nada.
+    list_filter = [
+        'activo',
+        'municipio',
+        ('creado_el', admin.DateFieldListFilter),
+        ('ultimo_envio', admin.DateFieldListFilter),
+    ]
     search_fields = ['nombre', 'municipio']
     # El token se genera en `save()` y no se teclea: se muestra aqui para
     # poder copiarlo y entregarselo, pero no se puede escribir.
@@ -534,6 +543,59 @@ class ColaboradorAdmin(admin.ModelAdmin):
         return (obj.token[:10] + '…') if obj.token else '-'
     token_corto.short_description = 'Token'
     token_corto.admin_order_field = 'token'
+
+    def get_queryset(self, request):
+        """Los contadores, EN la consulta.
+
+        Un ``count()`` por fila seria un paginado lento por relleno en
+        cuanto haya envios, y el listado es lo primero que se abre.
+        Los cinco van juntos y con ``filter=`` (clausula FILTER, no un
+        cruce por fila), asi que no multiplican las filas.
+        """
+        return (
+            super().get_queryset(request)
+            .annotate(
+                n_envios=models.Count('envios'),
+                n_publicados=models.Count(
+                    'envios', filter=models.Q(envios__estado='publicado'),
+                ),
+                n_pendientes=models.Count(
+                    'envios', filter=models.Q(envios__estado='pendiente'),
+                ),
+                n_rechazados=models.Count(
+                    'envios', filter=models.Q(envios__estado='rechazado'),
+                ),
+                n_duplicados=models.Count(
+                    'envios', filter=models.Q(envios__estado='duplicado'),
+                ),
+            )
+        )
+
+    def correcciones(self, obj):
+        """Las correcciones que YA hizo: sus envios firmados.
+
+        El numero es un enlace a la bandeja de auditoria ya filtrada por
+        ESTE colaborador, y el rotulo lleva el desglose: el total solo
+        no distingue a quien le publican todo de a quien le estan
+        rechazando todo.
+        """
+        url = reverse('admin:businesses_envio_changelist') + (
+            '?colaborador__id__exact=%d' % obj.pk
+        )
+        if not obj.n_envios:
+            return format_html('<a href="{}">—</a>', url)
+        return format_html(
+            '<a href="{}" title="{}"><strong>{}</strong></a>',
+            url,
+            'Publicados: %d · Pendientes: %d · Rechazados: %d · '
+            'Duplicados: %d' % (
+                obj.n_publicados, obj.n_pendientes,
+                obj.n_rechazados, obj.n_duplicados,
+            ),
+            obj.n_envios,
+        )
+    correcciones.short_description = 'Correcciones'
+    correcciones.admin_order_field = 'n_envios'
 
     def bloquear(self, request, queryset):
         """§11.5: bloquear a UN colaborador sin cerrar a los demas."""

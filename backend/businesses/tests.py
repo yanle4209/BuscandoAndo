@@ -16,6 +16,7 @@ import json
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -2435,6 +2436,114 @@ class ColaboradorFormTests(TestCase):
                         html.index('value="Baní"'))
         # Y lo que no pertenece a ningun grupo, fuera de los grupos.
         self.assertIn('— sin municipio —', html)
+
+
+@override_settings(STORAGES=STATIC_SIN_MANIFEST)
+class ColaboradorConteosTests(TestCase):
+    """El listado de Colaboradores cuenta lo que ha hecho cada uno.
+
+    Sin eso solo se ve quien ES, no quien TRABAJA: para repartir un
+    municipio o para pillar a quien le estan rechazando todo hace falta
+    saber cuantas correcciones ha mandado y cuando.
+    """
+
+    URL = '/admin/businesses/colaborador/'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = get_user_model().objects.create_superuser(
+            'admin', 'admin@example.com', 'x')
+        cls.pedro = Colaborador.objects.create(
+            nombre='Pedro', municipio='Moca')
+        cls.maria = Colaborador.objects.create(
+            nombre='Maria', municipio='Moca')
+
+    def envios(self, colaborador, estados):
+        for estado in estados:
+            Envio.objects.create(colaborador=colaborador, estado=estado)
+
+    def test_el_conteo_cuenta_lo_que_mando_y_enlaza_a_su_bandeja(self):
+        """Y con el desglose: el total solo no distingue a quien le
+        publican todo de a quien le rechazan todo."""
+        self.envios(self.pedro, ['publicado', 'publicado', 'rechazado'])
+        self.client.force_login(self.admin)
+
+        html = self.client.get(self.URL).content.decode()
+
+        self.assertIn(
+            'title="Publicados: 2 · Pendientes: 0 · Rechazados: 1 · '
+            'Duplicados: 0"',
+            html,
+        )
+        # El conteo es un enlace a la auditoria ya filtrada por el.
+        self.assertIn(
+            '/admin/businesses/envio/?colaborador__id__exact=%d'
+            % self.pedro.pk,
+            html,
+        )
+
+    def test_al_que_no_ha_mandado_nada_le_sale_la_raya(self):
+        self.client.force_login(self.admin)
+
+        html = self.client.get(self.URL).content.decode()
+
+        self.assertIn(
+            '<a href="/admin/businesses/envio/?colaborador__id__exact=%d">'
+            '—</a>' % self.maria.pk,
+            html,
+        )
+
+    def test_el_conteo_se_puede_ordenar(self):
+        self.envios(self.pedro, ['publicado', 'rechazado'])
+        self.client.force_login(self.admin)
+
+        # El indice de la columna no es fijo: la casilla de seleccion
+        # se cuela la primera, asi que se le pregunta al listado.
+        indice = self.client.get(self.URL).context['cl'].list_display.index(
+            'correcciones')
+
+        response = self.client.get(self.URL + '?o=-%d' % indice)
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertLess(html.index('>Pedro<'), html.index('>Maria<'))
+
+    def test_el_filtro_por_fecha_de_alta_restringe_el_listado(self):
+        """Quien no existia en esa fecha no aparece: es la pregunta
+        «¿quién es nuevo?»."""
+        Colaborador.objects.filter(pk=self.maria.pk).update(
+            creado_el=timezone.now() - datetime.timedelta(days=400),
+        )
+        self.client.force_login(self.admin)
+
+        # Con hora y zona horaria, como arma sus enlaces el propio
+        # admin: en una fecha plana Django interpreta la medianoche como
+        # hora local naive y avisa con un RuntimeWarning.
+        desde = urlencode({
+            'creado_el__gte': timezone.now() - datetime.timedelta(days=1),
+        })
+        html = self.client.get(self.URL + '?' + desde).content.decode()
+
+        self.assertIn('>Pedro<', html)
+        self.assertNotIn('>Maria<', html)
+
+    def test_el_filtro_por_fecha_del_ultimo_envio_restringe_tambien(self):
+        """La otra pregunta: ¿quién acaba de trabajar?"""
+        self.envios(self.pedro, ['publicado'])
+        Colaborador.objects.filter(pk=self.pedro.pk).update(
+            ultimo_envio=timezone.now())
+        Colaborador.objects.filter(pk=self.maria.pk).update(
+            ultimo_envio=timezone.now() - datetime.timedelta(days=400),
+        )
+        self.client.force_login(self.admin)
+
+        desde = urlencode({
+            'ultimo_envio__gte': timezone.now() - datetime.timedelta(days=1),
+        })
+        html = self.client.get(self.URL + '?' + desde).content.decode()
+
+        self.assertIn('>Pedro<', html)
+        self.assertNotIn('>Maria<', html)
 
 
 @override_settings(STORAGES=STATIC_SIN_MANIFEST)
