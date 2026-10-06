@@ -1,9 +1,9 @@
 /* ============================================================
    Tarjeta de negocio — BuscandoAndo
    ------------------------------------------------------------
-   - PORTADA (foto real o placeholder) arriba, ~33% de la altura:
+   - PORTADA (foto real o placeholder) arriba, ~50% de la altura:
      en TODAS las tarjetas (bento de la portada y resultados): la
-     portada tiene alto fijo y la imagen recorta a rellenar
+     portada ocupa media tarjeta y la imagen recorta a rellenar
      (object-fit: cover).
    - La bento de la portada usa la MISMA portada que los resultados.
      (antes iba sin foto, con banda amarilla y sin carrusel).
@@ -43,12 +43,13 @@
 }
 
 /* ===== PORTADA =====
-   Alto fijo = 33% de la tarjeta (340px -> 112px): ni la foto ni el
+   Alto = 50% de la tarjeta (340px -> 170px): ni la foto ni el
    carrusel cambian la altura del conjunto. A sangre, con las
    esquinas redondeadas como la tarjeta. */
 .biz-card__cover {
   position: relative;
-  height: 112px;
+  height: 50%;
+  min-height: 170px;
   flex-shrink: 0;
   margin: -12px -14px 8px;
   background: var(--brown);
@@ -423,10 +424,6 @@
   .biz-card__footer {
     margin: auto -16px -14px;
     padding: 9px 16px;
-  }
-
-  .biz-card__cover {
-    height: 130px;
   }
 
   .biz-card__desc {
