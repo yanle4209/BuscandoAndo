@@ -362,14 +362,14 @@ class BusinessAdmin(admin.ModelAdmin):
         for tier in ['1', '2', '3', '4']:
             if tier in stats:
                 s = stats[tier]
-                color = '#22c55e' if s['count'] < s['limit'] else '#ef4444'
+                color = '#1a512d' if s['count'] < s['limit'] else '#b91c1c'
                 lines.append(
                     f'<span style="color:{color};font-weight:bold">'
                     f'{s["label"]}: {s["count"]}/{s["limit"]} por categoria</span>'
                 )
         total = stats['total']
         lines.append(
-            f'<span style="color:#B3B334;font-weight:bold">'
+            f'<span style="color:#7f471a;font-weight:bold">'
             f'{total["label"]}: {total["count"]}</span>'
         )
 
@@ -378,25 +378,25 @@ class BusinessAdmin(admin.ModelAdmin):
             lines.append('<br><br>')
             if obj.featured_permanent:
                 lines.append(
-                    '<span style="color:#B3B334;font-weight:bold">'
+                    '<span style="color:#7f471a;font-weight:bold">'
                     'Tipo: PERMANENTE</span>'
                 )
             elif obj.featured_end_date:
                 remaining = obj.featured_days_remaining
                 if remaining is not None and remaining > 0:
                     lines.append(
-                        f'<span style="color:#22c55e;font-weight:bold">'
+                        f'<span style="color:#1a512d;font-weight:bold">'
                         f'Expira: {obj.featured_end_date.strftime("%d/%m/%Y")} '
                         f'({remaining} dias restantes)</span>'
                     )
                 else:
                     lines.append(
-                        '<span style="color:#ef4444;font-weight:bold">'
+                        '<span style="color:#b91c1c;font-weight:bold">'
                         'EXPIRADO</span>'
                     )
             if obj.featured_start_date:
                 lines.append(
-                    f'<br><span style="color:#888">'
+                    f'<br><span style="color:#66615a">'
                     f'Inicio: {obj.featured_start_date.strftime("%d/%m/%Y %H:%M")}</span>'
                 )
 
@@ -409,16 +409,16 @@ class BusinessAdmin(admin.ModelAdmin):
         if not obj.is_featured:
             return '-'
         if obj.featured_permanent:
-            return format_html('<span style="color:#B3B334;font-weight:bold">Permanente</span>')
+            return format_html('<span style="color:#7f471a;font-weight:bold">Permanente</span>')
         if obj.featured_end_date:
             remaining = obj.featured_days_remaining
             if remaining is not None and remaining > 0:
                 return format_html(
-                    '<span style="color:#22c55e">{} dias</span>',
+                    '<span style="color:#1a512d">{} dias</span>',
                     remaining
                 )
             else:
-                return format_html('<span style="color:#ef4444">Expirado</span>')
+                return format_html('<span style="color:#b91c1c">Expirado</span>')
         return '-'
     get_featured_duration.short_description = 'Duracion'
     get_featured_duration.allow_tags = True
