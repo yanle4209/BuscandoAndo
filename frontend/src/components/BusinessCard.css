@@ -280,12 +280,14 @@
 .biz-card__status--default { background: #ffffff; border-color: rgba(31, 26, 26, 0.25); color: #544f47; }
 
 /* ===== BOTON "CORREGIR" =====
-   Relleno #e6e2da (tono pedido) sobre el pie crema: con el fondo claro
-   el texto pasa a marron, porque el dorado no llega a 4.5:1 sobre ese
-   fondo (si seguia blanco no se leia nada). */
+   Relleno #e6e2da (tono pedido) sobre el pie crema, SIN borde: es un
+   <button>, asi que hay que poner border: none (si solo se quita la
+   linea amarilla queda el borde por defecto del navegador).
+   Con el fondo claro el texto es marron, porque el dorado no llega
+   a 4.5:1 sobre ese fondo. */
 .biz-card__fix {
   background: #e6e2da;
-  border: 1px solid var(--yellow);
+  border: none;
   color: var(--brown);
   font-size: 11px;
   font-weight: 700;
@@ -300,7 +302,6 @@
 
 .biz-card__fix:hover {
   background: var(--yellow);
-  border-color: var(--yellow);
   color: var(--dark);
 }
 
