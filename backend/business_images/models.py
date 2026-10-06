@@ -2,6 +2,8 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from businesses.models import Business
 
+from .processing import process_image
+
 MAX_IMAGES_PER_BUSINESS = 5
 
 
@@ -36,6 +38,32 @@ class BusinessImage(models.Model):
 
     def __str__(self):
         return f"{self.business.name} - Imagen {self.order}"
+
+    def save(self, *args, **kwargs):
+        """Guarda la foto ya procesada: tamaño fijo + recorte + WebP.
+
+        Solo cuando entra un archivo NUEVO (todavía sin subir): una
+        imagen ya guardada que se re-guarda no se vuelve a procesar,
+        y un valor que solo es una URL (los scripts de carga) se queda
+        exactamente igual.
+        """
+        campo = self.image
+        if campo and not campo._committed and getattr(campo, '_file', None) is not None:
+            self.image = process_image(campo.file)
+        super().save(*args, **kwargs)
+
+    def formfield(self, **kwargs):
+        """Texto de ayuda en el admin.
+
+        Va por ``formfield`` y no por el campo: así no cambia la
+        definición del modelo y no hace falta migración.
+        """
+        kwargs.setdefault(
+            'help_text',
+            'Se recorta al tamaño fijo (1200x675) y se convierte a WebP '
+            'automáticamente. Hasta 5 fotos por negocio.',
+        )
+        return super().formfield(**kwargs)
 
     def clean(self):
         """Validar maximo 5 imagenes por negocio."""
