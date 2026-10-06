@@ -99,6 +99,28 @@
   color: var(--yellow-ink);
 }
 
+/* "Mi ubicacion" con relleno de marca, igual que "Buscar". Al
+   pulsarlo pasa a blanco: el lienzo tambien es blanco, asi que el
+   filete amarillo es lo que mantiene visible la forma del boton.
+   --ink sobre amarillo da 10,3:1. */
+.geo-btn {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: var(--ink);
+}
+
+.geo-btn:hover {
+  background: var(--yellow-light);
+  border-color: var(--yellow-light);
+  color: var(--ink);
+}
+
+.geo-btn:active {
+  background: var(--bg);
+  border-color: var(--yellow);
+  color: var(--ink);
+}
+
 .filters-panel {
   display: flex;
   gap: 12px;
