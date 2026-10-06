@@ -8,14 +8,14 @@
 
 /* ===== OVERRIDE VARIABLES DE DJANGO ADMIN ===== */
 :root {
-    --yellow: #B3B334 !important;
-    --yellow-light: #d7d796 !important;
-    --yellow-ink: #7f471a !important;   /* el amarillo, legible sobre claro */
+    --yellow: #FBBF24 !important;
+    --yellow-light: #FCD34D !important;
+    --yellow-ink: #8f6c14 !important;   /* el amarillo, legible sobre claro */
     --dark: #1f1a1a !important;         /* tinta, ya no es fondo */
     --dark-card: #ffffff !important;    /* superficie de tarjeta */
     --white: #eeeed5 !important;
     --white-pure: #ffffff !important;
-    --brown: #7f471a !important;        /* Chocolate Plum: marcas y enlaces */
+    --brown: #513e0c !important;        /* marron oscuro: superficies y marcas */
     --grey: #66615a !important;         /* Grey Olive: metadatos */
     --ink: #1f1a1a !important;
     --ink-soft: #5b564d !important;
@@ -23,9 +23,9 @@
     --border-strong: #d4d3b6 !important;
     --font: 'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 
-    --primary: #B3B334 !important;
+    --primary: #FBBF24 !important;
     --secondary: #1f1a1a !important;
-    --accent: #B3B334 !important;
+    --accent: #FBBF24 !important;
     --primary-fg: #1f1a1a !important;
 
     --body-fg: #1f1a1a !important;
@@ -35,15 +35,15 @@
     --body-loud-color: #1f1a1a !important;
 
     --header-color: #1f1a1a !important;
-    --header-branding-color: #7f471a !important;
+    --header-branding-color: #8f6c14 !important;
     --header-bg: #ffffff !important;
     --header-link-color: #5b564d !important;
 
     --breadcrumbs-fg: #66615a !important;
-    --breadcrumbs-link-fg: #7f471a !important;
+    --breadcrumbs-link-fg: #8f6c14 !important;
     --breadcrumbs-bg: #ffffff !important;
 
-    --link-fg: #7f471a !important;
+    --link-fg: #8f6c14 !important;
     --link-hover-color: #1f1a1a !important;
     --link-selected-fg: #1f1a1a !important;
 
@@ -53,26 +53,26 @@
     --error-fg: #b91c1c !important;
 
     --message-success-bg: rgba(135, 179, 50, 0.18) !important;
-    --message-warning-bg: rgba(179, 179, 52, 0.16) !important;
+    --message-warning-bg: rgba(251, 191, 36, 0.16) !important;
     --message-error-bg: rgba(220, 53, 69, 0.12) !important;
 
     --darkened-bg: #e7e7cf !important;
-    --selected-bg: rgba(179, 179, 52, 0.18) !important;
-    --selected-row: rgba(179, 179, 52, 0.16) !important;
+    --selected-bg: rgba(251, 191, 36, 0.18) !important;
+    --selected-row: rgba(251, 191, 36, 0.16) !important;
 
     --button-fg: #1f1a1a !important;
-    --button-bg: #B3B334 !important;
-    --button-hover-bg: #d7d796 !important;
-    --default-button-bg: #B3B334 !important;
-    --default-button-hover-bg: #d7d796 !important;
+    --button-bg: #FBBF24 !important;
+    --button-hover-bg: #FCD34D !important;
+    --default-button-bg: #FBBF24 !important;
+    --default-button-hover-bg: #FCD34D !important;
     --close-button-bg: #e2e1c9 !important;
     --close-button-hover-bg: #d4d3b6 !important;
     --delete-button-bg: #dc3545 !important;
     --delete-button-hover-bg: #a41515 !important;
 
-    --object-tools-fg: #7f471a !important;
+    --object-tools-fg: #8f6c14 !important;
     --object-tools-bg: #ffffff !important;
-    --object-tools-hover-bg: #B3B334 !important;
+    --object-tools-hover-bg: #FBBF24 !important;
 }
 
 /* ===== FUENTE BASE ===== */
@@ -172,7 +172,7 @@ div.breadcrumbs a:hover { color: var(--ink) !important; }
 }
 
 #nav-sidebar .current-model {
-    background: rgba(179, 179, 52, 0.18) !important;
+    background: rgba(251, 191, 36, 0.18) !important;
     color: var(--brown) !important;
     border-left: 3px solid var(--yellow) !important;
 }
@@ -283,11 +283,11 @@ a.deletelink:hover { color: #ffffff !important; background: var(--delete-button-
 }
 
 #result_list tr:hover td {
-    background: rgba(179, 179, 52, 0.07) !important;
+    background: rgba(251, 191, 36, 0.07) !important;
 }
 
 #result_list tr.selected td {
-    background: rgba(179, 179, 52, 0.16) !important;
+    background: rgba(251, 191, 36, 0.16) !important;
 }
 
 #result_list .action-select input[type="checkbox"] {
@@ -317,7 +317,7 @@ a.deletelink:hover { color: #ffffff !important; background: var(--delete-button-
 #changelist-filter ul li.selected a {
     color: var(--brown) !important;
     font-weight: bold;
-    background: rgba(179, 179, 52, 0.16) !important;
+    background: rgba(251, 191, 36, 0.16) !important;
     border-radius: 6px;
 }
 
@@ -430,7 +430,7 @@ textarea:focus, input[type="date"]:focus, input[type="time"]:focus,
 input[type="datetime-local"]:focus {
     border-color: var(--yellow) !important;
     outline: none;
-    box-shadow: 0 0 0 3px rgba(179, 179, 52, 0.2) !important;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.2) !important;
 }
 
 input[type="checkbox"] { accent-color: var(--yellow); }
@@ -454,7 +454,7 @@ input[type="checkbox"] { accent-color: var(--yellow); }
 
 #searchbar:focus {
     border-color: var(--yellow) !important;
-    box-shadow: 0 0 0 3px rgba(179, 179, 52, 0.2);
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.2);
 }
 
 /* ===== PAGINATION =====
@@ -508,7 +508,7 @@ input[type="checkbox"] { accent-color: var(--yellow); }
 }
 
 .messages .warning {
-    background: rgba(179, 179, 52, 0.16) !important;
+    background: rgba(251, 191, 36, 0.16) !important;
     border: 1px solid var(--yellow) !important;
     color: var(--yellow-ink) !important;
 }

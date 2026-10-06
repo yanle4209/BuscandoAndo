@@ -369,7 +369,7 @@ class BusinessAdmin(admin.ModelAdmin):
                 )
         total = stats['total']
         lines.append(
-            f'<span style="color:#7f471a;font-weight:bold">'
+            f'<span style="color:#8f6c14;font-weight:bold">'
             f'{total["label"]}: {total["count"]}</span>'
         )
 
@@ -378,7 +378,7 @@ class BusinessAdmin(admin.ModelAdmin):
             lines.append('<br><br>')
             if obj.featured_permanent:
                 lines.append(
-                    '<span style="color:#7f471a;font-weight:bold">'
+                    '<span style="color:#8f6c14;font-weight:bold">'
                     'Tipo: PERMANENTE</span>'
                 )
             elif obj.featured_end_date:
@@ -409,7 +409,7 @@ class BusinessAdmin(admin.ModelAdmin):
         if not obj.is_featured:
             return '-'
         if obj.featured_permanent:
-            return format_html('<span style="color:#7f471a;font-weight:bold">Permanente</span>')
+            return format_html('<span style="color:#8f6c14;font-weight:bold">Permanente</span>')
         if obj.featured_end_date:
             remaining = obj.featured_days_remaining
             if remaining is not None and remaining > 0:

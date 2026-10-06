@@ -1,13 +1,25 @@
 import ImageCarousel from './ImageCarousel';
 import './BusinessCard.css';
 
-export default function BusinessCard({ business, highlighted, level, onClick, onReport }) {
+/**
+ * Tarjeta de negocio.
+ *
+ * - `showCover` (solo rejilla de resultados): la portada ocupa el
+ *   33% superior de la tarjeta, con la foto (carrusel hasta 5) o, si
+ *   no hay foto, el placeholder de marca. El nombre va encima, sobre
+ *   un velo marron. La tarjeta no crece: la portada tiene alto fijo.
+ * - Bento (portada sin buscar): banda amarilla con el nombre, sin
+ *   portada ni carrusel.
+ * - Sin escalonado por nivel: `level` ya solo decide si se pinta la
+ *   pastilla "Destacado" y si el hover sube un poco mas.
+ */
+export default function BusinessCard({ business, highlighted, level, showCover = false, onClick, onReport }) {
   const loc = business.location || {};
   const contact = business.contact || {};
-  const hours = business.hours || [];
   const images = business.images || [];
   const phone = business.phone || contact.phone;
   const whatsapp = business.whatsapp || contact.whatsapp;
+  const category = business.category_name || '';
 
   const address = [
     business.street || loc.street,
@@ -15,23 +27,44 @@ export default function BusinessCard({ business, highlighted, level, onClick, on
     business.province || loc.province,
   ].filter(Boolean).join(', ');
 
+  const destacado = Boolean(business.is_featured || level);
   const hasImages = images.length > 0;
+
+  const titulo = <h3 className="biz-card__name">{business.name}</h3>;
+  const segundaLinea = (
+    <div className="biz-card__meta">
+      <span className="biz-card__siglas">{category}</span>
+      {destacado && <span className="biz-card__badge">Destacado</span>}
+    </div>
+  );
 
   return (
     <div
-      className={`biz-card ${highlighted ? 'biz-card--highlighted' : ''} ${level ? `biz-card--level-${level}` : ''}`}
+      className={`biz-card ${highlighted ? 'biz-card--highlighted' : ''}`}
       onClick={onClick}
     >
-      <div className="biz-card__header">
-        <h3 className="biz-card__name">{business.name}</h3>
-        <div className="biz-card__badges">
-          {level && <span className="biz-card__level">Nivel {level}</span>}
-          {business.is_featured && <span className="biz-card__badge">Destacado</span>}
+      {showCover ? (
+        <div className="biz-card__cover">
+          {hasImages ? (
+            <ImageCarousel images={images} cover autoplay={highlighted} />
+          ) : (
+            <div className="biz-card__cover-ph" role="img" aria-label="BuscandoAndo">
+              <span className="biz-card__cover-ph-brand">Buscando<b>Ando</b></span>
+            </div>
+          )}
+          <div className="biz-card__cover-veil" />
+          <div className="biz-card__cover-titles">
+            {titulo}
+            {segundaLinea}
+          </div>
         </div>
-      </div>
-
-      {business.category_name && (
-        <span className="biz-card__category">{business.category_name}</span>
+      ) : (
+        <div className="biz-card__header">
+          <div className="biz-card__titles">
+            {titulo}
+            {segundaLinea}
+          </div>
+        </div>
       )}
 
       {business.short_description && (
@@ -81,8 +114,6 @@ export default function BusinessCard({ business, highlighted, level, onClick, on
           <a href={`https://wa.me/${whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener" onClick={e => e.stopPropagation()}>WhatsApp</a>
         </div>
       )}
-
-      {hasImages && <ImageCarousel images={images} autoplay={highlighted} />}
 
       <div className="biz-card__footer">
         <span className={`biz-card__status biz-card__status--${business.effective_status || business.operational_status_slug || 'default'}`}>

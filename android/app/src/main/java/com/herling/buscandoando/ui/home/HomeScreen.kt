@@ -95,14 +95,13 @@ import com.herling.buscandoando.core.location.getCurrentCoordinates
 import com.herling.buscandoando.ui.iconForCategory
 import com.herling.buscandoando.ui.theme.CanaryYellow
 import com.herling.buscandoando.ui.theme.DarkBackground
+import com.herling.buscandoando.ui.theme.BrandBrown
 import com.herling.buscandoando.ui.theme.DarkCard
 import com.herling.buscandoando.ui.theme.DarkSurface
 import com.herling.buscandoando.ui.theme.DividerDark
+import com.herling.buscandoando.ui.theme.FeaturedBorder
+import com.herling.buscandoando.ui.theme.GoldInk
 import com.herling.buscandoando.ui.theme.GreyOlive
-import com.herling.buscandoando.ui.theme.Level1Gold
-import com.herling.buscandoando.ui.theme.Level2Silver
-import com.herling.buscandoando.ui.theme.Level3Bronze
-import com.herling.buscandoando.ui.theme.Level4Brown
 import com.herling.buscandoando.ui.theme.StatusBySchedule
 import com.herling.buscandoando.ui.theme.StatusClosed
 import com.herling.buscandoando.ui.theme.StatusOpen
@@ -110,7 +109,6 @@ import com.herling.buscandoando.ui.theme.TextMuted
 import com.herling.buscandoando.ui.theme.TextOnYellow
 import com.herling.buscandoando.ui.theme.TextPrimary
 import com.herling.buscandoando.ui.theme.TextSecondary
-import com.herling.buscandoando.ui.theme.WhiteSmoke
 import kotlinx.coroutines.launch
 
 /** Etiqueta para logcat (Fase 6: seguir el GPS desde Android Studio). */
@@ -803,7 +801,8 @@ private fun FeaturedRow(
  */
 @Composable
 private fun FeaturedCard(business: Business, onClick: () -> Unit) {
-    val level = FeaturedTier.levelOf(business.featured_tier)
+    val featured = business.is_featured == true ||
+        FeaturedTier.levelOf(business.featured_tier) != null
     val shape = RoundedCornerShape(10.dp)
 
     Column(
@@ -812,13 +811,14 @@ private fun FeaturedCard(business: Business, onClick: () -> Unit) {
             .heightIn(min = 100.dp)
             .clip(shape)
             .background(DarkCard)
-            // Borde blanco de 2dp = nivel, la misma regla que la web.
-            .border(2.dp, WhiteSmoke, shape)
+            // Sin escalonado por nivel: borde fino para todas y filete
+            // amarillo solo en las destacadas, igual que la web.
+            .border(1.dp, if (featured) FeaturedBorder else DividerDark, shape)
             .clickable(onClick = onClick)
             .padding(9.dp),
     ) {
-        if (level != null) {
-            LevelBadge(level = level)
+        if (featured) {
+            DestacadoBadge()
             Spacer(Modifier.height(6.dp))
         }
 
@@ -874,100 +874,54 @@ private fun BusinessCard(
     business: Business,
     onClick: () -> Unit,
 ) {
-    // ── Fase 7 · nivel de destacado ──
-    //
-    // Solo lleva pastilla y borde grueso si (a) está marcado como
-    // destacado Y (b) trae un nivel VÁLIDO '1'..'4'. Cualquier otra
-    // cosa (null —lo habitual— o un tier heredado como 'large')
-    // pinta la tarjeta NORMAL: a prueba de datos raros, igual que
-    // la web.
-    //
-    // Sin sombras ni bordes de color: la marca es el amarillo del
-    // estado operativo.
-    val level = if (business.is_featured == true) {
-        FeaturedTier.levelOf(business.featured_tier)
-    } else {
-        null
-    }
-    val featured = business.is_featured == true
+    // Destacado: is_featured (o un tier valido heredado) -> pastilla
+    // "Destacado". SIN escalonado por nivel: todas las tarjetas miden
+    // lo mismo y solo cambia el filete de las destacadas.
+    val featured = business.is_featured == true ||
+        FeaturedTier.levelOf(business.featured_tier) != null
     val shape = RoundedCornerShape(10.dp)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            // Altura MÍNIMA fija: todas las tarjetas de una fila deben
-            // terminar a la misma altura (en la web, CSS Grid las estira).
-            // Sin esto, un nombre de 1 línea deja hueco debajo.
-            //
-            // Desglose: imagen 96 + relleno 9+9 + nombre 2 líneas 40
-            //           + sep 3 + categoría 16 + sep 7 + estado 16 = 196
-            .heightIn(min = 196.dp)
+            // Altura MINIMA fija: portada 108 + cuerpo (estado + padding).
+            // La foto no puede hacer crecer la tarjeta.
+            .heightIn(min = 152.dp)
             .clip(shape)
             .background(DarkCard)
-            .border(
-                width = when {
-                    level != null -> 2.dp    // nivel -> .biz-card--level-N
-                    featured -> 1.5.dp       // destacado sin nivel conocido
-                    else -> 1.dp             // tarjeta normal
-                },
-                color = if (featured) WhiteSmoke else DividerDark,
-                shape = shape,
-            )
+            .border(1.dp, if (featured) FeaturedBorder else DividerDark, shape)
             .clickable(onClick = onClick),
     ) {
-        CardImage(business = business, level = level)
+        CardCover(business = business, featured = featured)
 
         Column(modifier = Modifier.padding(horizontal = 9.dp, vertical = 9.dp)) {
-            Text(
-                text = business.name,
-                color = TextPrimary,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            Spacer(Modifier.height(3.dp))
-
-            Text(
-                text = business.category_name ?: stringResource(R.string.home_no_category),
-                color = TextMuted,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            Spacer(Modifier.height(7.dp))
-
             StatusBadge(business = business)
         }
     }
 }
 
 /**
- * Foto del negocio. Detrás se dibuja SIEMPRE el ícono de la
- * categoría (Material Icons): si la imagen no carga (o no hay),
- * se ve el ícono. Una capa detrás de otra = fallback gratis.
+ * Portada de la tarjeta: la foto (o el placeholder de marca si no
+ * hay) arriba, con el nombre y la categoría ENCIMA, sobre un velo
+ * marrón. Alto fijo y `ContentScale.Crop` = recorte a rellenar, la
+ * misma regla que la web (`.biz-card__cover` + object-fit: cover).
  */
 @Composable
-private fun CardImage(business: Business, level: Int?) {
+private fun CardCover(business: Business, featured: Boolean) {
     val imageUrl = business.images.firstOrNull()?.image_url
     val statusColor = statusColorOf(business.effective_status)
+    val veil = androidx.compose.ui.graphics.Brush.verticalGradient(
+        0f to Color.Transparent,
+        0.45f to Color(0x991C1504),
+        1f to Color(0xF21C1504),
+    )
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(96.dp)
-            .background(DarkSurface),
-        contentAlignment = Alignment.Center,
+            .height(108.dp)
+            .background(BrandBrown),
     ) {
-        Icon(
-            imageVector = iconForCategory(business.category_icon),
-            contentDescription = null,
-            tint = TextSecondary,
-            modifier = Modifier.size(46.dp),
-        )
-
         if (!imageUrl.isNullOrBlank()) {
             AsyncImage(
                 model = imageUrl,
@@ -978,7 +932,12 @@ private fun CardImage(business: Business, level: Int?) {
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
+        } else {
+            PlaceholderBrand(modifier = Modifier.align(Alignment.Center))
         }
+
+        // Velo marrón: el nombre se lee sobre cualquier foto
+        Box(modifier = Modifier.fillMaxSize().background(veil))
 
         // Punto de estado, esquina superior izquierda
         Box(
@@ -990,37 +949,93 @@ private fun CardImage(business: Business, level: Int?) {
                 .background(statusColor),
         )
 
-        // Fase 7: pastilla "Nivel N" en la esquina OPUESTA al punto
-        // de estado, para que los dos indicadores no se pisen.
-        if (level != null) {
-            LevelBadge(
-                level = level,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(7.dp),
+        // Título + categoría + pastilla "Destacado" encima de la foto
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(horizontal = 9.dp, vertical = 8.dp),
+        ) {
+            Text(
+                text = business.name,
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
+
+            Spacer(Modifier.height(2.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = (business.category_name
+                        ?: stringResource(R.string.home_no_category)).uppercase(),
+                    color = CanaryYellow,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+
+                if (featured) {
+                    Spacer(Modifier.width(6.dp))
+                    DestacadoBadge()
+                }
+            }
         }
     }
 }
 
 /**
- * Pastilla "Nivel N" (Fase 7).
- *
- * Espejo de `.biz-card__level` de la web: misma paleta, mismo radio
- * de 6px y texto blanco en negrita.
+ * Placeholder de marca (espejo del de la web): el logotipo sobre
+ * marrón. No toca la BD ni el storage: es texto pintado, y así la
+ * tarjeta SIEMPRE muestra algo.
  */
 @Composable
-private fun LevelBadge(level: Int, modifier: Modifier = Modifier) {
+private fun PlaceholderBrand(modifier: Modifier = Modifier) {
+    Row(modifier = modifier) {
+        Text(
+            text = "Buscando",
+            color = Color(0xFFF7F2E4),
+            fontSize = 20.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 1.sp,
+        )
+        Text(
+            text = "Ando",
+            color = CanaryYellow,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 1.sp,
+        )
+    }
+}
+
+/**
+ * Pastilla "Destacado".
+ *
+ * Espejo de `.biz-card__badge` de la web: blanca, texto dorado
+ * (#8F6C14) y 6dp de radio. Sustituye a la antigua pastilla de nivel.
+ */
+@Composable
+private fun DestacadoBadge(modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(6.dp)
     Box(
         modifier = modifier
             .clip(shape)
-            .background(levelColorOf(level))
+            .background(Color.White)
             .padding(horizontal = 8.dp, vertical = 2.dp),
     ) {
         Text(
-            text = stringResource(R.string.card_level, level),
-            color = Color.White,
+            text = stringResource(R.string.card_featured),
+            color = GoldInk,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
@@ -1227,26 +1242,5 @@ internal fun statusColorOf(slug: String?): Color = when (slug) {
     "abierto" -> StatusOpen
     "cerrado" -> StatusClosed
     "por-horario" -> StatusBySchedule
-    else -> GreyOlive
-}
-
-/**
- * Fase 7 · Color de la pastilla de nivel.
- *
- * Misma paleta que la web (BusinessCard.css):
- *
- *   .biz-card--level-1 .biz-card__level { background: #B3B334; }
- *   .biz-card--level-2 .biz-card__level { background: #a0a0a0; }
- *   .biz-card--level-3 .biz-card__level { background: #CD7F32; }
- *   .biz-card--level-4 .biz-card__level { background: #8B7355; }
- *
- * El `else` no debería ocurrir (la llamante valida el nivel con
- * FeaturedTier.levelOf), pero un color gris es un fallback honesto.
- */
-internal fun levelColorOf(level: Int): Color = when (level) {
-    1 -> Level1Gold
-    2 -> Level2Silver
-    3 -> Level3Bronze
-    4 -> Level4Brown
     else -> GreyOlive
 }

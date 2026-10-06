@@ -13,14 +13,14 @@ L.Icon.Default.mergeOptions({
 
 const YELLOW_ICON = L.divIcon({
   className: 'custom-marker',
-  html: `<div style="width:14px;height:14px;background:#B3B334;border:2px solid #1f1a1a;border-radius:50%;box-shadow:0 0 6px rgba(179,179,52,0.5);"></div>`,
+  html: `<div style="width:14px;height:14px;background:#FBBF24;border:2px solid #1f1a1a;border-radius:50%;box-shadow:0 0 6px rgba(251,191,36,0.5);"></div>`,
   iconSize: [14, 14],
   iconAnchor: [7, 7],
 });
 
 const SELECTED_ICON = L.divIcon({
   className: 'custom-marker',
-  html: `<div style="width:20px;height:20px;background:#B3B334;border:3px solid #fff;border-radius:50%;box-shadow:0 0 12px rgba(179,179,52,0.7);"></div>`,
+  html: `<div style="width:20px;height:20px;background:#FBBF24;border:3px solid #fff;border-radius:50%;box-shadow:0 0 12px rgba(251,191,36,0.7);"></div>`,
   iconSize: [20, 20],
   iconAnchor: [10, 10],
 });

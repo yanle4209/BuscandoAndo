@@ -71,9 +71,9 @@
 }
 
 .modal-close:hover {
-  background: #7f471a;
+  background: #513e0c;
   color: #fff;
-  border-color: #7f471a;
+  border-color: #513e0c;
 }
 
 /* Carousel */
@@ -102,7 +102,7 @@
 }
 
 .modal-carousel .biz-card__images-arrow:hover {
-  background: #7f471a;
+  background: #513e0c;
 }
 
 .modal-carousel .biz-card__images-dot {
@@ -111,7 +111,7 @@
 }
 
 .modal-carousel .biz-card__images-dot--active {
-  background: #7f471a;
+  background: #513e0c;
   width: 20px;
 }
 
@@ -136,7 +136,7 @@
 .modal-name {
   font-size: 26px;
   font-weight: 800;
-  color: #7f471a;
+  color: #a67e18;
   line-height: 1.2;
   margin: 0;
 }
@@ -193,7 +193,7 @@
 
 .modal-status--abierto { background: rgba(135, 179, 50, 0.18); color: #1a512d; }
 .modal-status--cerrado { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
-.modal-status--por-horario { background: rgba(159, 109, 30, 0.14); color: #7f471a; }
+.modal-status--por-horario { background: rgba(159, 109, 30, 0.14); color: #8f6c14; }
 .modal-status--default { background: var(--surface); border: 1px solid var(--border); color: #66615a; }
 
 /* Description */
@@ -225,7 +225,7 @@
 }
 
 .modal-info-icon {
-  color: #7f471a;
+  color: #8f6c14;
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -268,7 +268,7 @@
 .modal-link {
   display: inline-block;
   font-size: 13px;
-  color: #7f471a;
+  color: #8f6c14;
   text-decoration: none;
   font-weight: 600;
   padding: 4px 10px;
@@ -279,8 +279,8 @@
 }
 
 .modal-link:hover {
-  background: #7f471a;
-  border-color: #7f471a;
+  background: #513e0c;
+  border-color: #513e0c;
   color: #fff;
 }
 
@@ -315,7 +315,7 @@
 .modal-hour-day {
   font-size: 11px;
   font-weight: 700;
-  color: #7f471a;
+  color: #8f6c14;
   margin-bottom: 4px;
 }
 
@@ -339,7 +339,7 @@
   gap: 6px;
   margin-top: 20px;
   padding: 10px 18px;
-  background: #7f471a;
+  background: #513e0c;
   color: #fff;
   text-decoration: none;
   border-radius: 8px;
@@ -349,7 +349,7 @@
 }
 
 .modal-map-link:hover {
-  background: #643814;
+  background: #3d2e09;
 }
 
 .modal-map-link svg {
