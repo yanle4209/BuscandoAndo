@@ -5,8 +5,10 @@
 }
 
 /* Paleta BuscandoAndo (Palette.txt) + acabado bento.
-   Lienzo crema #eeeed5 y encima superficies blancas con borde fino y
-   sombra minima: nada de fondo oscuro. El color vive en los rellenos
+   Todo el lienzo es blanco #ffffff, del mismo tono en las tres zonas
+   (barra izquierda, mapa/overlay y rejilla de tarjetas): lo que
+   separa las superficies es el borde fino y la sombra minima, no el
+   color de fondo. Nada de fondo oscuro. El color vive en los rellenos
    (amarillo canario, verde hierba, ocre) y en los textos oscuros de la
    misma familia (marron 7f471a para enlaces y etiquetas, verde bosque
    1a512d para lo que esta bien). El amarillo nunca va como texto. */
@@ -24,9 +26,9 @@
   /* --- tinta y superficies (bento) --- */
   --ink: #1f1a1a;
   --ink-soft: #5b564d;
-  --bg: #eeeed5;            /* crema: fondo de pagina */
+  --bg: #ffffff;            /* blanco: fondo de pagina y de las tres zonas */
   --surface: #ffffff;
-  --surface-2: #f5f5e6;
+  --surface-2: #ffffff;     /* mismo tono que el resto; lo separa el borde */
   --border: #e2e1c9;
   --border-strong: #d4d3b6;
   --radius: 14px;
@@ -38,7 +40,7 @@
          --dark ya NO es un fondo, es tinta; --white ya NO es texto. --- */
   --dark: #1f1a1a;
   --dark-card: #ffffff;
-  --white: #eeeed5;
+  --white: #ffffff;
   --white-pure: #ffffff;
 
   --font: 'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;

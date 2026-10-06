@@ -461,7 +461,7 @@
 
 .lev-copiar-popup > button:hover {
   border-color: var(--yellow);
-  background: #f4f4e6;
+  background: var(--yellow-light);
 }
 
 .lev-copiar-popup > .lev-copiar-cancelar {

@@ -125,7 +125,8 @@
   display: inline-block;
   font-size: 10px;
   color: #5b564d;
-  background: #f3f3e6;
+  background: var(--surface);
+  border: 1px solid var(--border);
   padding: 1px 6px;
   border-radius: 4px;
   margin-bottom: 4px;
@@ -201,7 +202,7 @@
   justify-content: space-between;
   margin-top: auto;
   padding-top: 4px;
-  border-top: 1px solid #eeeed5;
+  border-top: 1px solid var(--border);
 }
 
 .biz-card__status {
