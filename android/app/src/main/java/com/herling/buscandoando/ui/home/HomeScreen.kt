@@ -997,7 +997,7 @@ private fun CardCover(business: Business, featured: Boolean) {
 }
 
 /**
- * Placeholder de marca (espejo del de la web): el logotipo al 35%
+ * Placeholder de marca (espejo del de la web): el logotipo al 50%
  * de opacidad sobre fondo blanco. Es texto pintado (sin BD ni
  * storage), y así la tarjeta SIEMPRE muestra algo.
  */
@@ -1006,14 +1006,14 @@ private fun PlaceholderBrand(modifier: Modifier = Modifier) {
     Row(modifier = modifier) {
         Text(
             text = "Buscando",
-            color = BrandBrown.copy(alpha = 0.35f),
+            color = BrandBrown.copy(alpha = 0.5f),
             fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 1.sp,
         )
         Text(
             text = "Ando",
-            color = Gold.copy(alpha = 0.35f),
+            color = Gold.copy(alpha = 0.5f),
             fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 1.sp,
