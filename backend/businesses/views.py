@@ -492,20 +492,30 @@ def pendientes(request):
     municipio = (request.query_params.get('municipio') or '').strip()
 
     # ---------------------------- quien pregunta ----------------------
+    # El TOKEN manda: quien lo trae esta declarando "soy este
+    # colaborador", y eso va por delante de la sesion. Sin el, manda la
+    # sesion de admin (la lista entera); sin ninguna de las dos, 403.
+    #
+    # Hace falta porque la sesion vive en el MISMO navegador: con el
+    # admin logueado, esta pantalla devolvia los 158 municipios y el
+    # navegador se quedaba con el primero (Azua), diciendole a quien
+    # tenia el token delante que su municipio era Azua.
+    colaborador = colaborador_de(request)
+
+    if colaborador is None and token_de(request):
+        # Quien manda un token que no vale (o que esta apagado) no es lo
+        # mismo que quien no manda nada: el primero puede arreglarlo.
+        return Response(
+            {'detail': 'Token de colaborador invalido o inactivo.'},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
     usuario = getattr(request, 'user', None)
     es_admin = bool(
         usuario is not None and usuario.is_authenticated and usuario.is_staff
     )
-    colaborador = None if es_admin else colaborador_de(request)
 
-    if not es_admin and colaborador is None:
-        # Quien manda un token que no vale (o que esta apagado) no es lo
-        # mismo que quien no manda nada: el primero puede arreglarlo.
-        if token_de(request):
-            return Response(
-                {'detail': 'Token de colaborador invalido o inactivo.'},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+    if colaborador is None and not es_admin:
         return Response(
             {'detail': 'Sesion de administrador o token de colaborador.'},
             status=status.HTTP_403_FORBIDDEN,
