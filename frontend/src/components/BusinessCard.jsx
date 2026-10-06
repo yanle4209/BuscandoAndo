@@ -5,7 +5,7 @@ import './BusinessCard.css';
  * Tarjeta de negocio.
  *
  * - PORTADA en TODAS las tarjetas (bento de la portada y resultados):
- *   el 33% superior, con la foto (carrusel hasta 5) o, si no hay
+ *   el 50% superior, con la foto (carrusel hasta 5) o, si no hay
  *   foto, el placeholder de marca. El nombre va encima, sobre un velo
  *   marron. La tarjeta no crece: la portada tiene alto fijo.
  * - Sin escalonado por nivel: `level` ya solo decide si se pinta la
