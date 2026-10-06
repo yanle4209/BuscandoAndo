@@ -100,6 +100,7 @@ import com.herling.buscandoando.ui.theme.DarkCard
 import com.herling.buscandoando.ui.theme.DarkSurface
 import com.herling.buscandoando.ui.theme.DividerDark
 import com.herling.buscandoando.ui.theme.FeaturedBorder
+import com.herling.buscandoando.ui.theme.Gold
 import com.herling.buscandoando.ui.theme.GoldInk
 import com.herling.buscandoando.ui.theme.GreyOlive
 import com.herling.buscandoando.ui.theme.StatusBySchedule
@@ -920,7 +921,9 @@ private fun CardCover(business: Business, featured: Boolean) {
         modifier = Modifier
             .fillMaxWidth()
             .height(108.dp)
-            .background(BrandBrown),
+            // Sin foto el fondo va blanco: el marrón oscuro pesaba
+            // mucho a la vista. Con foto, marrón mientras carga.
+            .background(if (imageUrl.isNullOrBlank()) Color.White else BrandBrown),
     ) {
         if (!imageUrl.isNullOrBlank()) {
             AsyncImage(
@@ -994,23 +997,23 @@ private fun CardCover(business: Business, featured: Boolean) {
 }
 
 /**
- * Placeholder de marca (espejo del de la web): el logotipo sobre
- * marrón. No toca la BD ni el storage: es texto pintado, y así la
- * tarjeta SIEMPRE muestra algo.
+ * Placeholder de marca (espejo del de la web): el logotipo al 35%
+ * de opacidad sobre fondo blanco. Es texto pintado (sin BD ni
+ * storage), y así la tarjeta SIEMPRE muestra algo.
  */
 @Composable
 private fun PlaceholderBrand(modifier: Modifier = Modifier) {
     Row(modifier = modifier) {
         Text(
             text = "Buscando",
-            color = Color(0xFFF7F2E4),
+            color = BrandBrown.copy(alpha = 0.35f),
             fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 1.sp,
         )
         Text(
             text = "Ando",
-            color = CanaryYellow,
+            color = Gold.copy(alpha = 0.35f),
             fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 1.sp,
