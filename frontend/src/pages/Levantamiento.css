@@ -94,7 +94,7 @@
 .lev-top-title {
   font-size: 26px;
   font-weight: 700;
-  color: var(--brown);
+  color: var(--gold);
 }
 
 .lev-top-volver {
@@ -191,7 +191,7 @@
 .lev-horario-fila select:focus {
   outline: none;
   border-color: var(--yellow);
-  box-shadow: 0 0 0 3px rgba(179, 179, 52, 0.18);
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.18);
 }
 
 .lev-field textarea {
@@ -315,7 +315,7 @@
 .lev-field--falta select,
 .lev-field--falta textarea {
   border-color: var(--yellow);
-  background: rgba(179, 179, 52, 0.12);
+  background: rgba(251, 191, 36, 0.12);
 }
 
 /* Lo que sin esto no se publica: mas enfasis, pero con las MISMAS formas
@@ -323,7 +323,7 @@
 .lev-field--trio input,
 .lev-field--trio select,
 .lev-field--trio textarea {
-  box-shadow: inset 0 0 0 1px rgba(179, 179, 52, 0.75);
+  box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.75);
 }
 
 /* Latitud y longitud no van dentro de .lev-field, asi que no cogian el
@@ -343,7 +343,7 @@
 
 .lev-coordenadas--falta input {
   border-color: var(--yellow);
-  background: rgba(179, 179, 52, 0.12);
+  background: rgba(251, 191, 36, 0.12);
 }
 
 .lev-horario--falta {
@@ -667,7 +667,7 @@
 }
 
 .lev-ficha-estado.en-revision {
-  background: rgba(179, 179, 52, 0.18);
+  background: rgba(251, 191, 36, 0.18);
   color: var(--yellow-ink);
 }
 
@@ -693,7 +693,7 @@
 
 .lev-fichas li.lev-ficha--curso {
   border-left-color: var(--yellow);
-  background: rgba(179, 179, 52, 0.14);
+  background: rgba(251, 191, 36, 0.14);
 }
 
 .lev-fichas li.lev-ficha--curso .lev-ficha-falta { color: var(--yellow-ink); }
@@ -712,7 +712,7 @@
 
 .lev-fichas li.lev-ficha--activa {
   border-left-color: var(--yellow);
-  box-shadow: 0 0 0 2px rgba(179, 179, 52, 0.45);
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.45);
 }
 
 .lev-ficha-estado.hecha {

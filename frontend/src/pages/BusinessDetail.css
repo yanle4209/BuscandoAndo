@@ -21,7 +21,7 @@
 .detail-back {
   display: inline-block;
   font-size: 13px;
-  color: var(--brown);
+  color: var(--yellow-ink);
   text-decoration: none;
   margin-bottom: 16px;
   font-weight: 600;
@@ -35,7 +35,7 @@
 .detail-name {
   font-size: 26px;
   font-weight: 800;
-  color: var(--brown);
+  color: var(--gold);
   margin-bottom: 10px;
   letter-spacing: 0.5px;
 }
@@ -73,7 +73,7 @@
 }
 
 .detail-status--por-horario {
-  background: rgba(179, 179, 52, 0.18);
+  background: rgba(251, 191, 36, 0.18);
   color: var(--yellow-ink);
 }
 
@@ -134,7 +134,7 @@
 }
 
 .detail-contact-row a:hover {
-  color: var(--brown);
+  color: var(--yellow-ink);
   text-decoration: underline;
 }
 

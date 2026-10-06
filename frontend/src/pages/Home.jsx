@@ -573,6 +573,7 @@ export default function Home() {
                     <BusinessCard
                       key={biz.id || biz.slug}
                       business={biz}
+                      showCover
                       onClick={() => setModalBiz(biz)}
                       onReport={() => setCorrectionBiz(biz)}
                     />
@@ -592,6 +593,7 @@ export default function Home() {
                   <BusinessCard
                     key={biz.id || biz.slug}
                     business={biz}
+                    showCover
                     onClick={() => setModalBiz(biz)}
                     onReport={() => setCorrectionBiz(biz)}
                   />

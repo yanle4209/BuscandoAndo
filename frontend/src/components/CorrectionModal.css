@@ -63,7 +63,7 @@
 .correction__textarea:focus {
   outline: none;
   border-color: var(--yellow);
-  box-shadow: 0 0 0 3px rgba(179, 179, 52, 0.25);
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.25);
 }
 
 .correction__textarea {

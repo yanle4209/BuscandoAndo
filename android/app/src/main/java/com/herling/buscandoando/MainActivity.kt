@@ -52,10 +52,9 @@ import com.herling.buscandoando.ui.theme.DarkCard
 import com.herling.buscandoando.ui.theme.DarkSurface
 import com.herling.buscandoando.ui.theme.DividerDark
 import com.herling.buscandoando.ui.theme.GreyOlive
-import com.herling.buscandoando.ui.theme.Level1Gold
-import com.herling.buscandoando.ui.theme.Level2Silver
-import com.herling.buscandoando.ui.theme.Level3Bronze
-import com.herling.buscandoando.ui.theme.Level4Brown
+import com.herling.buscandoando.ui.theme.Gold
+import com.herling.buscandoando.ui.theme.GoldInk
+import com.herling.buscandoando.ui.theme.BrandBrown
 import com.herling.buscandoando.ui.theme.StatusBySchedule
 import com.herling.buscandoando.ui.theme.StatusClosed
 import com.herling.buscandoando.ui.theme.StatusOpen
@@ -249,11 +248,11 @@ private fun paletteGroups(): List<SwatchGroup> = listOf(
     SwatchGroup(
         title = "Colores de marca",
         items = listOf(
-            Swatch("Amarillo canario", "#B3B334", CanaryYellow, TextOnYellow),
-            Swatch("Amarillo claro", "#D6D65E", CanaryYellowLight, TextOnYellow),
-            Swatch("Amarillo oscuro", "#8A8A22", CanaryYellowDark, TextOnYellow),
+            Swatch("Amarillo BuscandoAndo", "#FBBF24", CanaryYellow, TextOnYellow),
+            Swatch("Amarillo claro", "#FCD34D", CanaryYellowLight, TextOnYellow),
+            Swatch("Amarillo oscuro", "#D99A0B", CanaryYellowDark, TextOnYellow),
             Swatch("Gris olivo", "#88898A", GreyOlive),
-            Swatch("Chocolate plum", "#543335", ChocolatePlum),
+            Swatch("Marrón (--brown)", "#513E0C", ChocolatePlum),
             Swatch("Negro marca", "#000600", BrandBlack),
             Swatch("White smoke", "#F3F3F3", WhiteSmoke, TextOnYellow),
         )
@@ -273,7 +272,7 @@ private fun paletteGroups(): List<SwatchGroup> = listOf(
             Swatch("Texto principal", "#FFFFFF", TextPrimary),
             Swatch("Texto secundario", "#AAAAAA", TextSecondary),
             Swatch("Texto apagado", "#666666", TextMuted),
-            Swatch("Texto marrón (tarjetas)", "#543335", TextBrown),
+            Swatch("Texto dorado (tarjetas)", "#8F6C14", TextBrown),
             Swatch("Sobre amarillo", "#1A1A1A", TextOnYellow),
         )
     ),
@@ -286,12 +285,11 @@ private fun paletteGroups(): List<SwatchGroup> = listOf(
         )
     ),
     SwatchGroup(
-        title = "Niveles de destacado",
+        title = "Dorado y marrón (paleta nueva)",
         items = listOf(
-            Swatch("Nivel 1 · oro", "#B3B334", Level1Gold, TextOnYellow),
-            Swatch("Nivel 2 · plata", "#A0A0A0", Level2Silver, TextOnYellow),
-            Swatch("Nivel 3 · bronce", "#CD7F32", Level3Bronze),
-            Swatch("Nivel 4 · marrón", "#8B7355", Level4Brown),
+            Swatch("Dorado títulos (--gold)", "#A67E18", Gold),
+            Swatch("Dorado texto (--yellow-ink)", "#8F6C14", GoldInk),
+            Swatch("Marrón superficies (--brown)", "#513E0C", BrandBrown),
         )
     ),
 )

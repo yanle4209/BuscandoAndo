@@ -27,19 +27,19 @@
         
         const mapTitle = document.createElement('h2');
         mapTitle.textContent = 'Mapa de Ubicacion';
-        mapTitle.style.cssText = 'margin: 0 0 10px 0; font-size: 14px; color: #7f471a;';
+        mapTitle.style.cssText = 'margin: 0 0 10px 0; font-size: 14px; color: #8f6c14;';
         mapSection.appendChild(mapTitle);
         
         const mapDiv = document.createElement('div');
         mapDiv.id = 'business-map';
-        mapDiv.style.cssText = 'width: 100%; height: 400px; margin: 10px 0; border: 2px solid #B3B334; border-radius: 6px; z-index: 1; background: #f5f5e6;';
+        mapDiv.style.cssText = 'width: 100%; height: 400px; margin: 10px 0; border: 2px solid #FBBF24; border-radius: 6px; z-index: 1; background: #f5f5e6;';
         mapSection.appendChild(mapDiv);
 
         const searchBtn = document.createElement('button');
         searchBtn.type = 'button';
         searchBtn.textContent = '📍 Buscar dirección en mapa';
         searchBtn.className = 'button';
-        searchBtn.style.cssText = 'margin: 5px 0; background: #B3B334; color: #1f1a1a; border: 2px solid #B3B334; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;';
+        searchBtn.style.cssText = 'margin: 5px 0; background: #FBBF24; color: #1f1a1a; border: 2px solid #FBBF24; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;';
         mapSection.appendChild(searchBtn);
         
         // Insertar ANTES del inline de ubicación
@@ -271,7 +271,7 @@
         const detectBtn = document.createElement('button');
         detectBtn.type = 'button';
         detectBtn.textContent = '🔄 Auto-detectar estado según horarios';
-        detectBtn.style.cssText = 'margin: 5px 0; background: #B3B334; color: #1f1a1a; border: 2px solid #B3B334; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s;';
+        detectBtn.style.cssText = 'margin: 5px 0; background: #FBBF24; color: #1f1a1a; border: 2px solid #FBBF24; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s;';
 
         opStatusField.parentNode.insertBefore(detectBtn, opStatusField.nextSibling);
 
@@ -392,7 +392,7 @@
             copyBtn.textContent = '📋';
             copyBtn.title = 'Copiar horario de otro día';
             copyBtn.className = 'copy-hours-btn';
-            copyBtn.style.cssText = 'background: #B3B334; color: #1f1a1a; border: 2px solid #B3B334; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.2s;';
+            copyBtn.style.cssText = 'background: #FBBF24; color: #1f1a1a; border: 2px solid #FBBF24; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.2s;';
 
             copyBtn.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -432,11 +432,11 @@
                 overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;';
 
                 const popup = document.createElement('div');
-                popup.style.cssText = 'background:#ffffff;border:2px solid #b3b334;border-radius:10px;padding:20px;min-width:280px;color:#1f1a1a;box-shadow:0 18px 40px rgba(31,26,26,0.25);';
+                popup.style.cssText = 'background:#ffffff;border:2px solid #FBBF24;border-radius:10px;padding:20px;min-width:280px;color:#1f1a1a;box-shadow:0 18px 40px rgba(31,26,26,0.25);';
 
                 const title = document.createElement('h3');
                 title.textContent = 'Copiar horario de:';
-                title.style.cssText = 'margin:0 0 12px 0;color:#7f471a;font-size:16px;';
+                title.style.cssText = 'margin:0 0 12px 0;color:#8f6c14;font-size:16px;';
                 popup.appendChild(title);
 
                 options.forEach(function(opt) {
@@ -446,7 +446,7 @@
                     btn.textContent = opt.day + ' (' + timeInfo + ')';
                     btn.style.cssText = 'display:block;width:100%;text-align:left;padding:10px 14px;margin-bottom:6px;background:#f5f5e6;color:#1f1a1a;border:1px solid #d4d3b6;border-radius:6px;cursor:pointer;font-size:14px;transition:all 0.2s;';
 
-                    btn.addEventListener('mouseenter', function() { btn.style.borderColor = '#b3b334'; btn.style.background = '#f9f9e4'; });
+                    btn.addEventListener('mouseenter', function() { btn.style.borderColor = '#FBBF24'; btn.style.background = '#f9f9e4'; });
                     btn.addEventListener('mouseleave', function() { btn.style.borderColor = '#d4d3b6'; btn.style.background = '#f5f5e6'; });
 
                     btn.addEventListener('click', function() {
@@ -572,9 +572,9 @@
         var detectBtn = document.createElement('button');
         detectBtn.type = 'button';
         detectBtn.textContent = '🎉 Detectar fiestas de esta semana';
-        detectBtn.style.cssText = 'margin: 8px 0 4px; background: #B3B334; color: #1f1a1a; border: 2px solid #B3B334; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; transition: all 0.2s;';
-        detectBtn.addEventListener('mouseenter', function() { detectBtn.style.background = '#d7d796'; });
-        detectBtn.addEventListener('mouseleave', function() { detectBtn.style.background = '#B3B334'; });
+        detectBtn.style.cssText = 'margin: 8px 0 4px; background: #FBBF24; color: #1f1a1a; border: 2px solid #FBBF24; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; transition: all 0.2s;';
+        detectBtn.addEventListener('mouseenter', function() { detectBtn.style.background = '#FCD34D'; });
+        detectBtn.addEventListener('mouseleave', function() { detectBtn.style.background = '#FBBF24'; });
         detectBtn.addEventListener('click', function(e) { e.preventDefault(); checkHolidays(); });
 
         // Insertar el botón después del título del inline

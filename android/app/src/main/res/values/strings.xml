@@ -53,7 +53,7 @@
 
     <!-- ===== Fase 7 · destacados y acabado ===== -->
     <string name="home_featured_title">Destacados para esta búsqueda</string>
-    <string name="card_level">Nivel %1$d</string>
+    <string name="card_featured">Destacado</string>
     <string name="home_search_clear">Borrar búsqueda</string>
     <string name="home_categories_error">No se pudieron cargar las categorías</string>
 </resources>

@@ -35,7 +35,7 @@
       }
       .ba-toast--success { background: #1a512d; border-left: 4px solid #87b332; }
       .ba-toast--error   { background: #b91c1c; border-left: 4px solid #dc2626; }
-      .ba-toast--warning { background: #7f471a; border-left: 4px solid #d7d796; }
+      .ba-toast--warning { background: #513e0c; border-left: 4px solid #FCD34D; }
       .ba-toast--info    { background: #1d4ed8; border-left: 4px solid #3b82f6; }
       .ba-toast__icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
       .ba-toast__body { flex: 1; }

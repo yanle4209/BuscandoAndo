@@ -4,20 +4,21 @@
   padding: 0;
 }
 
-/* Paleta BuscandoAndo (Palette.txt) + acabado bento.
+/* Paleta BuscandoAndo (paleta nueva) + acabado bento.
    Todo el lienzo es blanco #ffffff, del mismo tono en las tres zonas
    (barra izquierda, mapa/overlay y rejilla de tarjetas): lo que
    separa las superficies es el borde fino y la sombra minima, no el
-   color de fondo. Nada de fondo oscuro. El color vive en los rellenos
-   (amarillo canario, verde hierba, ocre) y en los textos oscuros de la
-   misma familia (marron 7f471a para enlaces y etiquetas, verde bosque
-   1a512d para lo que esta bien). El amarillo nunca va como texto. */
+   color de fondo. Nada de fondo oscuro.
+   Amarillo #FBBF24 y marron #513e0c a TODA la app (incluido el
+   logotipo); la tipografia que era marron pasa a dorado
+   (#a67e18 en titulos grandes, #8f6c14 en texto normal: 4,9:1). */
 :root {
   /* --- marca y paleta --- */
-  --yellow: #b3b334;        /* Canary Yellow: rellenos y acentos */
-  --yellow-light: #d7d796;  /* verde oliva palido: hover suave */
-  --yellow-ink: #7f471a;    /* marron calido: etiquetas legibles sobre claro */
-  --brown: #7f471a;         /* marron: enlaces, marcas y titulos */
+  --yellow: #FBBF24;        /* Amarillo BuscandoAndo: rellenos y acentos */
+  --yellow-light: #FCD34D;  /* amarillo claro: hover suave */
+  --yellow-ink: #8f6c14;    /* dorado legible: etiquetas y enlaces sobre claro */
+  --gold: #a67e18;          /* dorado: titulos grandes */
+  --brown: #513e0c;         /* marron oscuro: superficies, bordes y logotipo */
   --grey: #66615a;          /* gris-oliva calido: metadatos e iconos */
   --grass: #87b332;         /* verde hierba: rellenos de "disponible" */
   --green: #1a512d;         /* verde bosque: texto de ok */
@@ -59,7 +60,7 @@ body {
 }
 
 a {
-  color: var(--brown);
+  color: var(--yellow-ink);
   text-decoration: none;
 }
 

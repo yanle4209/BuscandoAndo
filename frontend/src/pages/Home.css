@@ -118,11 +118,11 @@
   margin: 0;
 }
 
-/* Results grid */
+/* Results grid: 4 tarjetas por fila (paginas de 12 = 3 filas) */
 .right-results-list {
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 14px;
   align-content: start;
 }
@@ -281,7 +281,7 @@
 }
 
 .modal-contact-info a:hover {
-  color: var(--brown);
+  color: var(--yellow-ink);
 }
 
 /* ===== SEARCH RESULTS SCROLL ===== */
