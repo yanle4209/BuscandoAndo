@@ -2,11 +2,11 @@
    Tarjeta de negocio — BuscandoAndo
    ------------------------------------------------------------
    - PORTADA (foto real o placeholder) arriba, ~33% de la altura:
-     SOLO en la rejilla de resultados. La tarjeta no crece: la
+     en TODAS las tarjetas (bento de la portada y resultados): la
      portada tiene alto fijo y la imagen recorta a rellenar
      (object-fit: cover).
-   - BENTO (portada sin buscar): banda amarilla con el nombre,
-     sin portada y sin carrusel.
+   - La bento de la portada usa la MISMA portada que los resultados.
+     (antes iba sin foto, con banda amarilla y sin carrusel).
    - PIE: banda marron con filete amarillo.
    - Sin escalonado por nivel: todas las tarjetas se elevan un
      poco al pasar el cursor; las destacadas, un poco mas.
@@ -42,7 +42,7 @@
   transform: translateY(-2px) scale(1.035);
 }
 
-/* ===== PORTADA (solo resultados) =====
+/* ===== PORTADA =====
    Alto fijo = 33% de la tarjeta (340px -> 112px): ni la foto ni el
    carrusel cambian la altura del conjunto. A sangre, con las
    esquinas redondeadas como la tarjeta. */
@@ -103,29 +103,7 @@
   gap: 2px;
 }
 
-/* ===== BENTO: banda amarilla a sangre con filete marron ===== */
-.biz-card__header {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 7px;
-  margin: -12px -14px 6px;
-  padding: 6px 14px;
-  background: var(--yellow);
-  border-bottom: 1px solid var(--brown);
-  border-radius: 11px 11px 0 0;
-}
-
-.biz-card__titles {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1px;
-}
-
+/* ===== Segunda linea (dentro de la portada) ===== */
 /* Segunda linea: categoria a la izquierda, pastillas a la derecha */
 .biz-card__meta {
   display: flex;
@@ -135,9 +113,8 @@
   min-width: 0;
 }
 
-/* Nombre: UNA linea con puntos si no cabe. Sobre la portada (velo
-   oscuro) va en blanco; sobre la banda amarilla, en tinta suave
-   (#3f3a33, 5,0:1 sobre #FBBF24). */
+/* Nombre: UNA linea con puntos si no cabe. Siempre sobre la portada
+   (velo marron) -> blanco. */
 .biz-card__name {
   min-width: 0;
   white-space: nowrap;
@@ -153,16 +130,6 @@
   font-size: 17px;
 }
 
-.biz-card__header .biz-card__name {
-  font-size: 15px;
-  font-weight: 600;
-  color: #3f3a33;
-}
-
-.biz-card--highlighted .biz-card__header .biz-card__name {
-  font-size: 16px;
-}
-
 /* Categoria / siglas de la segunda linea */
 .biz-card__siglas {
   flex: 0 1 auto;
@@ -176,10 +143,6 @@
   text-transform: uppercase;
   line-height: 1.2;
   color: var(--yellow);
-}
-
-.biz-card__header .biz-card__siglas {
-  color: var(--brown);
 }
 
 .biz-card__badges {
@@ -453,11 +416,8 @@
     padding: 14px 16px;
   }
 
-  .biz-card__cover,
-  .biz-card__header {
+  .biz-card__cover {
     margin: -14px -16px 8px;
-    padding-left: 16px;
-    padding-right: 16px;
   }
 
   .biz-card__footer {

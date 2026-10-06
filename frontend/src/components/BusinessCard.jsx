@@ -4,16 +4,14 @@ import './BusinessCard.css';
 /**
  * Tarjeta de negocio.
  *
- * - `showCover` (solo rejilla de resultados): la portada ocupa el
- *   33% superior de la tarjeta, con la foto (carrusel hasta 5) o, si
- *   no hay foto, el placeholder de marca. El nombre va encima, sobre
- *   un velo marron. La tarjeta no crece: la portada tiene alto fijo.
- * - Bento (portada sin buscar): banda amarilla con el nombre, sin
- *   portada ni carrusel.
+ * - PORTADA en TODAS las tarjetas (bento de la portada y resultados):
+ *   el 33% superior, con la foto (carrusel hasta 5) o, si no hay
+ *   foto, el placeholder de marca. El nombre va encima, sobre un velo
+ *   marron. La tarjeta no crece: la portada tiene alto fijo.
  * - Sin escalonado por nivel: `level` ya solo decide si se pinta la
  *   pastilla "Destacado" y si el hover sube un poco mas.
  */
-export default function BusinessCard({ business, highlighted, level, showCover = false, onClick, onReport }) {
+export default function BusinessCard({ business, highlighted, level, onClick, onReport }) {
   const loc = business.location || {};
   const contact = business.contact || {};
   const images = business.images || [];
@@ -43,29 +41,22 @@ export default function BusinessCard({ business, highlighted, level, showCover =
       className={`biz-card ${highlighted ? 'biz-card--highlighted' : ''}`}
       onClick={onClick}
     >
-      {showCover ? (
-        <div className="biz-card__cover">
-          {hasImages ? (
-            <ImageCarousel images={images} cover autoplay={highlighted} />
-          ) : (
-            <div className="biz-card__cover-ph" role="img" aria-label="BuscandoAndo">
-              <span className="biz-card__cover-ph-brand">Buscando<b>Ando</b></span>
-            </div>
-          )}
-          <div className="biz-card__cover-veil" />
-          <div className="biz-card__cover-titles">
-            {titulo}
-            {segundaLinea}
+      {/* Portada: siempre. La foto (o el placeholder de marca) es la
+          misma en la bento de la portada y en los resultados. */}
+      <div className="biz-card__cover">
+        {hasImages ? (
+          <ImageCarousel images={images} cover autoplay={highlighted} />
+        ) : (
+          <div className="biz-card__cover-ph" role="img" aria-label="BuscandoAndo">
+            <span className="biz-card__cover-ph-brand">Buscando<b>Ando</b></span>
           </div>
+        )}
+        <div className="biz-card__cover-veil" />
+        <div className="biz-card__cover-titles">
+          {titulo}
+          {segundaLinea}
         </div>
-      ) : (
-        <div className="biz-card__header">
-          <div className="biz-card__titles">
-            {titulo}
-            {segundaLinea}
-          </div>
-        </div>
-      )}
+      </div>
 
       {business.short_description && (
         <p className="biz-card__desc">{business.short_description}</p>
