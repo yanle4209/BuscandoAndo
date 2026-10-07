@@ -569,6 +569,34 @@ class BusquedaPorTextoTests(TestCase):
 
         self.assertEqual(data['count'], 0)
 
+    def test_lo_que_empieza_por_lo_buscado_sale_primero(self):
+        """'panaderia la paz' no puede empezar por 'La Paz Panaderia'."""
+        self.make_business('La Paz Panadería', featured=False)
+        self.make_business('Panadería La Paz', featured=False)
+
+        nombres = [b['name'] for b in
+                   self.client.get(BUSINESSES_URL,
+                                   {'text': 'panaderia la paz'}).json()['results']]
+
+        self.assertEqual(nombres, ['Panadería La Paz', 'La Paz Panadería'])
+
+    def test_la_errata_va_detras_de_lo_que_dice_el_nombre(self):
+        """Lo que solo casaba por parecido no se cuela arriba."""
+        self.make_business('Panadeira La Paz', featured=False)
+        self.make_business('Panadería La Paz', featured=False)
+
+        nombres = [b['name'] for b in
+                   self.client.get(BUSINESSES_URL,
+                                   {'text': 'panaderia la paz'}).json()['results']]
+
+        self.assertEqual(nombres, ['Panadería La Paz', 'Panadeira La Paz'])
+
+    def test_un_parecido_de_80_no_es_una_errata(self):
+        """'crisostmo' no es 'cristo': 0.80 es ruido, no una errata."""
+        self.make_business('Colegio Cristo Rey', featured=False)
+
+        self.assertEqual(self.abajo(text='crisostmo'), set())
+
 
 @override_settings(STORAGES=STATIC_SIN_MANIFEST)
 class BusquedaEnAdminTests(TestCase):
@@ -660,6 +688,21 @@ class BusquedaEnAdminTests(TestCase):
 
         self.assertEqual(self.cuantos('jose perez', self.COLABORADORES_URL), 1)
         self.assertEqual(self.cuantos('pedro', self.COLABORADORES_URL), 1)
+
+    def test_en_el_admin_lo_que_mas_se_parece_sale_primero(self):
+        """Django ordena la lista ANTES de llamar a buscar.
+
+        La relevancia tiene que entrar por delante de ese orden, no
+        quedarse detras: si no, "panaderia la paz" sale con "La Paz
+        Panaderia" arriba por ser mas reciente.
+        """
+        self.ficha('La Paz Panadería')
+        self.ficha('Panadería La Paz')
+
+        html = self.buscar('panaderia la paz').content.decode()
+
+        self.assertLess(html.index('Panadería La Paz'),
+                        html.index('La Paz Panadería'))
 
 
 class FiltroCityTests(TestCase):
