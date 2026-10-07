@@ -521,8 +521,10 @@ export default function Home() {
               <h2>{loading ? 'Buscando...' : `${totalResults} resultado${totalResults !== 1 ? 's' : ''}`}</h2>
             </div>
             <div className="right-results-scroll">
-              {/* 3 Featured by category: solo si hay destacados dentro de los 5 km (a1) */}
-              {searchFeatured.length > 0 && (
+              {/* 3 Featured by category: solo si hay destacados dentro de los 5 km (a1).
+                  No se pintan mientras carga la busqueda: si no, se veian los
+                  destacados de la consulta anterior saltando por la pantalla. */}
+              {!loading && searchFeatured.length > 0 && (
                 <div className="search-featured-top">
                   {searchFeatured.map((biz) => (
                     <BusinessCard
@@ -536,8 +538,21 @@ export default function Home() {
               )}
 
               {/* Regular results */}
-              <div className="right-results-list">
-                {sinResultados ? (
+              {/* Esqueleto mientras responde la API: 12 huecos (POR_PAGINA),
+                  la misma pagina 3x4 que despues, para que el cambio a los
+                  resultados reales no mueva ni un pixel el layout. */}
+              <div className="right-results-list" aria-busy={loading ? 'true' : 'false'}>
+                {loading ? (
+                  Array.from({ length: POR_PAGINA }, (_, i) => (
+                    <div className="skeleton-card" key={`skeleton-${i}`} aria-hidden="true">
+                      <div className="skeleton-card__cover" />
+                      <div className="skeleton-card__line skeleton-card__line--title" />
+                      <div className="skeleton-card__line" />
+                      <div className="skeleton-card__line skeleton-card__line--short" />
+                      <div className="skeleton-card__footer" />
+                    </div>
+                  ))
+                ) : sinResultados ? (
                   // 0 destacadas + 0 normales -> overlay en vez de
                   // "No se encontraron negocios" (DISENO.md a1 / m2).
                   <div className="sin-resultados">
@@ -554,7 +569,9 @@ export default function Home() {
               </div>
 
               {/* Pagination */}
-              {totalPages > 1 && !sinResultados && (
+              {/* Sin paginacion mientras carga: si no, los botones de la
+                  pagina anterior quedaban activos debajo de los esqueletos. */}
+              {!loading && totalPages > 1 && !sinResultados && (
                 <div className="pagination">
                   <button className="pagination-btn" disabled={estado.pagina <= 1} onClick={() => handlePageChange(estado.pagina - 1)}>Anterior</button>
                   <span className="pagination-info">{estado.pagina} / {totalPages}</span>

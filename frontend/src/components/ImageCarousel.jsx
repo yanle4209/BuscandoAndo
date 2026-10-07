@@ -21,7 +21,13 @@ export default function ImageCarousel({ images, autoplay = false }) {
       <div className="biz-card__images-viewport">
         <div className="biz-card__images-track" style={{ transform: `translateX(-${current * 100}%)` }}>
           {images.map((img, i) => (
-            <img key={img.id || i} src={img.image_url || img.image} alt={img.caption || ''} />
+            <img
+              key={img.id || i}
+              src={img.image_url || img.image}
+              alt={img.caption || ''}
+              loading="lazy"
+              decoding="async"
+            />
           ))}
         </div>
       </div>

@@ -188,7 +188,14 @@
   white-space: nowrap;
 }
 
+/* La descripcion absorbe el aire de las tarjetas cortas: la rejilla
+   estira todas las tarjetas de la fila a la altura de la mas alta, y
+   sin esto una tarjeta con pocos datos dejaba un hueco blanco entre
+   la ultima fila y el pie. Con flex:1 el sobrante se queda dentro de
+   la caja de la descripcion (el pie sigue pegado abajo por el
+   margin:auto de .biz-card__footer) y la tarjeta se ve llena. */
 .biz-card__desc {
+  flex: 1 1 auto;
   font-size: 12px;
   color: #544f47;
   margin-bottom: 6px;
