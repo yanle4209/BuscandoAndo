@@ -4,6 +4,17 @@
   padding: 0;
 }
 
+/* Anillo de foco visible SOLO con teclado (:focus-visible): al tabular
+   por la pagina siempre se ve donde estan los ojos, y con el raton no
+   queda ningun aro suelto. Dorado #8f6c14 (4,9:1 sobre blanco) para
+   que cumpla el 3:1 de no-texto contra el fondo claro (WCAG 2.4.11).
+   Los componentes con su propio :focus-visible (boton Corregir,
+   campos de CorrectionModal) siguen mandando: su especificidad gana. */
+:focus-visible {
+  outline: 2px solid var(--yellow-ink);
+  outline-offset: 2px;
+}
+
 /* Paleta BuscandoAndo (paleta nueva) + acabado bento.
    Todo el lienzo es blanco #ffffff, del mismo tono en las tres zonas
    (barra izquierda, mapa/overlay y rejilla de tarjetas): lo que
