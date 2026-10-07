@@ -85,11 +85,16 @@ body, input, select, textarea, button {
     font-family: var(--font) !important;
 }
 
-/* ===== HAIRLINE UNICO: un solo gris para todos los bordes ===== */
+/* ===== HAIRLINE UNICO: un solo gris para todos los bordes =====
+   Sin !important: es el valor por defecto, no una imposicion. Con
+   !important mataba cualquier filete de color, porque ni las reglas de
+   color ni los estilos en linea (chips de destacados, boton de Importar,
+   botones del mapa) lo llevan: el amarillo de los botones, el rojo del
+   borrar y el verde/rojo de los avisos quedaban pintados en arena. */
 *,
 *::before,
 *::after {
-    border-color: #e2e1c9 !important;
+    border-color: #e2e1c9;
 }
 
 /* ===== BODY ===== */
