@@ -4,14 +4,10 @@
 {% block object-tools %}
 <ul class="object-tools">
   <li>
-    <a href="{% url 'import_json' %}" class="addlink" style="background: #FBBF24; color: #1f1a1a; padding: 6px 12px; border-radius: 8px; text-decoration: none; margin-right: 5px; font-weight: bold;">
-      Importar JSON
-    </a>
+    <a href="{% url 'import_json' %}" class="addlink">Importar JSON</a>
   </li>
   <li>
-    <a href="{% url 'export_json' %}" class="viewlink" style="background: transparent; color: #8f6c14; border: 1px solid #FBBF24; padding: 6px 12px; border-radius: 8px; text-decoration: none; font-weight: bold;">
-      Exportar JSON
-    </a>
+    <a href="{% url 'export_json' %}" class="viewlink">Exportar JSON</a>
   </li>
   {% block object-tools-items %}{% endblock %}
 </ul>

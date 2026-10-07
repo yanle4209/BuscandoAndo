@@ -154,3 +154,18 @@
 
   });
 })();
+
+/**
+ * Panel lateral en movil/tablet
+ * El CSS superpone #nav-sidebar cuando esta abierto (.shifted) y Django lo
+ * deja abierto si el usuario nunca lo ha tocado: en pantalla estrecha eso
+ * taparia la pagina entera. Se cierra con el PROPIO boton de Django, para
+ * que su estado en memoria y en localStorage queden a tono (si solo se
+ * quitase la clase, el primer clic posterior no haria nada).
+ */
+document.addEventListener('DOMContentLoaded', function() {
+  if (!window.matchMedia('(max-width: 1024px)').matches) return;
+  var main = document.getElementById('main');
+  var boton = document.getElementById('toggle-nav-sidebar');
+  if (main && boton && main.classList.contains('shifted')) boton.click();
+});
