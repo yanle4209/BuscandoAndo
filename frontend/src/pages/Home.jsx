@@ -391,6 +391,28 @@ export default function Home() {
     return undefined;
   }, [estado.punto]);
 
+  // Pestañas viejas: una pestaña abierta se queda con el bundle con el
+  // que se cargo y no se entera del deploy (teselas 403, sombra sin
+  // ver, barra del ancho antiguo...). Cada minuto se mira si el
+  // index.html del servidor apunta a otro bundle; si es asi, y no hay
+  // nada a medias (busqueda o modal abierto), se recarga sola.
+  useEffect(() => {
+    const id = setInterval(async () => {
+      if (estado.haBuscado || modalBiz || correctionBiz || showContact) return;
+      try {
+        const r = await fetch(window.location.origin + window.location.pathname, { cache: 'no-store' });
+        if (!r.ok) return;
+        const html = await r.text();
+        const servido = (html.match(/assets\/(index-[\w-]+\.js)/) || [])[1];
+        const mio = (document.querySelector('script[type="module"]')?.src || '').split('/').pop();
+        if (servido && mio && servido !== mio) window.location.reload();
+      } catch {
+        // sin red no se recarga: se reintenta en el siguiente minuto
+      }
+    }, 60000);
+    return () => clearInterval(id);
+  }, [estado.haBuscado, modalBiz, correctionBiz, showContact]);
+
   const handleSearch = (parcial) => dispatch({ type: 'buscar', parcial });
 
   const handlePageChange = (newPage) => {

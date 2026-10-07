@@ -35,3 +35,20 @@
 .leaflet-popup-close-button:hover {
   color: var(--dark) !important;
 }
+
+/* Aviso cuando fallan las tres fuentes de teselas: en vez de dejar un
+   rectangulo gris sin explicacion. El display lo manda el JS. */
+.map-view__aviso {
+  position: absolute;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  background: rgba(255, 255, 255, 0.96);
+}

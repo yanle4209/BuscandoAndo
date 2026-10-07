@@ -57,11 +57,10 @@ export default function MapView({ businesses, selected, center, onMarkerClick, o
 
       L.control.zoom({ position: 'topright' }).addTo(mapInstance.current);
 
-      // OpenStreetMap oficial (gratis, sin API key). Se cambiaba del
-      // estilo "hot" de tile.openstreetmap.fr porque ahi las teselas
-      // salian rotas (naturalWidth 0) y el mapa se quedaba gris.
-      // Si OSM falla (429 por trafico, caida), se cambia a CARTO: lo
-      // que no puede pasar es dejar un rectangulo gris.
+      // Tres fuentes en cadena: OSM oficial -> CARTO -> Esri. La vieja
+      // (tile.openstreetmap.fr/hot) devolvia 403 Forbidden y dejaba el
+      // rectangulo gris. Si fallan las tres se avisa en el propio
+      // mapa: nunca un gris sin explicacion.
       const fuentes = [
         {
           url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -71,23 +70,40 @@ export default function MapView({ businesses, selected, center, onMarkerClick, o
           url: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
         },
+        {
+          url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+          attribution: '&copy; <a href="https://www.esri.com/">Esri</a>',
+        },
       ];
+
+      // El aviso va fuera de React: Leaflet limpia el contenedor al
+      // crearse, y asi el mensaje no depende de un estado.
+      mapRef.current.querySelectorAll('.map-view__aviso').forEach((n) => n.remove());
+      const aviso = document.createElement('div');
+      aviso.className = 'map-view__aviso';
+      aviso.textContent = 'No se pudieron cargar las teselas del mapa (403 o red bloqueada): puede ser un bloqueador o la red del equipo. Recarga la pagina.';
+      aviso.style.display = 'none';
+      mapRef.current.appendChild(aviso);
+
       let fallos = 0;
-      let cambiada = false;
-      const capa = L.tileLayer(fuentes[0].url, {
-        attribution: fuentes[0].attribution,
-        maxZoom: 19,
-      }).addTo(mapInstance.current);
-      capa.on('tileerror', () => {
-        fallos += 1;
-        if (cambiada || fallos < 4) return;
-        cambiada = true;
-        mapInstance.current.removeLayer(capa);
-        L.tileLayer(fuentes[1].url, {
-          attribution: fuentes[1].attribution,
+      const montar = (i) => {
+        const l = L.tileLayer(fuentes[i].url, {
+          attribution: fuentes[i].attribution,
           maxZoom: 19,
         }).addTo(mapInstance.current);
-      });
+        l.on('tileerror', () => {
+          fallos += 1;
+          if (fallos < 4) return;
+          fallos = 0;
+          mapInstance.current.removeLayer(l);
+          if (i + 1 >= fuentes.length) {
+            aviso.style.display = 'flex';
+            return;
+          }
+          montar(i + 1);
+        });
+      };
+      montar(0);
 
       mapInstance.current.on('click', (e) => {
         if (onMapClick) {
