@@ -554,9 +554,12 @@
   }
 
   .right-brand-title {
-    font-size: 26px;
-    /* cede sitio por la derecha para que el boton no se le encime */
-    padding-right: 92px;
+    /* fluido, y cediendo sitio por la derecha: en 320-768px el logo
+       tiene que caber SIEMPRE entre el borde izquierdo y el boton,
+       que si no se le encima. 7vw a 360px da ~25px; el padding deja
+       la zona del boton fuera del centrado. */
+    font-size: clamp(20px, 7vw, 26px);
+    padding-right: 96px;
   }
 
   .contact-link {
