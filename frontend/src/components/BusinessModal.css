@@ -348,6 +348,12 @@
   transition: all 0.2s;
 }
 
+/* "Ver ficha completa": mismo look que el de Maps y a su lado; los dos
+   son inline-flex, asi que caben en la misma linea si no se estrecha. */
+.modal-ficha-link {
+  margin-right: 10px;
+}
+
 .modal-map-link:hover {
   background: #3d2e09;
 }
