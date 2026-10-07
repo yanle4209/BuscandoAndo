@@ -32,14 +32,14 @@
         
         const mapDiv = document.createElement('div');
         mapDiv.id = 'business-map';
-        mapDiv.style.cssText = 'width: 100%; height: 400px; margin: 10px 0; border: 2px solid #FBBF24; border-radius: 6px; z-index: 1; background: #f5f5e6;';
+        mapDiv.style.cssText = 'width: 100%; height: 400px; margin: 10px 0; border: 2px solid #FBBF24; border-radius: 6px; z-index: 1; background: #ffffff;';
         mapSection.appendChild(mapDiv);
 
         const searchBtn = document.createElement('button');
         searchBtn.type = 'button';
         searchBtn.textContent = '📍 Buscar dirección en mapa';
         searchBtn.className = 'button';
-        searchBtn.style.cssText = 'margin: 5px 0; background: #FBBF24; color: #1f1a1a; border: 2px solid #FBBF24; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;';
+        searchBtn.style.cssText = 'margin: 5px 0; background: #ffffff; color: #1f1a1a; border: 2px solid #FBBF24; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;';
         mapSection.appendChild(searchBtn);
         
         // Insertar ANTES del inline de ubicación
@@ -271,7 +271,7 @@
         const detectBtn = document.createElement('button');
         detectBtn.type = 'button';
         detectBtn.textContent = '🔄 Auto-detectar estado según horarios';
-        detectBtn.style.cssText = 'margin: 5px 0; background: #FBBF24; color: #1f1a1a; border: 2px solid #FBBF24; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s;';
+        detectBtn.style.cssText = 'margin: 5px 0; background: #ffffff; color: #1f1a1a; border: 2px solid #FBBF24; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s;';
 
         opStatusField.parentNode.insertBefore(detectBtn, opStatusField.nextSibling);
 
@@ -392,7 +392,7 @@
             copyBtn.textContent = '📋';
             copyBtn.title = 'Copiar horario de otro día';
             copyBtn.className = 'copy-hours-btn';
-            copyBtn.style.cssText = 'background: #FBBF24; color: #1f1a1a; border: 2px solid #FBBF24; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.2s;';
+            copyBtn.style.cssText = 'background: #ffffff; color: #1f1a1a; border: 2px solid #FBBF24; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.2s;';
 
             copyBtn.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -444,10 +444,10 @@
                     btn.type = 'button';
                     const timeInfo = opt.closed ? 'Cerrado' : (opt.holiday ? 'Fiesta' : (opt.open + ' - ' + opt.close));
                     btn.textContent = opt.day + ' (' + timeInfo + ')';
-                    btn.style.cssText = 'display:block;width:100%;text-align:left;padding:10px 14px;margin-bottom:6px;background:#f5f5e6;color:#1f1a1a;border:1px solid #d4d3b6;border-radius:6px;cursor:pointer;font-size:14px;transition:all 0.2s;';
+                    btn.style.cssText = 'display:block;width:100%;text-align:left;padding:10px 14px;margin-bottom:6px;background:#ffffff;color:#1f1a1a;border:1px solid #d4d3b6;border-radius:6px;cursor:pointer;font-size:14px;transition:all 0.2s;';
 
-                    btn.addEventListener('mouseenter', function() { btn.style.borderColor = '#FBBF24'; btn.style.background = '#f9f9e4'; });
-                    btn.addEventListener('mouseleave', function() { btn.style.borderColor = '#d4d3b6'; btn.style.background = '#f5f5e6'; });
+                    btn.addEventListener('mouseenter', function() { btn.style.borderColor = '#FBBF24'; btn.style.boxShadow = '0 0 0 3px rgba(251,191,36,0.28)'; });
+                    btn.addEventListener('mouseleave', function() { btn.style.borderColor = '#d4d3b6'; btn.style.boxShadow = 'none'; });
 
                     btn.addEventListener('click', function() {
                         const openTime = row.querySelector('input[name$="-open_time"]');
@@ -572,9 +572,9 @@
         var detectBtn = document.createElement('button');
         detectBtn.type = 'button';
         detectBtn.textContent = '🎉 Detectar fiestas de esta semana';
-        detectBtn.style.cssText = 'margin: 8px 0 4px; background: #FBBF24; color: #1f1a1a; border: 2px solid #FBBF24; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; transition: all 0.2s;';
-        detectBtn.addEventListener('mouseenter', function() { detectBtn.style.background = '#FCD34D'; });
-        detectBtn.addEventListener('mouseleave', function() { detectBtn.style.background = '#FBBF24'; });
+        detectBtn.style.cssText = 'margin: 8px 0 4px; background: #ffffff; color: #1f1a1a; border: 2px solid #FBBF24; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; transition: all 0.2s;';
+        detectBtn.addEventListener('mouseenter', function() { detectBtn.style.borderColor = '#8f6c14'; detectBtn.style.boxShadow = '0 0 0 3px rgba(251,191,36,0.28)'; });
+        detectBtn.addEventListener('mouseleave', function() { detectBtn.style.borderColor = '#FBBF24'; detectBtn.style.boxShadow = 'none'; });
         detectBtn.addEventListener('click', function(e) { e.preventDefault(); checkHolidays(); });
 
         // Insertar el botón después del título del inline

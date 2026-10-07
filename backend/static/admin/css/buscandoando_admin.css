@@ -8,12 +8,17 @@
 
 /* ===== OVERRIDE VARIABLES DE DJANGO ADMIN ===== */
 :root {
+    /* El sistema operativo en modo oscuro pintaria los controles nativos
+       (scrollbars, selects, calendarios) en negro sobre el lienzo blanco:
+       aqui se fuerza el esquema de colores claro. */
+    color-scheme: light !important;
+
     --yellow: #FBBF24 !important;
     --yellow-light: #FCD34D !important;
     --yellow-ink: #8f6c14 !important;   /* el amarillo, legible sobre claro */
     --dark: #1f1a1a !important;         /* tinta, ya no es fondo */
     --dark-card: #ffffff !important;    /* superficie de tarjeta */
-    --white: #eeeed5 !important;
+    --white: #ffffff !important;
     --white-pure: #ffffff !important;
     --brown: #513e0c !important;        /* marron oscuro: superficies y marcas */
     --grey: #66615a !important;         /* Grey Olive: metadatos */
@@ -23,13 +28,13 @@
     --border-strong: #d4d3b6 !important;
     --font: 'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 
-    --primary: #FBBF24 !important;
+    --primary: #ffffff !important;
     --secondary: #1f1a1a !important;
     --accent: #FBBF24 !important;
     --primary-fg: #1f1a1a !important;
 
     --body-fg: #1f1a1a !important;
-    --body-bg: #eeeed5 !important;
+    --body-bg: #ffffff !important;
     --body-quiet-color: #66615a !important;
     --body-medium-color: #5b564d !important;
     --body-loud-color: #1f1a1a !important;
@@ -52,27 +57,27 @@
 
     --error-fg: #b91c1c !important;
 
-    --message-success-bg: rgba(135, 179, 50, 0.18) !important;
-    --message-warning-bg: rgba(251, 191, 36, 0.16) !important;
-    --message-error-bg: rgba(220, 53, 69, 0.12) !important;
+    --message-success-bg: #ffffff !important;
+    --message-warning-bg: #ffffff !important;
+    --message-error-bg: #ffffff !important;
 
-    --darkened-bg: #e7e7cf !important;
-    --selected-bg: rgba(251, 191, 36, 0.18) !important;
-    --selected-row: rgba(251, 191, 36, 0.16) !important;
+    --darkened-bg: #ffffff !important;
+    --selected-bg: #ffffff !important;
+    --selected-row: #ffffff !important;
 
     --button-fg: #1f1a1a !important;
-    --button-bg: #FBBF24 !important;
-    --button-hover-bg: #FCD34D !important;
-    --default-button-bg: #FBBF24 !important;
-    --default-button-hover-bg: #FCD34D !important;
-    --close-button-bg: #e2e1c9 !important;
-    --close-button-hover-bg: #d4d3b6 !important;
-    --delete-button-bg: #dc3545 !important;
-    --delete-button-hover-bg: #a41515 !important;
+    --button-bg: #ffffff !important;
+    --button-hover-bg: #ffffff !important;
+    --default-button-bg: #ffffff !important;
+    --default-button-hover-bg: #ffffff !important;
+    --close-button-bg: #ffffff !important;
+    --close-button-hover-bg: #ffffff !important;
+    --delete-button-bg: #ffffff !important;
+    --delete-button-hover-bg: #ffffff !important;
 
     --object-tools-fg: #8f6c14 !important;
     --object-tools-bg: #ffffff !important;
-    --object-tools-hover-bg: #FBBF24 !important;
+    --object-tools-hover-bg: #ffffff !important;
 }
 
 /* ===== FUENTE BASE ===== */
@@ -90,7 +95,7 @@ body, input, select, textarea, button {
 /* ===== BODY ===== */
 body {
     color: #1f1a1a !important;
-    background: #eeeed5 !important;
+    background: #ffffff !important;
     line-height: 1.5 !important;
 }
 
@@ -172,7 +177,7 @@ div.breadcrumbs a:hover { color: var(--ink) !important; }
 }
 
 #nav-sidebar .current-model {
-    background: rgba(251, 191, 36, 0.18) !important;
+    background: var(--white-pure) !important;
     color: var(--brown) !important;
     border-left: 3px solid var(--yellow) !important;
 }
@@ -185,11 +190,14 @@ div.breadcrumbs a:hover { color: var(--ink) !important; }
 
 .toggle-nav-sidebar:hover { color: var(--ink) !important; }
 
-/* ===== BOTONES ===== */
-input[type="submit"], .button, .btn, .default {
-    background: var(--yellow) !important;
+/* ===== BOTONES =====
+   Todo literal: lienzo blanco y el color, solo en el borde. El estado
+   hover/foco se marca con un filete mas fuerte y un anillo, nunca con
+   relleno. */
+input[type="submit"], input[type="button"], .button, .btn, .default {
+    background: var(--white-pure) !important;
     color: var(--dark) !important;
-    border: none !important;
+    border: 1px solid var(--yellow) !important;
     border-radius: 8px !important;
     padding: 8px 18px !important;
     font-weight: 700 !important;
@@ -198,9 +206,11 @@ input[type="submit"], .button, .btn, .default {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
 }
 
-input[type="submit"]:hover, .button:hover, .btn:hover, .default:hover {
-    background: var(--yellow-light) !important;
-    color: var(--dark) !important;
+input[type="submit"]:hover, input[type="button"]:hover, .button:hover, .btn:hover, .default:hover {
+    background: var(--white-pure) !important;
+    color: var(--brown) !important;
+    border-color: var(--yellow-ink) !important;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.28) !important;
 }
 
 input[type="submit"]:active, .button:active, .btn:active {
@@ -208,15 +218,17 @@ input[type="submit"]:active, .button:active, .btn:active {
 }
 
 .button.deletelink, input[type="submit"].deletelink {
-    background: #dc3545 !important;
-    color: white !important;
-    border: none !important;
+    background: var(--white-pure) !important;
+    color: #b91c1c !important;
+    border: 1px solid #dc3545 !important;
     box-shadow: none !important;
 }
 
 .button.deletelink:hover, input[type="submit"].deletelink:hover {
-    background: #a41515 !important;
-    color: white !important;
+    background: var(--white-pure) !important;
+    color: #8b1111 !important;
+    border-color: #b91c1c !important;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.18) !important;
 }
 
 /* Object tools */
@@ -227,13 +239,15 @@ input[type="submit"]:active, .button:active, .btn:active {
 }
 
 .object-tools li a.addlink {
-    background: var(--yellow) !important;
+    background: var(--white-pure) !important;
     color: var(--dark) !important;
-    border: none !important;
+    border: 1px solid var(--yellow) !important;
 }
 
 .object-tools li a.addlink:hover {
-    background: var(--yellow-light) !important;
+    background: var(--white-pure) !important;
+    border-color: var(--yellow-ink) !important;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.28) !important;
 }
 
 .object-tools li a.viewlink {
@@ -243,8 +257,10 @@ input[type="submit"]:active, .button:active, .btn:active {
 }
 
 .object-tools li a.viewlink:hover {
-    background: var(--yellow) !important;
-    color: var(--dark) !important;
+    background: var(--white-pure) !important;
+    color: var(--brown) !important;
+    border-color: var(--yellow-ink) !important;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.28) !important;
 }
 
 /* ===== LINKS ===== */
@@ -254,13 +270,33 @@ a.addlink, a.addlink:visited { color: var(--yellow-ink) !important; }
 a.changelink, a.changelink:visited { color: var(--brown) !important; }
 a.addlink:hover, a.changelink:hover { color: var(--ink) !important; }
 
-/* El enlace de borrar va en rojo con texto blanco: sin esto, la regla
-   de arriba le pinta el marron de enlace sobre el fondo rojo. */
+/* El enlace de borrar pasa a texto rojo sobre lienzo blanco: el rojo, en
+   el texto y, cuando es un boton (submit row), en el filete. */
 a.deletelink, a.deletelink:visited {
-    color: #ffffff !important;
-    background: var(--delete-button-bg) !important;
+    color: #b91c1c !important;
+    background: var(--white-pure) !important;
 }
-a.deletelink:hover { color: #ffffff !important; background: var(--delete-button-hover-bg) !important; }
+a.deletelink:hover { color: #8b1111 !important; background: var(--white-pure) !important; }
+
+.submit-row a.deletelink,
+.delete-confirmation form a.deletelink {
+    color: #b91c1c !important;
+    background: var(--white-pure) !important;
+    border: 1px solid #dc3545 !important;
+}
+
+.delete-confirmation form input[type="submit"] {
+    background: var(--white-pure) !important;
+    color: #b91c1c !important;
+    border: 1px solid #dc3545 !important;
+}
+
+.submit-row a.closelink,
+.delete-confirmation form .cancel-link {
+    background: var(--white-pure) !important;
+    color: var(--ink) !important;
+    border: 1px solid var(--border-strong) !important;
+}
 
 /* ===== TABLA ===== */
 #result_list {
@@ -271,10 +307,10 @@ a.deletelink:hover { color: #ffffff !important; background: var(--delete-button-
 }
 
 #result_list th {
-    background: #e7e7cf !important;
+    background: var(--white-pure) !important;
     color: var(--ink) !important;
     font-weight: 700;
-    border-bottom: 1px solid var(--border) !important;
+    border-bottom: 2px solid var(--yellow) !important;
 }
 
 #result_list td {
@@ -283,11 +319,13 @@ a.deletelink:hover { color: #ffffff !important; background: var(--delete-button-
 }
 
 #result_list tr:hover td {
-    background: rgba(251, 191, 36, 0.07) !important;
+    background: var(--white-pure) !important;
+    border-bottom-color: var(--yellow) !important;
 }
 
 #result_list tr.selected td {
-    background: rgba(251, 191, 36, 0.16) !important;
+    background: var(--white-pure) !important;
+    box-shadow: inset 3px 0 0 var(--yellow) !important;
 }
 
 #result_list .action-select input[type="checkbox"] {
@@ -317,7 +355,8 @@ a.deletelink:hover { color: #ffffff !important; background: var(--delete-button-
 #changelist-filter ul li.selected a {
     color: var(--brown) !important;
     font-weight: bold;
-    background: rgba(251, 191, 36, 0.16) !important;
+    background: var(--white-pure) !important;
+    border: 1px solid var(--yellow) !important;
     border-radius: 6px;
 }
 
@@ -353,8 +392,9 @@ a.deletelink:hover { color: #ffffff !important; background: var(--delete-button-
    formulario del negocio que hay que arreglar. */
 a.boton-corregir {
     display: inline-block;
-    background: var(--yellow) !important;
+    background: var(--white-pure) !important;
     color: #1f1a1a !important;
+    border: 1px solid var(--yellow) !important;
     padding: 6px 16px;
     border-radius: 6px;
     font-weight: bold;
@@ -364,8 +404,10 @@ a.boton-corregir {
 }
 
 a.boton-corregir:hover {
-    background: var(--yellow-light) !important;
-    color: #1f1a1a !important;
+    background: var(--white-pure) !important;
+    color: var(--brown) !important;
+    border-color: var(--yellow-ink) !important;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.28) !important;
 }
 
 /* ===== MODULES / FIELDSETS ===== */
@@ -396,7 +438,7 @@ a.boton-corregir:hover {
 }
 
 .inline-group .inline-related h3 {
-    background: #e7e7cf !important;
+    background: var(--white-pure) !important;
     color: var(--ink) !important;
     padding: 10px 14px;
     border-radius: 10px 10px 0 0;
@@ -436,7 +478,7 @@ input[type="datetime-local"]:focus {
 input[type="checkbox"] { accent-color: var(--yellow); }
 
 .field-get_featured_stats {
-    background: #f9f9ef !important;
+    background: var(--white-pure) !important;
     padding: 12px !important;
     border-radius: 8px !important;
     border: 1px solid var(--border) !important;
@@ -477,14 +519,17 @@ input[type="checkbox"] { accent-color: var(--yellow); }
 
 .pagination a:hover,
 .paginator a:hover {
-    background: var(--yellow) !important;
-    color: var(--dark) !important;
+    background: var(--white-pure) !important;
+    color: var(--brown) !important;
+    border-color: var(--yellow-ink) !important;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.28) !important;
 }
 
 .pagination .this-page,
 .paginator .this-page {
-    background: var(--yellow) !important;
+    background: var(--white-pure) !important;
     color: var(--dark) !important;
+    border: 1px solid var(--yellow) !important;
     border-radius: 6px;
     padding: 4px 10px;
     font-weight: bold;
@@ -502,25 +547,25 @@ input[type="checkbox"] { accent-color: var(--yellow); }
 }
 
 .messages .success {
-    background: rgba(135, 179, 50, 0.18) !important;
+    background: var(--white-pure) !important;
     border: 1px solid rgba(135, 179, 50, 0.6) !important;
     color: #1a512d !important;
 }
 
 .messages .warning {
-    background: rgba(251, 191, 36, 0.16) !important;
+    background: var(--white-pure) !important;
     border: 1px solid var(--yellow) !important;
     color: var(--yellow-ink) !important;
 }
 
 .messages .error {
-    background: rgba(220, 53, 69, 0.12) !important;
+    background: var(--white-pure) !important;
     border: 1px solid rgba(220, 53, 69, 0.5) !important;
     color: #b91c1c !important;
 }
 
 .messages .info {
-    background: rgba(100, 149, 237, 0.14) !important;
+    background: var(--white-pure) !important;
     border: 1px solid rgba(100, 149, 237, 0.5) !important;
     color: #1d4ed8 !important;
 }
@@ -534,8 +579,8 @@ input[type="checkbox"] { accent-color: var(--yellow); }
 }
 
 /* ===== CONTENT ===== */
-#content { background: #eeeed5 !important; }
-#content-main { background: #eeeed5 !important; }
+#content { background: var(--white-pure) !important; }
+#content-main { background: var(--white-pure) !important; }
 
 /* ===== FOOTER ===== */
 #footer {
@@ -571,9 +616,13 @@ input[type="checkbox"] { accent-color: var(--yellow); }
 
 /* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #e6e6d2; }
-::-webkit-scrollbar-thumb { background: #c4c3a6; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--yellow); }
+::-webkit-scrollbar-track { background: #ffffff; }
+::-webkit-scrollbar-thumb {
+    background: #ffffff;
+    border: 1px solid #c4c3a6;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: #ffffff; border-color: var(--yellow); }
 
 /* ===== ANIMATIONS ===== */
 input[type="submit"], .button, .btn { transition: all 0.2s ease !important; }
@@ -758,3 +807,74 @@ div.breadcrumbs a {
 .leaflet-control-attribution a {
     text-decoration: underline !important;
 }
+
+/* ===== LIENZO BLANCO LITERAL (retrocompatibilidad con el CSS de Django) =====
+   Django pinta varios estados con --primary / --darkened-bg como relleno.
+   Al pasar todas esas variables a #ffffff hay tres sitios donde el relleno
+   era tambien la senal de estado y quedarian invisibles: se recuperan con
+   filete o texto, nunca con fondo de color. */
+
+/* Calendario y selector de hora: el :hover ponia texto blanco sobre
+   --primary; ahora que --primary es blanco, el texto tenia que volver a
+   tinta y la senal es el filete. */
+.calendar td a:hover,
+.timelist a:hover,
+.calendar td a:focus,
+.timelist a:focus {
+    background: var(--white-pure) !important;
+    color: var(--ink) !important;
+    box-shadow: inset 0 0 0 1px var(--yellow) !important;
+}
+
+/* Autocomplete (select2): la opcion resaltada era relleno amarillo. */
+.select2-container--admin-autocomplete .select2-results__option--highlighted[aria-selected] {
+    background-color: var(--white-pure) !important;
+    color: var(--primary-fg) !important;
+    box-shadow: inset 0 0 0 1px var(--yellow) !important;
+}
+
+/* Fila de "elegidos" del filtro de varios: --primary de fondo. */
+.selector-chosen .list-footer-display {
+    background: var(--white-pure) !important;
+    color: var(--header-link-color) !important;
+    border-top: 1px solid var(--border) !important;
+}
+
+/* Titulo de la columna "elegidos": --secondary (tinta) de fondo. */
+.selector-chosen-title {
+    background: var(--white-pure) !important;
+    color: var(--ink) !important;
+}
+
+/* Cabecera del calendario de fechas: --accent de fondo. */
+.calendar caption,
+.calendarbox h2 {
+    background: var(--white-pure) !important;
+    color: var(--ink) !important;
+    border-bottom: 1px solid var(--border) !important;
+}
+
+/* Dia elegido en el calendario: --secondary de fondo con texto --button-fg,
+   que aqui es tinta: sin este cambio salia tinta sobre tinta. */
+.calendar td.selected a,
+.calendar td.selected a:hover,
+.calendar td.selected a:focus {
+    background: var(--white-pure) !important;
+    color: var(--ink) !important;
+    font-weight: 700;
+    box-shadow: inset 0 0 0 1px var(--yellow) !important;
+}
+
+/* Columna ordenada y su enlace: --selected-bg / --darkened-bg de fondo. */
+thead th.sorted,
+table thead th .text a:hover {
+    background: var(--white-pure) !important;
+}
+table thead th .text a:hover {
+    color: var(--brown) !important;
+    text-decoration: underline !important;
+}
+
+/* El overlay de los popups es un velo translucido por encima del contenido
+   (no una superficie del tema): se deja como esta para que el dialogo se
+   distinga de la pagina. */
