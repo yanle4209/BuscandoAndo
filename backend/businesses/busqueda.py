@@ -15,6 +15,10 @@ errata cierra la busqueda. Aqui se normaliza con la misma
 cada candidato; al queryset solo se le recortan los ids que puntuan, asi
 que su orden, su paginacion, su radio y sus annotations siguen siendo
 cosas suyas.
+
+Lo usan la API publica (``views``: listado y destacados) Y todo el
+admin, por medio de la mezcla ``BusquedaAdmin``: buscar en la web y
+buscar en el admin tiene que ser la misma experiencia.
 """
 import difflib
 
@@ -42,6 +46,15 @@ VACIAS = {
 # alguien que busca, es de alguien que pega.
 MAX_TOKENS = 8
 
+# Los campos con los que busca la API publica: nombre, categoria y las
+# dos descripciones, que son los mismos con los que busca la ficha.
+CAMPOS_NEGOCIO = (
+    'name',
+    'category__name',
+    'short_description',
+    'description',
+)
+
 
 def tokens_de(texto):
     """Las palabras con las que se busca, ya normalizadas.
@@ -61,42 +74,48 @@ def _parecida(token, palabras):
     return bool(difflib.get_close_matches(token, palabras, n=1, cutoff=UMBRAL))
 
 
-def puntuacion(nombre, categoria, breve, descripcion, tokens):
+def _texto(valor):
+    """Un valor de la base como texto normalizado.
+
+    Llega ``None`` cuando el campo es opcional (la categoria, sobre
+    todo) y, en los JSON, como dict o lista: ``str`` y a normalizar.
+    """
+    if valor is None:
+        return ''
+    if not isinstance(valor, str):
+        valor = str(valor)
+    return normalizar(valor)
+
+
+def puntuacion(textos, tokens):
     """Puntuacion 0..1 del negocio, o ``None`` si le falta algun token.
 
-    Todo el texto se normaliza antes de mirarlo, que es lo que hace que
-    las tildes dejen de importar. Cada palabra tecleada tiene que
-    aparecer en alguna parte: en nombre/categoria (lo mejor), en las
-    descripciones, o parecida a alguna de ellas.
+    Los ``textos`` llegan ya normalizados, que es lo que hace que las
+    tildes dejen de importar. Cada palabra tecleada tiene que aparecer
+    en alguno de ellos, o parecida a alguna de sus palabras.
     """
-    primario = normalizar(f'{nombre or ""} {categoria or ""}')
-    secundario = normalizar(f'{breve or ""} {descripcion or ""}')
-    palabras_primarias = primario.split()
-    palabras_secundarias = secundario.split()
+    palabras = [palabra for texto in textos for palabra in texto.split()]
+    juntos = ' '.join(textos)
 
     puntos = 0.0
     for token in tokens:
-        if token in primario:
+        if token in juntos:
             puntos += 1.0
-        elif token in secundario:
-            puntos += 0.7
-        elif len(token) >= MIN_PARECIDA and (
-            _parecida(token, palabras_primarias)
-            or _parecida(token, palabras_secundarias)
-        ):
+        elif len(token) >= MIN_PARECIDA and _parecida(token, palabras):
             puntos += 0.5
         else:
             return None
     return puntos / len(tokens)
 
 
-def filtrar_por_texto(qs, texto):
+def filtrar_por_texto(qs, texto, campos=CAMPOS_NEGOCIO):
     """``qs`` recortada a los negocios que casan con ``texto``.
 
-    Se puntua en Python sobre los campos de texto (nombre, categoria y
-    las dos descripciones) porque SQL no sabe de tildes ni de erratas.
-    El recorte es un ``filter(id__in=...)`` sobre el propio queryset, no
-    una lista reconstruida: asi no se pierde su orden ni su paginacion.
+    Se puntua en Python sobre los ``campos`` dados (rutas de consulta
+    Django, como las de ``search_fields``) porque SQL no sabe de tildes
+    ni de erratas. El recorte es un ``filter(id__in=...)`` sobre el
+    propio queryset, no una lista reconstruida: asi no se pierde su
+    orden, su paginacion ni sus annotations.
 
     El queryset que entra debe venir ya recortado por radio y demas
     filtros, que es lo que hace la vista: el precio de puntuar en
@@ -108,12 +127,44 @@ def filtrar_por_texto(qs, texto):
 
     # prefetch_related(None): los prefetch no aplican a una consulta de
     # valores y estorban, asi que se vacian antes de puntuar.
-    filas = qs.prefetch_related(None).values_list(
-        'id', 'name', 'category__name', 'short_description', 'description',
-    )
+    filas = qs.prefetch_related(None).values_list('id', *campos)
     ids = [
         fila[0]
         for fila in filas
-        if puntuacion(fila[1], fila[2], fila[3], fila[4], tokens) is not None
+        if puntuacion([_texto(valor) for valor in fila[1:]], tokens) is not None
     ]
     return qs.filter(id__in=ids)
+
+
+class BusquedaAdmin:
+    """El buscador de un ModelAdmin, con las mismas reglas que la web.
+
+    El ``search_fields`` por defecto busca con ``icontains`` campo a
+    campo, y en el admin eso duele mas que en la web: con mas de 16000
+    fichas, "nunez" no encuentra "Nunez de Caceres", "crisostomo" no
+    encuentra "Escuela Juan Crisostomo Estrella" y una sola errata deja
+    la busqueda vacia. Aqui la consulta pasa por
+    :func:`filtrar_por_texto` con los MISMOS campos que declara
+    ``search_fields`` del ModelAdmin, asi que no hay nada que declarar
+    dos veces: basta con heredar de esta clase ademas de
+    ``admin.ModelAdmin``.
+
+    ``search_fields`` sigue siendo obligatorio: es lo que enseña la
+    caja de busqueda y lo que usan ademas los desplegables de
+    autocompletado. Sin campo, o sin nada tecleado, manda Django.
+    """
+
+    def get_search_results(self, request, queryset, search_term):
+        if not (search_term or '').strip():
+            return super().get_search_results(request, queryset, search_term)
+
+        campos = tuple(
+            campo.lstrip('^~=')
+            for campo in getattr(self, 'search_fields', [])
+        )
+        if not campos:
+            return super().get_search_results(request, queryset, search_term)
+
+        # False: el filtro es sobre el propio queryset (id__in), sin
+        # duplicados que exigir con distinct().
+        return filtrar_por_texto(queryset, search_term, campos), False

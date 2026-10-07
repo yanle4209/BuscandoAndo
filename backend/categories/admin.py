@@ -1,9 +1,10 @@
 from django.contrib import admin
+from businesses.busqueda import BusquedaAdmin
 from .models import Category
 
 
 @admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
+class CategoryAdmin(BusquedaAdmin, admin.ModelAdmin):
     list_display = ['name', 'get_parent', 'icon', 'is_active', 'created_at']
     list_filter = ['is_active', 'parent']
     list_editable = ['is_active']
