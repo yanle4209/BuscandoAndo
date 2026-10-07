@@ -570,6 +570,98 @@ class BusquedaPorTextoTests(TestCase):
         self.assertEqual(data['count'], 0)
 
 
+@override_settings(STORAGES=STATIC_SIN_MANIFEST)
+class BusquedaEnAdminTests(TestCase):
+    """El buscador del admin, con las mismas reglas que el de la web.
+
+    La caja de busqueda del admin era un ``icontains`` campo a campo, y
+    ahi la regla cuesta mas que en la web: "nunez" no encontraba
+    "Supermercado Núñez de Cáceres", "crisostomo" no encontraba
+    "Escuela Juan Crisóstomo Estrella" y una sola errata dejaba la
+    busqueda vacia. Ahora la consulta pasa por la misma
+    ``businesses.busqueda`` que la API publica (mezcla
+    ``BusquedaAdmin``): una palabra basta, el orden no importa, las
+    tildes sobran y una errata se perdona — y se busca tambien en la
+    categoria, como en la web.
+    """
+
+    URL = '/admin/businesses/business/'
+    COLABORADORES_URL = '/admin/businesses/colaborador/'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado')
+        cls.abierto = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto')
+        cls.restaurantes = Category.objects.create(
+            name='Restaurantes', slug='restaurantes')
+        cls.admin = get_user_model().objects.create_superuser(
+            'admin', 'admin@example.com', 'x')
+
+    def ficha(self, nombre):
+        return Business.objects.create(
+            name=nombre, description='', category=self.restaurantes,
+            publication_status=self.publicado,
+            operational_status=self.abierto,
+        )
+
+    def buscar(self, q, url=None):
+        self.client.force_login(self.admin)
+        respuesta = self.client.get(url or self.URL, {'q': q})
+        self.assertEqual(respuesta.status_code, 200)
+        return respuesta
+
+    def cuantos(self, q, url=None):
+        return self.buscar(q, url).context['cl'].result_count
+
+    def test_con_una_palabra_sin_tildes_se_encuentra(self):
+        self.ficha('Escuela Juan Crisóstomo Estrella')
+        self.ficha('Farmacia Central')
+
+        respuesta = self.buscar('crisostomo')
+
+        self.assertEqual(respuesta.context['cl'].result_count, 1)
+        self.assertContains(respuesta, 'Escuela Juan Crisóstomo Estrella')
+        self.assertNotContains(respuesta, 'Farmacia Central')
+
+    def test_la_tilde_de_la_ficha_no_hace_falta_teclearla(self):
+        self.ficha('Supermercado Núñez de Cáceres')
+
+        self.assertContains(
+            self.buscar('nunez'), 'Supermercado Núñez de Cáceres')
+
+    def test_una_errata_tambien_se_perdona(self):
+        self.ficha('Supermercado Núñez de Cáceres')
+
+        self.assertContains(
+            self.buscar('supermercdo'), 'Supermercado Núñez de Cáceres')
+
+    def test_como_en_la_web_se_busca_tambien_en_la_categoria(self):
+        """El nombre no lleva 'restaurante': solo la categoria."""
+        self.ficha('Cocina Dona Rosa')
+
+        self.assertContains(self.buscar('restaurante'), 'Cocina Dona Rosa')
+
+    def test_un_texto_lejano_no_inventa_resultados(self):
+        self.ficha('Farmacia Central')
+
+        self.assertEqual(self.cuantos('crisostomo'), 0)
+
+    def test_en_colaboradores_tambien_y_sin_duplicar_filas(self):
+        """El queryset de ese listado viene con conteos anotados.
+
+        El recorte por id no los puede romper ni repetir filas.
+        """
+        Colaborador.objects.create(nombre='José Pérez',
+                                   municipio='Santo Domingo')
+        Colaborador.objects.create(nombre='Pedro Rodriguez',
+                                   municipio='Moca')
+
+        self.assertEqual(self.cuantos('jose perez', self.COLABORADORES_URL), 1)
+        self.assertEqual(self.cuantos('pedro', self.COLABORADORES_URL), 1)
+
+
 class FiltroCityTests(TestCase):
     """R3.5: `city` dejo de ser filtro por nombre.
 

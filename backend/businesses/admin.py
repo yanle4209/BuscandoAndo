@@ -6,6 +6,7 @@ from django.utils.html import format_html
 from django.contrib import messages
 from django.utils import timezone
 from . import geografia
+from .busqueda import BusquedaAdmin
 from .models import (
     Business, Correction, Colaborador, Envio,
     FEATURED_LIMITS, FEATURED_WEEKS_CHOICES,
@@ -34,7 +35,7 @@ class BusinessContactInline(admin.StackedInline):
 
 
 @admin.register(Correction)
-class CorrectionAdmin(admin.ModelAdmin):
+class CorrectionAdmin(BusquedaAdmin, admin.ModelAdmin):
     """Bandeja de avisos de datos incorrectos enviados desde el frontend.
 
     El aviso solo dice que algo esta mal: el arreglo se hace en la ficha
@@ -227,7 +228,7 @@ class MunicipioPorProvincia(admin.SimpleListFilter):
 
 
 @admin.register(Business)
-class BusinessAdmin(admin.ModelAdmin):
+class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
     change_list_template = 'admin/businesses/business/changelist.html'
     change_form_template = 'admin/businesses/business/change_form.html'
 
@@ -248,7 +249,12 @@ class BusinessAdmin(admin.ModelAdmin):
         'featured_permanent',
         'created_at',
     ]
-    search_fields = ['name', 'description', 'short_description']
+    # Los MISMOS campos que busca la API publica: si aqui no esta la
+    # categoria y en la web si, "restaurante" enseña resultados en la web
+    # y 0 en el admin. La mezcla BusquedaAdmin los usa ademas sin tildes,
+    # en cualquier orden y con una errata de holgura.
+    search_fields = ['name', 'category__name', 'short_description',
+                     'description']
     list_editable = ['publication_status', 'is_featured', 'featured_tier']
     list_per_page = 25
     ordering = ['-is_featured', '-created_at']
@@ -489,7 +495,7 @@ class ColaboradorForm(forms.ModelForm):
 
 
 @admin.register(Colaborador)
-class ColaboradorAdmin(admin.ModelAdmin):
+class ColaboradorAdmin(BusquedaAdmin, admin.ModelAdmin):
     """Alta de colaboradores y el token con que firman (DISENO.md 11.5).
 
     No hay "usuarios" del canal: hay personas que firman. Crear uno aqui
@@ -616,7 +622,7 @@ class ColaboradorAdmin(admin.ModelAdmin):
 
 
 @admin.register(Envio)
-class EnvioAdmin(admin.ModelAdmin):
+class EnvioAdmin(BusquedaAdmin, admin.ModelAdmin):
     """Bandeja de auditoria del canal: que decidio el sistema y por que.
 
     **Solo lectura.** Ahi dentro esta la decision (§11.5) y el cuerpo
