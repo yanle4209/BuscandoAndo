@@ -553,12 +553,11 @@ export default function Home() {
           izquierda (20-25% del ancho) y la rejilla de resultados. */}
       <div className={`right-brand ${estado.haBuscado ? 'right-brand--compact' : ''}`}>
         <h1 className="right-brand-title" onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>Buscando<span className="right-brand-accent">Ando</span></h1>
+        {/* A la derecha del logo, casi en el borde de la cabecera */}
+        <button className="contact-link" onClick={() => setShowContact(true)}>Contactanos</button>
       </div>
 
       <div className="left-panel">
-        <div className="sidebar-top">
-          <button className="contact-link" onClick={() => setShowContact(true)}>Contactanos</button>
-        </div>
         <SearchBar {...searchProps} />
         {/* El mapa esta SIEMPRE, debajo del selector de municipio: se
             centra en el municipio elegido o, si no lo hay, en lo que
