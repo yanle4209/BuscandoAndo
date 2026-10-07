@@ -751,7 +751,10 @@ div.breadcrumbs a {
 
 /* La atribucion de Leaflet (OpenStreetMap, mapillary...) hereda el marron
    de enlaces del admin sobre el texto #333 de la propia atribucion: 1,22:1
-   entre uno y otro. Subrayados, como en la migas de pan. */
+   entre uno y otro. Subrayados, como en la migas de pan. El leaflet.css va
+   cargado por el mapa DESPUES de esta hoja y pinta
+   ".leaflet-control-attribution a { text-decoration: none }" con la misma
+   especificidad, por eso hace falta !important. */
 .leaflet-control-attribution a {
-    text-decoration: underline;
+    text-decoration: underline !important;
 }
