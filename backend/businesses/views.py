@@ -10,6 +10,7 @@ from django.utils import timezone
 # crearia un ciclo. Se importa el paquete ademas de los nombres sueltos
 # porque la vista ``cabeceras`` taparia al ``cabeceras`` del modulo.
 from .firma import colaborador_de, token_de
+from . import busqueda
 from . import geografia
 from .geografia import (
     RADIO_KM,
@@ -191,18 +192,8 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
 
         params = self.request.query_params
 
-        # Busqueda por texto. Mismos campos que featured_by_search: si los
-        # destacados buscan en la categoria y el listado no, "restaurante"
-        # enseña 2 destacados sobre "0 resultados" (lo contrario de que
-        # siempre haya resultados si estan disponibles).
-        search = params.get('text') or params.get('search')
-        if search:
-            qs = qs.filter(
-                Q(name__icontains=search) |
-                Q(description__icontains=search) |
-                Q(short_description__icontains=search) |
-                Q(category__name__icontains=search)
-            )
+        # Busqueda por texto: no aqui, al FINAL, una vez aplicados el
+        # radio y los demas filtros (ver ``busqueda.filtrar_por_texto``).
 
         # Filtrar por categoria
         category = params.get('category')
@@ -255,6 +246,18 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
         if lat and lng:
             qs = negocios_en_radio(qs, lat, lng, parse_radio(params.get('radius')))
 
+        # Busqueda por texto. Mismos campos que featured_by_search: si los
+        # destacados buscan en la categoria y el listado no, "restaurante"
+        # enseña 2 destacados sobre "0 resultados" (lo contrario de que
+        # siempre haya resultados si estan disponibles).
+        #
+        # Va la ULTIMA porque se puntua en Python (SQL no distingue tildes
+        # ni erratas): el recorte en memoria se paga sobre lo que ya pasa
+        # el radio, no sobre la base entera.
+        search = params.get('text') or params.get('search')
+        if search:
+            qs = busqueda.filtrar_por_texto(qs, search)
+
         return qs
 
     @action(detail=False, methods=['get'], url_path='featured-by-search')
@@ -281,14 +284,7 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
             'category', 'publication_status', 'operational_status'
         ).prefetch_related('location', 'contact', 'hours', 'images')
 
-        # Filter by search text if provided
-        if search:
-            qs = qs.filter(
-                Q(name__icontains=search) |
-                Q(description__icontains=search) |
-                Q(short_description__icontains=search) |
-                Q(category__name__icontains=search)
-            )
+        # Busqueda por texto: NO aqui, al FINAL (ver mas abajo).
 
         # Filter by category if provided
         if category:
@@ -306,6 +302,14 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
         lng = params.get('lng')
         if lat and lng:
             qs = negocios_en_radio(qs, lat, lng, parse_radio(params.get('radius')))
+
+        # Busqueda por texto, con los MISMOS criterios que el listado: si los
+        # destacados buscan distinto, "restaurante" enseña 2 destacados sobre
+        # "0 resultados" (lo contrario de que siempre haya resultados si estan
+        # disponibles). Se puntua en Python (sin tildes, con erratas) y, como
+        # en el listado, va despues del radio para no puntuar la base entera.
+        if search:
+            qs = busqueda.filtrar_por_texto(qs, search)
 
         # If no search filters, return empty
         if not search and not category:

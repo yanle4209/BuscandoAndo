@@ -496,6 +496,79 @@ class BusquedaPorTextoTests(TestCase):
 
         self.assertEqual(self.abajo(text='restaurante'), {'Cocina Dona Rosa'})
 
+    # --- Facilidad de uso: no hay que teclearlo todo ni teclearlo bien ---
+
+    def test_con_una_palabra_del_titulo_se_encuentra(self):
+        """'Crisostomo' contra 'Escuela Juan Crisóstomo Estrella'."""
+        self.make_business('Escuela Juan Crisóstomo Estrella', featured=False)
+        self.make_business('Farmacia Central', featured=False)
+
+        self.assertEqual(
+            self.abajo(text='crisostomo'),
+            {'Escuela Juan Crisóstomo Estrella'},
+        )
+
+    def test_las_tildes_no_importan(self):
+        """'nunez' encuentra 'Núñez' y escrito con tilde tambien."""
+        self.make_business('Supermercado Núñez de Cáceres', featured=False)
+
+        self.assertEqual(
+            self.abajo(text='nunez'),
+            {'Supermercado Núñez de Cáceres'},
+        )
+        self.assertEqual(
+            self.abajo(text='núñez'),
+            {'Supermercado Núñez de Cáceres'},
+        )
+
+    def test_el_orden_de_las_palabras_no_importa(self):
+        """'estrella crisostomo' es el mismo negocio que al derecho."""
+        self.make_business('Escuela Juan Crisóstomo Estrella', featured=False)
+
+        self.assertEqual(
+            self.abajo(text='estrella crisostomo'),
+            {'Escuela Juan Crisóstomo Estrella'},
+        )
+
+    def test_una_errata_tambien_encuentra(self):
+        """'crisostmo' (sin la o) sigue siendo el mismo sitio."""
+        self.make_business('Escuela Juan Crisóstomo Estrella', featured=False)
+
+        self.assertEqual(
+            self.abajo(text='crisostmo'),
+            {'Escuela Juan Crisóstomo Estrella'},
+        )
+
+    def test_una_errata_en_categoria_tambien_entra_arriba_y_abajo(self):
+        """La tolerancia la aplican igual los destacados y el listado."""
+        self.make_business('Cocina Dona Rosa', featured=True, tier='2')
+
+        self.assertEqual(self.abajo(text='restarante'), {'Cocina Dona Rosa'})
+        self.assertEqual(self.arriba(text='restarante'), {'Cocina Dona Rosa'})
+
+    def test_un_texto_lejano_sigue_sin_inventar_resultados(self):
+        """Tolerar erratas no es licencia para traer lo que se parezca."""
+        self.make_business('Cocina Dona Rosa', featured=False)
+        otra = Category.objects.create(name='Farmacias', slug='farmacias')
+        Business.objects.create(
+            name='Farmacia Central',
+            description='Medicinas',
+            short_description='Medicinas',
+            category=otra,
+            publication_status=self.publicado,
+            operational_status=self.op_status,
+        )
+
+        self.assertEqual(self.abajo(text='crisostomo'), set())
+
+    def test_una_busqueda_vacia_o_de_puntuacion_no_tira_el_listado(self):
+        """Sin palabras que buscar no hay resultados, pero si respuesta 200."""
+        self.make_business('Cocina Dona Rosa', featured=False)
+
+        data = self.client.get(BUSINESSES_URL, {'text': '!!!'}).json()
+
+        self.assertEqual(data['count'], 0)
+
 
 class FiltroCityTests(TestCase):
     """R3.5: `city` dejo de ser filtro por nombre.
