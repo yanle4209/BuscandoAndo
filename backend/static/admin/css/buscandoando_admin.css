@@ -732,3 +732,19 @@ fieldset.aligned .form-row input[type="password"] {
     line-height: 1.3 !important;
     text-decoration: none;
 }
+
+/* ===== EXTRAS DE LIGHTHOUSE ===== */
+
+/* Los checkbox del admin median 13x13: en el inline de Horarios Lighthouse
+   marcaba "target-size: 13px por 13px, debe ser 24px por 24px". */
+input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+}
+
+/* Los enlaces de la migas de pan solo se distinguen por color: el texto de
+   al lado esta a 1,41:1 y no hay subrayado. Subrayados cumplen. */
+div.breadcrumbs a {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
