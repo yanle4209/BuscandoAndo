@@ -98,16 +98,20 @@
    separacion es la sombra, no un filete. */
 /* z-index: la sombra asoma por debajo de la cabecera, y la barra y la
    rejilla (hermanas posteriores, fondo blanco opaco) se la comian: con
-   la cabecera apilada encima vuelve a verse. */
+   la cabecera apilada encima vuelve a verse. Tiene que ganarle TAMBIEN
+   a los overlays con z-index proprio: .map-overlay (10) se pinta en el
+   contexto raiz y tapaba la sombra en toda la mitad derecha, con lo
+   que solo se veia sobre la barra izquierda. 50 deja por debajo a la
+   barra, la rejilla, las tarjetas (2-3) y el overlay de portada (10),
+   y por encima siguen los modales (1000) y el aviso de teselas (1000). */
 /* sticky: en escritorio no se mueve de sitio (el scroll es interno de
    .right-panel y la cabecera esta fuera de ese contenedor), pero en
    movil .home-layout pasa a height:auto y el scroll es del documento:
-   sin esto el titulo se iba arriba y se perdia la cabecera. z-index 2
-   para que la sombra se proyecte sobre lo que pasa por debajo. */
+   sin esto el titulo se iba arriba y se perdia la cabecera. */
 .right-brand {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 50;
   text-align: center;
   padding: 24px 20px 16px;
   flex-shrink: 0;
