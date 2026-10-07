@@ -101,7 +101,16 @@ function reducer(estado, accion) {
 
       // Lo recordado solo tapa la ausencia de GPS: en cuanto hay posicion
       // real, manda la posicion real (R3.4 "el destino no se reanuda").
+      // PERO si esa posicion real esta a mas de 5 km de la cabecera
+      // guardada, manda la CABECERA: se siguen consultando los negocios
+      // de su municipio y no se cambian los resultados por estar lejos.
+      // La siguiente actualizacion ya no entra aqui (restaurado pasa a
+      // false) y las reglas S2 -> S1 toman el relevo: al acercarse a 5 km
+      // vuelve a GPS solo.
       if (estado.modo === 'destino' && estado.restaurado) {
+        if (estado.destino && distanciaKm(pos, estado.destino) > RADIO_KM) {
+          return { ...base, modo: 'destino', punto: estado.destino, llego: false };
+        }
         return { ...base, modo: 'gps', punto: pos, destino: null, llego: false };
       }
 
@@ -120,18 +129,28 @@ function reducer(estado, accion) {
     case 'municipio':
       if (!accion.cabecera) {
         // Deseleccionar: vuelve a su GPS si lo hay; si no, a espera. Sin
-        // punto no se consulta (R1.1) y se queda en el overlay.
+        // punto no se consulta (R1.1), asi que ademas se vuelve a la
+        // portada: quitar el municipio es volver a empezar, no quedarse
+        // mirando una rejilla vacia.
         const base = {
           ...estado,
           destino: null,
           restaurado: false,
           llego: false,
           pagina: 1,
+          haBuscado: false,
         };
         if (estado.pos) return { ...base, modo: 'gps', punto: estado.pos };
         return { ...base, modo: 'espera', punto: null };
       }
-      return elegirPuntoDeMunicipio(estado, accion.cabecera, accion.restaurado);
+      // Elegir municipio (a mano o al restaurarlo de localStorage) EMPIEZA
+      // a consultar: el overlay de portada se oculta y salen las tarjetas
+      // de ese punto. Antes el punto se ponia pero el estado seguia en la
+      // portada (haBuscado false) y no se pedia nada: no aparecia nada.
+      return {
+        ...elegirPuntoDeMunicipio(estado, accion.cabecera, accion.restaurado),
+        haBuscado: true,
+      };
 
     case 'mapa':
       // Mover el punto con el mapa es el mismo acto que elegir municipio:
@@ -142,7 +161,26 @@ function reducer(estado, accion) {
     case 'forzar_gps': {
       const pos = accion.pos || estado.pos;
       if (!pos) return estado;
-      // "Mi ubicacion" es explicito: vuelve a su GPS y abandona el destino.
+      // "Mi ubicacion" es explicito: ademas de mover el punto, EMPIEZA a
+      // consultar (haBuscado). Sin eso el overlay de portada se quedaba
+      // encima y no aparecia ninguna tarjeta.
+      //
+      // Regla de la cabecera: si hay municipio elegido/recordado y esta
+      // posicion queda a mas de 5 km de el, manda la CABECERA: el punto
+      // de consulta no se mueve y solo se guarda la posicion nueva. Con
+      // la cabecera a 5 km o menos es su propio municipio -> manda su
+      // GPS (el punto pasa a la posicion real, mas precisa).
+      if (estado.destino && distanciaKm(pos, estado.destino) > RADIO_KM) {
+        return {
+          ...estado,
+          pos,
+          modo: 'destino',
+          punto: estado.destino,
+          restaurado: false,
+          pagina: 1,
+          haBuscado: true,
+        };
+      }
       return {
         ...estado,
         pos,
@@ -152,6 +190,7 @@ function reducer(estado, accion) {
         restaurado: false,
         llego: false,
         pagina: 1,
+        haBuscado: true,
       };
     }
 
