@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import ImageCarousel from './ImageCarousel';
 import { slugDeEstado, nombreDeEstado } from '../estado';
 import './BusinessModal.css';
@@ -150,6 +151,18 @@ export default function BusinessModal({ business, onClose }) {
               </div>
             )}
           </div>
+
+          {/* Ficha completa: /business/:slug no se enlaza desde NINGUN
+              otro sitio de la web, asi que desde aqui es desde donde
+              se llega. */}
+          {business.slug && (
+            <Link to={`/business/${business.slug}`} className="modal-map-link modal-ficha-link">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+              Ver ficha completa
+            </Link>
+          )}
 
           {/* Google Maps link */}
           {business.latitude && business.longitude && (
