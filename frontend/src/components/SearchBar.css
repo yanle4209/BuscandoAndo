@@ -62,6 +62,19 @@
   color: #66615a;
 }
 
+/* El aro global :focus-visible (2px de --yellow-ink, marron dorado) se
+   veia FEO aqui: los campos de texto hacen match con :focus-visible
+   tambien con raton, el aro salia 2px fuera de la caja del input y, al
+   tener el wrapper overflow:hidden, se recortaba y quedaba como una
+   barra marron por encima/debajo. Ademas su :focus-visible (0,1,0)
+   iba DESPUES que este outline:none con lo que empataba y ganaba.
+   Con .search-input:focus-visible (0,2,0) manda siempre: el foco ya
+   se senala con el borde amarillo + halo del wrapper (:focus-within),
+   que respeta la caja y su border-radius. */
+.search-input:focus-visible {
+  outline: none;
+}
+
 .search-btn {
   background: var(--yellow);
   color: var(--ink);
