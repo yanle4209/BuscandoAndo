@@ -57,20 +57,18 @@ export default function MapView({ businesses, selected, center, onMarkerClick, o
 
       L.control.zoom({ position: 'topright' }).addTo(mapInstance.current);
 
-      // Tres fuentes en cadena: CARTO -> Esri -> OSM oficial.
-      // OSM oficial NO va el primero: sus servidores de voluntarios
-      // devuelven "403 Access blocked / App is not following the tile
-      // usage policy" a algunos clientes, y lo hacen con una IMAGEN
-      // valida (las franjas negras y amarillas), con lo que el <img>
-      // dispara "load" en vez de "error" y el salto de fuente no llega
-      // a dispararse nunca. CARTO y Esri no bloquean asi.
-      // La fuente original (tile.openstreetmap.fr/hot) daba 403 fijo.
-      // Si fallan las tres se avisa en el propio mapa: nunca un gris.
+      // Dos fuentes en cadena: Esri World Street Map -> OSM oficial.
+      // CARTO se ha quitado de la cadena: sus teselas raster ya no
+      // son gratis sin clave y devuelven un placeholder "API KEY
+      // REQUIRED" con HTTP 200, o sea que el <img> dispara "load" y
+      // el mapa se quedaria enseñando ese mensaje sin que salte
+      // tileerror nunca. OSM oficial va el segundo, no el primero:
+      // sus servidores de voluntarios bloquean a algunos clientes
+      // con una IMAGEN valida (franjas y "403 Access blocked"), que
+      // tambien dispara "load" y no "error". (tile.openstreetmap.fr/
+      // hot, la fuente original, daba 403 fijo.)
+      // Si fallan las dos se avisa en el propio mapa: nunca un gris.
       const fuentes = [
-        {
-          url: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        },
         {
           url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
           attribution: '&copy; <a href="https://www.esri.com/">Esri</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
