@@ -169,3 +169,27 @@ document.addEventListener('DOMContentLoaded', function() {
   var boton = document.getElementById('toggle-nav-sidebar');
   if (main && boton && main.classList.contains('shifted')) boton.click();
 });
+
+/**
+ * Etiquetas de los inlines tabulares (Horarios, Imagenes)
+ * Django no les pone <label>: un lector de pantalla solo oye "campo" sin mas
+ * contexto. La cabecera de la columna SI que trae el nombre (th.column-dia ->
+ * td.field-dia), asi que se copia a aria-label en cada fila.
+ */
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.inline-group table').forEach(function(tabla) {
+    var etiquetas = {};
+    tabla.querySelectorAll('thead th[class*="column-"]').forEach(function(th) {
+      var m = th.className.match(/(?:^|\s)column-([\w-]+)/);
+      if (m) etiquetas[m[1]] = th.textContent.trim().replace(/:$/, '');
+    });
+    tabla.querySelectorAll('tbody td[class*="field-"]').forEach(function(td) {
+      var m = td.className.match(/(?:^|\s)field-([\w-]+)/);
+      if (!m || !etiquetas[m[1]]) return;
+      td.querySelectorAll('input, select, textarea').forEach(function(campo) {
+        if (campo.type === 'hidden' || campo.getAttribute('aria-label')) return;
+        campo.setAttribute('aria-label', etiquetas[m[1]]);
+      });
+    });
+  });
+});
