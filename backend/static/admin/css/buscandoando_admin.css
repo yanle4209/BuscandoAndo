@@ -596,5 +596,139 @@ a { transition: color 0.2s ease !important; }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1024px) {
-    #nav-sidebar { display: none !important; }
+    /* Menu lateral: aqui se le ponia display:none y el boton "«" seguia
+       visible. Al pulsarlo Django desplazaba el contenido 275px pero el
+       menu NUNCA aparecia: hueco vacio y sin navegacion. Ahora, cerrado no
+       ocupa ni una coma y, abierto, se superpone al contenido por debajo de
+       la tira del boton, que es con la que se vuelve a cerrar. */
+    .main:not(.shifted) > #nav-sidebar { display: none !important; }
+
+    .main.shifted > #nav-sidebar {
+        display: block !important;
+        position: fixed !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        left: 23px !important;
+        width: 275px !important;
+        margin-left: 0 !important;
+        visibility: visible !important;
+        z-index: 55;
+        overflow-y: auto;
+        background-color: var(--white-pure, #ffffff) !important;
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25);
+    }
+
+    /* La tira del boton tiene que pintarse POR ENCIMA del panel para poder
+       cerrarlo; si no, quedaria debajo y no habria forma de salir. */
+    .toggle-nav-sidebar { position: relative; z-index: 70 !important; }
+
+    /* Django encoge el contenido 299px cuando el menu esta abierto; aqui el
+       menu no empuja nada, asi que el contenido se queda a todo lo ancho. */
+    .main.shifted > #nav-sidebar + .content { max-width: 100% !important; }
+
+    /* El dashboard trae #content fijado a 600px y cuelga "Acciones
+       recientes" con -300px de margen: en pantalla estrecha desbordaba. El
+       contenido pasa a todo lo disponible y el panel cae debajo. */
+    .dashboard #content { width: auto !important; }
+
+    .dashboard #content-related {
+        float: none !important;
+        clear: both !important;
+        width: auto !important;
+        margin: 16px 0 0 !important;
+    }
+
+    /* El listado tiene 10 columnas: en vez de estirar la pagina, la tabla
+       scrollea dentro de su propio contenedor. */
+    #changelist-form {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    #changelist-form #result_list { min-width: 680px; }
+}
+
+/* La cabecera de movil apretaba el logotipo completo ("BuscandoAndo -
+   Panel de Administracion") junto a la linea de "Bienvenidos / Ver el sitio
+   / Cerrar sesion": el sufijo se recorta y las dos zonas pasan a
+   repartirse en dos lineas. */
+@media (max-width: 767px) {
+    #header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px 12px;
+    }
+
+    #site-name .site-brand-suffix { display: none !important; }
+
+    #site-name a { font-size: 17px !important; }
+
+    #user-tools {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 2px 10px;
+        font-size: 11px !important;
+    }
+}
+
+/* ===== DASHBOARD: APROVECHAR EL ANCHO =====
+   Django deja .dashboard #content en 600px fijos (mas los 300px de margen
+   que reserva para "Acciones recientes"): en una ventana de 1062px se
+   quedaban 120px sin usar a la derecha. Se reparte ese sobrante (300 de
+   margen + 80 de padding) en el contenido; el panel sigue con sus 260px y
+   el aire entre uno y otro se queda en 40px. */
+@media (min-width: 1025px) {
+    .dashboard #content { width: calc(100% - 380px) !important; }
+    .dashboard #content-main .module table { width: 100%; }
+}
+
+/* ===== AREAS DE TOQUE =====
+   Los enlaces de filtro median 19px de alto y los del dashboard, 16px:
+   por debajo del area minima de toque (32px). */
+#changelist-filter ul li a { display: block; padding: 6px 0; }
+
+.dashboard #content-main .module th a,
+.dashboard #content-main .module td a {
+    display: inline-block;
+    padding: 7px 8px;
+}
+
+.dashboard #content-related .actionlist a {
+    display: inline-block;
+    padding: 6px 0;
+}
+
+/* El link del menu lateral era `inline` dentro de una celda de 32px: solo
+   el texto era tocable. Pasa a ocupar la celda entera, con el mismo alto
+   de fila. */
+#nav-sidebar .module td { padding: 0 !important; }
+
+#nav-sidebar .module td a {
+    display: block !important;
+    padding: 9px 8px 9px 16px !important;
+}
+
+/* ===== ANCHOS DEL FORMULARIO =====
+   El input de texto media 282px y el textarea, 484px, con el mismo origen
+   (mismo left), asi que la derecha del campo quedaba escalonada. Solo en
+   fieldsets "aligned": los inlines (horarios, fotos, ubicacion, contacto)
+   no lo son y conservan su tabla. */
+fieldset.aligned .form-row input[type="text"],
+fieldset.aligned .form-row input[type="url"],
+fieldset.aligned .form-row input[type="email"],
+fieldset.aligned .form-row input[type="password"] {
+    width: min(100%, 484px) !important;
+}
+
+/* "Historico" media 26px contra los 35px de "Guardar": mismo alto. Los
+   botones de la cabecera del listado (Importar/Exportar) venian con estilos
+   en linea que ya no hacen falta: mandan los de .object-tools. */
+.object-tools li a {
+    padding: 9px 16px !important;
+    font-size: 13px !important;
+    line-height: 1.3 !important;
+    text-decoration: none;
 }
