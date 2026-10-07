@@ -28,15 +28,6 @@
   overflow: hidden;
 }
 
-/* ===== SIDEBAR TOP: Logo + Contact ===== */
-.sidebar-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
-  background: var(--surface);
-}
-
 .sidebar-brand-title {
   font-size: 24px;
   font-weight: 900;
@@ -56,6 +47,14 @@
 }
 
 .contact-link {
+  /* Vive dentro de la cabecera, pegado a la esquina superior derecha:
+     a la altura del logo y casi en el borde. La cabecera es
+     position: sticky, asi que el absoluto se ancla a ella. */
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  z-index: 1;
   background: transparent;
   border: 1px solid var(--yellow);
   color: var(--yellow-ink);
@@ -555,7 +554,15 @@
   }
 
   .right-brand-title {
-    font-size: 28px;
+    font-size: 26px;
+    /* cede sitio por la derecha para que el boton no se le encime */
+    padding-right: 92px;
+  }
+
+  .contact-link {
+    right: 8px;
+    font-size: 11px;
+    padding: 5px 10px;
   }
 
   .right-brand--compact .right-brand-title {
