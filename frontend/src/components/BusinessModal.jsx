@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import ImageCarousel from './ImageCarousel';
+import { slugDeEstado, nombreDeEstado } from '../estado';
 import './BusinessModal.css';
 
 const DAY_NAMES = {
@@ -61,8 +62,8 @@ export default function BusinessModal({ business, onClose }) {
               {business.category_name && (
                 <span className="modal-category">{business.category_name}</span>
               )}
-              <span className={`modal-status modal-status--${business.effective_status || business.operational_status_slug || 'default'}`}>
-                {business.effective_status_name || business.operational_status_name || 'Sin estado'}
+              <span className={`modal-status modal-status--${slugDeEstado(business)}`}>
+                {nombreDeEstado(business)}
               </span>
             </div>
           </div>

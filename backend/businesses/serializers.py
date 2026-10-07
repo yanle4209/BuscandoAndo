@@ -10,7 +10,7 @@ from datetime import date, time as dt_time
 STATUS_NAMES = {
     'abierto': 'Abierto',
     'cerrado': 'Cerrado',
-    'por-horario': 'Por Horario',
+    'por-horario': 'Por horario',
 }
 
 

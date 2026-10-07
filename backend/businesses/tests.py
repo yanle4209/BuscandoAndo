@@ -2845,3 +2845,96 @@ class BotonCorregirTests(TestCase):
                       html)
         self.assertNotIn('<textarea name="mensaje"', html)
         self.assertNotIn('<select name="business"', html)
+
+
+class EstadoEfectivoTests(TestCase):
+    """La etiqueta de estado tiene que ser la misma en todas partes.
+
+    La rejilla (BusinessCard), el modal (BusinessModal) y la ficha en
+    /business/:slug (BusinessDetail) pintan lo que devuelve la API.
+    Antes la ficha se quedaba con el estado DECLARADO en la base y las
+    otras dos con el CALCULADO con el horario de hoy, con lo que un
+    mismo negocio podia salir "Abierto" en una y "Cerrado" en otra.
+    Y el de horario se escribe "Por horario", igual que en la app de
+    Android.
+    """
+
+    hoy = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes',
+           'Sábado', 'Domingo'][datetime.date.today().weekday()]
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado')
+        cls.categoria = Category.objects.create(
+            name='Restaurantes', slug='restaurantes')
+        cls.abierto = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto')
+
+    def negocio(self, name, **horario):
+        """Un negocio publicado; ``horario`` son los datos de HOY."""
+        biz = Business.objects.create(
+            name=name,
+            description=f'Descripcion de {name}',
+            short_description=name,
+            category=self.categoria,
+            publication_status=self.publicado,
+            operational_status=self.abierto,
+        )
+        if horario:
+            BusinessHours.objects.create(business=biz, day=self.hoy, **horario)
+        return biz
+
+    def estado(self, nombre):
+        """Lo que dice la API de ficha de ese negocio."""
+        return self.client.get(f'{BUSINESSES_URL}{nombre.slug}/').json()
+
+    def test_un_horario_que_ya_paso_dice_por_horario(self):
+        """Tiene horario hoy pero ya cerro: ni abierto ni sin estado.
+
+        La ventana se pone 3 y 2 horas por detras de la hora actual,
+        asi que esta atras en cualquier hora del dia y el test no se
+        puede caer por la hora en que se ejecute.
+        """
+        desde = (datetime.datetime.now() - datetime.timedelta(hours=3)).time()
+        hasta = (datetime.datetime.now() - datetime.timedelta(hours=2)).time()
+        biz = self.negocio('Panaderia De La Manana',
+                           open_time=desde, close_time=hasta)
+
+        data = self.estado(biz)
+
+        self.assertEqual(data['effective_status'], 'por-horario')
+        self.assertEqual(data['effective_status_name'], 'Por horario')
+
+    def test_un_dia_marcado_como_cerrado_es_cerrado(self):
+        biz = self.negocio('Cafeteria Cerrada', is_closed=True)
+
+        data = self.estado(biz)
+
+        self.assertEqual(data['effective_status'], 'cerrado')
+        self.assertEqual(data['effective_status_name'], 'Cerrado')
+
+    def test_sin_horario_hoy_manda_lo_que_dice_la_base(self):
+        """No hay datos de hoy: no se inventa, se usa el declarado."""
+        biz = self.negocio('Sin Horario')
+
+        data = self.estado(biz)
+
+        self.assertEqual(data['effective_status'], 'abierto')
+        self.assertEqual(data['effective_status_name'], 'Abierto')
+
+    def test_el_listado_y_la_ficha_dicen_lo_mismo(self):
+        """Lo que pinta la tarjeta y lo que pinta la ficha es la MISMA
+        pareja de campos: no pueden contradecirse."""
+        desde = (datetime.datetime.now() - datetime.timedelta(hours=3)).time()
+        hasta = (datetime.datetime.now() - datetime.timedelta(hours=2)).time()
+        biz = self.negocio('Panaderia Sin Luz',
+                           open_time=desde, close_time=hasta)
+
+        lista = self.client.get(BUSINESSES_URL).json()['results']
+        ficha = self.estado(biz)
+
+        self.assertEqual(
+            (lista[0]['effective_status'], lista[0]['effective_status_name']),
+            (ficha['effective_status'], ficha['effective_status_name']),
+        )

@@ -66,7 +66,7 @@ class Command(BaseCommand):
         for sid, slug, name, color in [
             (1, 'abierto', 'Abierto', '#22c55e'),
             (2, 'cerrado', 'Cerrado', '#ef4444'),
-            (3, 'por-horario', 'Por Horario', '#f59e0b'),
+            (3, 'por-horario', 'Por horario', '#f59e0b'),
             (4, 'cerrado-permanente', 'Cerrado Permanente', '#6b7280'),
         ]:
             OperationalStatus.objects.create(id=sid, slug=slug, name=name, color=color)

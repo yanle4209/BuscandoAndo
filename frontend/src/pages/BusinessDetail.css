@@ -72,9 +72,13 @@
   color: #b91c1c;
 }
 
+/* Los tres estados de fuera (abierto y cerrado) ya eran iguales a los
+   del modal; "Por horario" era el que se salia: aqui salia en amarillo
+   y ahi en ocre. Mismo ocre que el modal: fondo ocre al 14% y texto
+   dorado #8f6c14. */
 .detail-status--por-horario {
-  background: rgba(251, 191, 36, 0.18);
-  color: var(--yellow-ink);
+  background: rgba(159, 109, 30, 0.14);
+  color: #8f6c14;
 }
 
 .detail-badge {
