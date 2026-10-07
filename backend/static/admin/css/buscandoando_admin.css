@@ -748,3 +748,10 @@ div.breadcrumbs a {
     text-decoration: underline;
     text-underline-offset: 3px;
 }
+
+/* La atribucion de Leaflet (OpenStreetMap, mapillary...) hereda el marron
+   de enlaces del admin sobre el texto #333 de la propia atribucion: 1,22:1
+   entre uno y otro. Subrayados, como en la migas de pan. */
+.leaflet-control-attribution a {
+    text-decoration: underline;
+}
