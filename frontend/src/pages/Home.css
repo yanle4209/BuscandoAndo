@@ -289,6 +289,76 @@
   }
 }
 
+/* ===== VERSION DESPLEGADA =====
+   Badge discreto (esquina inferior derecha) con el bundle que corre
+   ESTA pestana. Si no coincide con lo que hay en produccion, la
+   pestana esta con cache vieja: es lo primero que hay que mirar
+   cuando "no se ven los cambios". */
+.version-badge {
+  position: fixed;
+  right: 8px;
+  bottom: 6px;
+  z-index: 5;
+  font-family: var(--font);
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  color: var(--ink-soft);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.version-badge:hover {
+  opacity: 1;
+}
+
+/* Aviso de version nueva. Solo aparece cuando NO se puede recargar
+   sola (hay una busqueda encima y se perderia su estado): quien
+   decide es el usuario, con un clic. */
+.version-aviso {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lift);
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.version-aviso__btn {
+  background: var(--yellow);
+  border: none;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.version-aviso__btn:hover {
+  background: var(--yellow-light);
+}
+
+.version-aviso__cerrar {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px;
+  cursor: pointer;
+}
+
 /* ===== CONTACT MODAL ===== */
 /*
  * IMPORTANTE: el panel necesita .modal-panel —la MISMA clase que usa el

@@ -156,7 +156,13 @@ function reducer(estado, accion) {
       // Mover el punto con el mapa es el mismo acto que elegir municipio:
       // un cambio explicito de punto que sigue las reglas de R3. No se
       // recuerda: R3.4 habla de la ciudad elegida, no de un punto del mapa.
-      return elegirPuntoDeMunicipio(estado, accion.pos, false);
+      // Y al igual que elegir municipio, EMPIEZA la busqueda: en portada
+      // el clic movia el punto pero el overlay seguia encima y no salia
+      // ninguna tarjeta.
+      return {
+        ...elegirPuntoDeMunicipio(estado, accion.pos, false),
+        haBuscado: true,
+      };
 
     case 'forzar_gps': {
       const pos = accion.pos || estado.pos;
@@ -251,6 +257,16 @@ export default function Home() {
   const [totalResults, setTotalResults] = useState(0);
   const [municipioClave, setMunicipioClave] = useState('');
   const [cabeceras, setCabeceras] = useState([]);
+  // Bundle que corre ESTA pestana (index-BP-pSWLW). Se pinta en el
+  // badge de la esquina: es la prueba de si la pestana esta al dia.
+  const [version] = useState(() => {
+    const src = document.querySelector('script[type="module"]')?.src || '';
+    const nombre = (src.split('/').pop() || '').replace(/^index-/, '').replace(/\.js$/, '');
+    return nombre || 'desconocida';
+  });
+  // Se pone con la version nueva cuando NO se puede recargar sola
+  // (hay una busqueda encima); null = esta al dia.
+  const [versionNueva, setVersionNueva] = useState(null);
 
   const pendienteRef = useRef(null);
   const ultimaRefrescoRef = useRef(0);
@@ -433,18 +449,28 @@ export default function Home() {
   // Pestañas viejas: una pestaña abierta se queda con el bundle con el
   // que se cargo y no se entera del deploy (teselas 403, sombra sin
   // ver, barra del ancho antiguo...). Cada minuto se mira si el
-  // index.html del servidor apunta a otro bundle; si es asi, y no hay
-  // nada a medias (busqueda o modal abierto), se recarga sola.
+  // index.html del servidor apunta a otro bundle. En portada y sin nada
+  // abierto se recarga sola; con una busqueda encima NO se arrastra la
+  // recarga (se perdia todo lo buscado): se pone el aviso en pantalla
+  // y decide el usuario. Antes este chequeo se salia sin avisar cuando
+  // habia busqueda, y ahi la pestana NUNCA se actualizaba.
   useEffect(() => {
     const id = setInterval(async () => {
-      if (estado.haBuscado || modalBiz || correctionBiz || showContact) return;
       try {
         const r = await fetch(window.location.origin + window.location.pathname, { cache: 'no-store' });
         if (!r.ok) return;
         const html = await r.text();
         const servido = (html.match(/assets\/(index-[\w-]+\.js)/) || [])[1];
         const mio = (document.querySelector('script[type="module"]')?.src || '').split('/').pop();
-        if (servido && mio && servido !== mio) window.location.reload();
+        if (!servido || !mio || servido === mio) {
+          setVersionNueva(null);
+          return;
+        }
+        if (estado.haBuscado || modalBiz || correctionBiz || showContact) {
+          setVersionNueva(servido);
+          return;
+        }
+        window.location.reload();
       } catch {
         // sin red no se recarga: se reintenta en el siguiente minuto
       }
@@ -662,6 +688,31 @@ export default function Home() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Badge de version: deja ver que bundle corre ESTA pestana. Si no
+          aparece (o no coincide con el de produccion), la pestana esta
+          con cache vieja: es lo primero que hay que mirar. */}
+      <div className="version-badge" title="Versión desplegada en esta pestaña">
+        v{version}
+      </div>
+
+      {/* Aviso de version nueva: solo cuando NO se puede recargar sola
+          (hay una busqueda encima y se perdia su estado). */}
+      {versionNueva && (
+        <div className="version-aviso" role="status">
+          <span>Nueva versión publicada</span>
+          <button className="version-aviso__btn" onClick={() => window.location.reload()}>
+            Recargar
+          </button>
+          <button
+            className="version-aviso__cerrar"
+            aria-label="Descartar aviso"
+            onClick={() => setVersionNueva(null)}
+          >
+            &#10005;
+          </button>
         </div>
       )}
     </div>
