@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import MapView from '../components/MapView';
+import { slugDeEstado, nombreDeEstado } from '../estado';
 import './BusinessDetail.css';
 
 const DAY_NAMES = {
@@ -51,8 +52,11 @@ export default function BusinessDetail() {
           <span className="detail-category">{biz.category_name}</span>
         )}
 
-        <span className={`detail-status detail-status--${biz.operational_status_name?.toLowerCase().replace(/\s/g, '-')}`}>
-          {biz.operational_status_name}
+        {/* Mismo estado que en la tarjeta y en el modal: manda el
+            calculado con los horarios de hoy (effective_status), no el
+            declarado en la base. */}
+        <span className={`detail-status detail-status--${slugDeEstado(biz)}`}>
+          {nombreDeEstado(biz)}
         </span>
 
         {biz.is_featured && <span className="detail-badge">⭐ Destacado</span>}

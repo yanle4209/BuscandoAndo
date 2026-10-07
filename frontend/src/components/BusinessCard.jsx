@@ -1,4 +1,5 @@
 import ImageCarousel from './ImageCarousel';
+import { slugDeEstado, nombreDeEstado } from '../estado';
 import './BusinessCard.css';
 
 /**
@@ -107,8 +108,8 @@ export default function BusinessCard({ business, highlighted, level, onClick, on
       )}
 
       <div className="biz-card__footer">
-        <span className={`biz-card__status biz-card__status--${business.effective_status || business.operational_status_slug || 'default'}`}>
-          {business.effective_status_name || business.operational_status_name || 'Sin estado'}
+        <span className={`biz-card__status biz-card__status--${slugDeEstado(business)}`}>
+          {nombreDeEstado(business)}
         </span>
         {/* stopPropagation OBLIGATORIO: toda la tarjeta es clicable y su
             onClick abre BusinessModal. Sin esto, pulsar "Corregir" abriria
