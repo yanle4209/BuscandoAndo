@@ -24,8 +24,10 @@
         font-family: var(--font, 'Segoe UI', sans-serif);
         font-size: 14px;
         font-weight: 600;
-        color: #fff;
-        box-shadow: 0 8px 24px rgba(31, 26, 26, 0.28);
+        background: #ffffff;
+        color: #1f1a1a;
+        border: 1px solid #e2e1c9;
+        box-shadow: 0 8px 24px rgba(31, 26, 26, 0.18);
         display: flex;
         align-items: flex-start;
         gap: 10px;
@@ -33,16 +35,16 @@
         cursor: pointer;
         line-height: 1.4;
       }
-      .ba-toast--success { background: #1a512d; border-left: 4px solid #87b332; }
-      .ba-toast--error   { background: #b91c1c; border-left: 4px solid #dc2626; }
-      .ba-toast--warning { background: #513e0c; border-left: 4px solid #FCD34D; }
-      .ba-toast--info    { background: #1d4ed8; border-left: 4px solid #3b82f6; }
+      .ba-toast--success { background: #ffffff; color: #1a512d; border-left: 4px solid #87b332; }
+      .ba-toast--error   { background: #ffffff; color: #b91c1c; border-left: 4px solid #dc2626; }
+      .ba-toast--warning { background: #ffffff; color: #513e0c; border-left: 4px solid #FBBF24; }
+      .ba-toast--info    { background: #ffffff; color: #1d4ed8; border-left: 4px solid #3b82f6; }
       .ba-toast__icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
       .ba-toast__body { flex: 1; }
       .ba-toast__title { font-weight: 800; margin-bottom: 2px; }
       .ba-toast__detail { font-weight: 400; opacity: 0.9; font-size: 13px; }
       .ba-toast__close {
-        background: none; border: none; color: #fff; font-size: 18px;
+        background: none; border: none; color: inherit; font-size: 18px;
         cursor: pointer; opacity: 0.7; padding: 0 0 0 8px; line-height: 1;
       }
       .ba-toast__close:hover { opacity: 1; }
