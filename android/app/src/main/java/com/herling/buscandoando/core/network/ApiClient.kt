@@ -1,8 +1,10 @@
 package com.herling.buscandoando.core.network
 
 import com.herling.buscandoando.BuildConfig
+import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
@@ -52,8 +54,36 @@ object ApiClient {
         explicitNulls = false      // no exige los campos null del JSON
     }
 
+    /**
+     * Tiempos de red pensados para un servidor que DUERME.
+     *
+     * Render apaga la instancia gratis tras ~15 min sin peticiones y
+     * el PRIMER arranque en frío tarda 30-50 s. La petición que llega
+     * mientras despierta queda esperando y responde al terminar, pero
+     * solo si los tiempos la dejan: con los defaults de OkHttp (10 s
+     * de lectura) la app se rendía ANTES que el servidor y enseñaba
+     * un error de red justo cuando lo que pasaba era que la instancia
+     * se estaba despertando.
+     *
+     * No hace falta "despertar" el servidor aparte ni abrir la URL en
+     * el navegador: el `init` del HomeViewModel ya dispara
+     * loadCategories() + loadCabeceras() al abrir la app, y web y API
+     * son la MISMA instancia de Render — cualquier petición la arranca.
+     */
+    internal const val TIMEOUT_CONEXION_S = 30L
+    internal const val TIMEOUT_LECTURA_S = 90L
+    internal const val TIMEOUT_ESCRITURA_S = 30L
+
+    /** Cliente con esos tiempos (el de OkHttp por defecto se rinde a los 10 s). */
+    private val http = OkHttpClient.Builder()
+        .connectTimeout(TIMEOUT_CONEXION_S, TimeUnit.SECONDS)
+        .readTimeout(TIMEOUT_LECTURA_S, TimeUnit.SECONDS)
+        .writeTimeout(TIMEOUT_ESCRITURA_S, TimeUnit.SECONDS)
+        .build()
+
     private val retrofit: Retrofit = Retrofit.Builder()
         .baseUrl(BASE_URL)                       // DEBE terminar en "/"
+        .client(http)
         .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
         .build()
 
