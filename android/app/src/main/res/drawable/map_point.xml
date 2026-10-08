@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Punto ACTIVO en el mapa.
+
+    Es el USER_ICON de MapView.jsx: círculo azul #4285F4 con aro
+    blanco. La web lo dibuja de 12px + borde de 2px (16 en total),
+    y aquí va exactamente igual: viewport 16, aro de 2 y núcleo de 6.
+
+    A diferencia del pin de los negocios NO clava nada en el suelo, así
+    que el Marker lo ancla por el CENTRO (ANCHOR_CENTER).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="16"
+    android:viewportHeight="16">
+
+    <!-- Aro blanco -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M8,8m-8,0a8,8 0,1 1,16,0a8,8 0,1 1,-16,0" />
+
+    <!-- Núcleo azul -->
+    <path
+        android:fillColor="#4285F4"
+        android:pathData="M8,8m-6,0a6,6 0,1 1,12,0a6,6 0,1 1,-12,0" />
+</vector>

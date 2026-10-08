@@ -40,6 +40,7 @@ import com.herling.buscandoando.R
 import com.herling.buscandoando.core.data.dto.Business
 import com.herling.buscandoando.ui.home.BusinessDetailSheet
 import com.herling.buscandoando.ui.home.HomeViewModel
+import com.herling.buscandoando.ui.home.Punto
 import com.herling.buscandoando.ui.home.statusColorOf
 import com.herling.buscandoando.ui.theme.BrandBrown
 import com.herling.buscandoando.ui.theme.CanaryYellow
@@ -51,9 +52,11 @@ import com.herling.buscandoando.ui.theme.TextMuted
 import com.herling.buscandoando.ui.theme.TextSecondary
 import com.herling.buscandoando.ui.theme.TextPrimary
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 
 /** Moca, Espaillat — el centro de tu base de datos. */
@@ -74,6 +77,8 @@ private const val DEFAULT_ZOOM = 14.0
  *  <MapContainer/>           AndroidView(factory = { MapView })
  *  <Marker position={..}/>   Marker(map) dentro de map.overlays
  *  onMarkerClick             setOnMarkerClickListener
+ *  onMapClick                MapEventsOverlay (elige punto, H)
+ *  USER_ICON (center)        Marker con map_point (mismo azul)
  *  navigate('/negocio/x')    BusinessDetailSheet (misma de la Fase 4)
  */
 @Composable
@@ -90,7 +95,9 @@ fun MapScreen(
     ) {
         BusinessMap(
             businesses = state.businesses,
+            punto = state.punto,
             onMarkerClick = viewModel::onBusinessSelected,
+            onMapClick = viewModel::onMapPointSelected,
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -129,7 +136,9 @@ fun MapScreen(
 @Composable
 private fun BusinessMap(
     businesses: List<Business>,
+    punto: Punto?,
     onMarkerClick: (String) -> Unit,
+    onMapClick: (Double, Double) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     /**
@@ -141,6 +150,9 @@ private fun BusinessMap(
      *    movemos la cámara, para no robarte el gesto de zoom/paneo.
      */
     var fitted by remember { mutableStateOf<List<Business>?>(null) }
+
+    /** Último punto dibujado: solo recentrar cuando CAMBIA (R2.1). */
+    var ultimoPunto by remember { mutableStateOf<Punto?>(null) }
 
     AndroidView(
         modifier = modifier,
@@ -156,7 +168,7 @@ private fun BusinessMap(
             }
         },
         update = { map ->
-            syncMarkers(map, businesses, onMarkerClick)
+            syncMarkers(map, businesses, punto, onMarkerClick, onMapClick)
 
             if (fitted !== businesses) {
                 fitted = businesses
@@ -167,6 +179,26 @@ private fun BusinessMap(
                 // diálogo de "no responde". `post` lo deja para el
                 // siguiente ciclo, cuando ya hay layout.
                 map.post { fitTo(map, businesses) }
+            }
+
+            // ── H · recentrar SOLO cuando cambia el punto (R2.1) ──
+            //
+            // Es el useEffect de `center` de MapView.jsx: se respeta el
+            // zoom que tenga el usuario, y si el punto no cambia el mapa
+            // se puede arrastrar sin que nadie lo devuelva. Va DESPUÉS
+            // del encaje de negocios: al tocar el mapa manda el punto, y
+            // los resultados, cuando lleguen, harán su fitTo en el
+            // siguiente update (mismo orden que en la web).
+            if (punto !== ultimoPunto) {
+                ultimoPunto = punto
+                val nuevo = punto
+                if (nuevo != null) {
+                    // `post`: dentro de `update` el MapView aún no tiene
+                    // medida (misma razón que el fitTo de arriba).
+                    map.post {
+                        map.controller.setCenter(GeoPoint(nuevo.lat, nuevo.lng))
+                    }
+                }
             }
         },
         onRelease = { map ->
@@ -182,13 +214,57 @@ private fun BusinessMap(
  * "Recrear en vez de mutar" es el patrón más simple y evita el clásico
  * bug de markers huérfanos: si un negocio sale de los resultados, su
  * punto se va con la lista.
+ *
+ * El ORDEN de los overlays importa: osmdroid reparte los toques de
+ * ARRIBA A ABAJO (overlaysReversed) y se queda en el primero que los
+ * consuma, así que el receptor del mapa va PRIMERO y los pines
+ * después — tocarse un pin abre su ficha, no mueve el punto.
  */
 private fun syncMarkers(
     map: MapView,
     businesses: List<Business>,
+    punto: Punto?,
     onMarkerClick: (String) -> Unit,
+    onMapClick: (Double, Double) -> Unit,
 ) {
     map.overlays.clear()
+
+    // ── H · tocar el mapa = elegir el punto de búsqueda ──
+    //
+    // Es el `map.on('click')` de MapView.jsx: un toque que no cayó
+    // sobre ningún pin mueve el punto y consulta desde ahí (ya no el
+    // municipio: HomeMachine.mapa limpia la clave del selector).
+    //
+    // Se RECREA en cada sync porque `clear()` se lleva por delante
+    // todo lo que hubiera dentro.
+    map.overlays.add(
+        MapEventsOverlay(object : MapEventsReceiver {
+            override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
+                if (p == null) return false
+                onMapClick(p.latitude, p.longitude)
+                return true
+            }
+
+            // La web no tiene menú largo en el mapa: se ignora.
+            override fun longPressHelper(p: GeoPoint?): Boolean = false
+        }),
+    )
+
+    // ── El punto ACTIVO (USER_ICON de la web: aro blanco + núcleo
+    //    azul). Solo existe si hay punto que consultar ──
+    if (punto != null) {
+        Marker(map).apply {
+            setPosition(GeoPoint(punto.lat, punto.lng))
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            icon = ContextCompat.getDrawable(map.context, R.drawable.map_point)
+
+            // Tocar el punto NO vuelve a elegirlo — y consume el toque
+            // para que osmdroid no abra su ventana de información vacía.
+            setOnMarkerClickListener { _, _ -> true }
+
+            map.overlays.add(this)
+        }
+    }
 
     businesses.forEach { business ->
         val lat = business.latitude
