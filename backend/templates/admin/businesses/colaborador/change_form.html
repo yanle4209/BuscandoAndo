@@ -1,0 +1,8 @@
+{% extends "admin/change_form.html" %}
+
+{# Junto al token: ese es el enlace que se le entrega, y el boton para #}
+{# pasarselo al colaborador sin teclearlo. #}
+{% block content %}
+{% include "admin/includes/levantamiento.html" %}
+{{ block.super }}
+{% endblock %}

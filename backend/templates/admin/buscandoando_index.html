@@ -1,0 +1,8 @@
+{% extends "admin/index.html" %}
+
+{# El enlace al levantamiento, LO PRIMERO del inicio: es lo que se pasa #}
+{# al colaborador y no debe estar detras de la lista de aplicaciones. #}
+{% block content %}
+{% include "admin/includes/levantamiento.html" %}
+{{ block.super }}
+{% endblock %}
