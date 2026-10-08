@@ -89,20 +89,18 @@
   overflow-y: auto;
 }
 
-/* Brand in right panel. Sombra hacia abajo para separar la cabecera
-   blanca del lienzo blanco, a TODO lo ancho del borde inferior y bien
-   difuminada: con spread negativo el rectangulo se estrechaba 8px a
-   cada lado y la sombra no llegaba a los bordes; bajandola 12px se
-   despegaba del borde y se leia como una franja suelta. Sin borde: la
-   separacion es la sombra, no un filete. */
-/* z-index: la sombra asoma por debajo de la cabecera, y la barra y la
-   rejilla (hermanas posteriores, fondo blanco opaco) se la comian: con
-   la cabecera apilada encima vuelve a verse. Tiene que ganarle TAMBIEN
-   a los overlays con z-index proprio: .map-overlay (10) se pinta en el
-   contexto raiz y tapaba la sombra en toda la mitad derecha, con lo
-   que solo se veia sobre la barra izquierda. 50 deja por debajo a la
-   barra, la rejilla, las tarjetas (2-3) y el overlay de portada (10),
-   y por encima siguen los modales (1000) y el aviso de teselas (1000). */
+/* Brand in right panel. La separacion entre la cabecera blanca y el
+   lienzo blanco es el MISMO filete que lleva la cabecera del admin:
+   3px de amarillo canario (#FBBF24) a todo el ancho del borde
+   inferior. Sustituye a la sombra que tenia (0 8px 32px de gris
+   neutro): la sombra se comian las secciones hermanas y el filete, en
+   cambio, va pegado a la propia cabecera, llega entero de borde a
+   borde y deja las dos cabeceras con el mismo dibujo. */
+/* z-index: la cabecera apilada encima de los overlays con z-index
+   proprio: .map-overlay (10) se pinta en el contexto raiz y taparia la
+   cabecera en toda la mitad derecha. 50 deja por debajo a la barra, la
+   rejilla, las tarjetas (2-3) y el overlay de portada (10), y por
+   encima siguen los modales (1000) y el aviso de teselas (1000). */
 /* sticky: en escritorio no se mueve de sitio (el scroll es interno de
    .right-panel y la cabecera esta fuera de ese contenedor), pero en
    movil .home-layout pasa a height:auto y el scroll es del documento:
@@ -115,11 +113,7 @@
   padding: 24px 20px 16px;
   flex-shrink: 0;
   background: var(--bg);
-  /* Gris neutro (128,128,128), no el tono calido --ink (31,26,26):
-     sobre el blanco tiraba a amarillo/marron. Spread 0 para que
-     llegue a los bordes izquierdo y derecho, offset pequeno para que
-     pegue al borde y blur grande (32px) para el difuminado. */
-  box-shadow: 0 8px 32px 0 rgba(128, 128, 128, 0.5);
+  border-bottom: 3px solid var(--yellow);
 }
 
 .right-brand--compact {
