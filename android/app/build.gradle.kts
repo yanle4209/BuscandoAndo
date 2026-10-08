@@ -1,9 +1,27 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     // Activa @Serializable: convierte data classes <-> JSON
     alias(libs.plugins.kotlin.serialization)
 }
+
+// ── Firma de release (certificado propio) ──
+//
+// Los datos viven en keystore.properties + keystore/*.jks, los dos
+// cubiertos por android/.gitignore (sección 5): NUNCA se suben a git.
+//
+// Sin esos ficheros, `assembleDebug` sale igual que siempre y
+// `assembleRelease` falla a propósito al empaquetar: es preferible
+// que falle a que se firme con OTRO certificado y entonces quien ya
+// tenga la app instalada no pueda actualizarla (Android rechaza
+// cambiar de firma).
+val firmaRelease = rootProject.file("keystore.properties")
+    .takeIf { it.exists() }
+    ?.let { archivo ->
+        Properties().apply { archivo.inputStream().use { load(it) } }
+    }
 
 android {
     namespace = "com.herling.buscandoando"
@@ -40,10 +58,29 @@ android {
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
+    signingConfigs {
+        if (firmaRelease != null) {
+            create("release") {
+                storeFile = rootProject.file(firmaRelease.getProperty("storeFile"))
+                storePassword = firmaRelease.getProperty("storePassword")
+                keyAlias = firmaRelease.getProperty("keyAlias")
+                keyPassword = firmaRelease.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             optimization {
                 enable = false
+            }
+            // Sin keystore (clon limpio / otra máquina) queda sin
+            // firmar y el empaquetado fallará; ver el comentario de
+            // `firmaRelease`.
+            signingConfig = if (firmaRelease != null) {
+                signingConfigs.getByName("release")
+            } else {
+                null
             }
         }
     }
