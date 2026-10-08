@@ -1200,6 +1200,28 @@ private fun FeaturedCard(
 internal fun columnasDeRejilla(ancho: Dp): Int = if (ancho < 600.dp) 1 else 3
 
 /**
+ * Alto de la portada de una tarjeta, según su ancho.
+ *
+ * Regla del 50%: la foto ocupa la MITAD del ancho de la tarjeta,
+ * que es el reparto de `.biz-card__cover` de la web («Alto = 50% de
+ * la tarjeta (340px → 170px)»). Así:
+ *
+ *  - móvil (una columna, tarjeta ~330-350dp) → portada de ~165-175dp.
+ *    Antes era fija en 108dp y la foto salía como una tira de 3:1,
+ *    «aplastada»;
+ *  - tablet (tres columnas, celda ~248dp) → portada de ~124dp.
+ *
+ * En ambos casos la tarjeta queda casi cuadrada, como la de la web
+ * (275x340px con 170px de foto).
+ *
+ * Si el ancho llegara SIN acotar (no ocurre: las tarjetas siempre
+ * están dentro de una celda o de un ancho conocido), se cae al alto
+ * fijo de siempre para no dibujar una portada infinita.
+ */
+internal fun altoPortadaTarjeta(ancho: Dp): Dp =
+    if (ancho.value.isFinite()) ancho / 2f else 108.dp
+
+/**
  * Tarjetas de los resultados.
  *
  * Mismo dibujo que `.right-results-list`, pero con las columnas
@@ -1272,8 +1294,10 @@ private fun BusinessCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            // Altura MINIMA fija: portada 108 + cuerpo. Ni la foto ni
-            // el carrusel pueden hacer crecer la tarjeta.
+            // Altura mínima de respaldo: la portada ya es
+            // proporcional al ancho (ver [altoPortadaTarjeta]) y por
+            // sí sola mide más que esto; el mínimo solo evita que una
+            // tarjeta sin cuerpo se venga abajo.
             .heightIn(min = 152.dp)
             // Sombra suave, como .biz-card de la web
             .shadow(2.dp, shape)
@@ -1460,61 +1484,72 @@ private fun CardCover(business: Business, featured: Boolean) {
         )
     }
 
-    Box(
+    // Alto PROPORCIONAL al ancho: la portada ocupa la mitad del ancho
+    // de la tarjeta (ver [altoPortadaTarjeta]), el mismo reparto que
+    // .biz-card__cover de la web («Alto = 50% de la tarjeta»). Antes
+    // era fija en 108dp y, con la tarjeta a ancho completo en el
+    // móvil (~350dp), la foto quedaba en una tira de 3:1 —«muy
+    // aplastada»—; ahora la tarjeta sale casi cuadrada.
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .height(108.dp)
             // Sin foto el fondo va blanco: el marrón oscuro pesaba
             // mucho a la vista. Con foto, marrón mientras carga.
             .background(if (!conFoto) Color.White else BrandBrown),
     ) {
-        if (conFoto) {
-            FotosCarrusel(imagenes = imagenes)
-        } else {
-            PlaceholderBrand(modifier = Modifier.align(Alignment.Center))
-        }
-
-        // Velo marrón: el nombre se lee sobre cualquier foto
-        Box(modifier = Modifier.fillMaxSize().background(veil))
-
-        // Título + categoría + pastilla "Destacado" encima de la foto
-        Column(
+        Box(
             modifier = Modifier
-                .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .padding(horizontal = 9.dp, vertical = 8.dp),
+                .height(altoPortadaTarjeta(maxWidth)),
         ) {
-            Text(
-                text = business.name,
-                color = Color.White,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (conFoto) {
+                FotosCarrusel(imagenes = imagenes)
+            } else {
+                PlaceholderBrand(modifier = Modifier.align(Alignment.Center))
+            }
 
-            Spacer(Modifier.height(2.dp))
+            // Velo marrón: el nombre se lee sobre cualquier foto
+            Box(modifier = Modifier.fillMaxSize().background(veil))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            // Título + categoría + pastilla "Destacado" encima de la foto
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(horizontal = 9.dp, vertical = 8.dp),
             ) {
                 Text(
-                    text = (business.category_name
-                        ?: stringResource(R.string.home_no_category)).uppercase(),
-                    color = CanaryYellow,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp,
+                    text = business.name,
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
                 )
 
-                if (featured) {
-                    Spacer(Modifier.width(6.dp))
-                    DestacadoBadge()
+                Spacer(Modifier.height(2.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = (business.category_name
+                            ?: stringResource(R.string.home_no_category)).uppercase(),
+                        color = CanaryYellow,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+
+                    if (featured) {
+                        Spacer(Modifier.width(6.dp))
+                        DestacadoBadge()
+                    }
                 }
             }
         }
@@ -1873,6 +1908,21 @@ private fun CorrectionDialog(
 
 // ═══════════════════════ PAGINACIÓN ═══════════════════════
 
+/**
+ * Barra de paginación: "Página 1 de 5 · 57 resultados" con flechas.
+ *
+ * COMPACTA a propósito (queja del usuario: «el contenedor de la
+ * paginación es muy alto»). Antes pesaba unos 89dp: margenes de 8+8,
+ * flechas de 48dp (el IconButton por defecto de Material3) y DOS
+ * líneas de texto. Ahora:
+ *
+ *  - margenes verticales de 2dp (eran 8),
+ *  - flechas de 40dp ([FlechaPagina]) en vez de 48dp,
+ *  - los dos textos en UNA sola línea.
+ *
+ * El inset de navegación (gestos / botones) sigue DENTRO de la barra
+ * para que el área blanco llegue hasta el borde del sistema.
+ */
 @Composable
 private fun PaginationBar(
     state: HomeUiState,
@@ -1887,23 +1937,22 @@ private fun PaginationBar(
             .background(CanvasWhite)
             // Espacio para la barra de navegación (gestos / botones)
             .navigationBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 6.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(
-            onClick = onPreviousPage,
+        FlechaPagina(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+            contentDescription = stringResource(R.string.home_prev_page),
             enabled = state.canGoPrevious,
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                contentDescription = stringResource(R.string.home_prev_page),
-                tint = if (state.canGoPrevious) GoldInk else TextMuted,
-            )
-        }
+            onClick = onPreviousPage,
+        )
 
-        Column(
+        // UNA línea (antes eran dos, lo que también agrandaba la
+        // barra): "Página 1 de 5" en oscuro + "· 57 resultados" gris.
+        Row(
             modifier = Modifier.weight(1f),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = stringResource(
@@ -1912,26 +1961,59 @@ private fun PaginationBar(
                     state.totalPages,
                 ),
                 color = TextPrimary,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
+            )
+            // Separador tipográfico: es un "·", no texto a traducir.
+            Text(
+                text = " · ",
+                color = TextMuted,
+                style = MaterialTheme.typography.labelMedium,
             )
             Text(
                 text = stringResource(R.string.home_total_results, state.totalCount),
                 color = TextMuted,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
             )
         }
 
-        IconButton(
-            onClick = onNextPage,
+        FlechaPagina(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = stringResource(R.string.home_next_page),
             enabled = state.canGoNext,
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = stringResource(R.string.home_next_page),
-                tint = if (state.canGoNext) GoldInk else TextMuted,
-            )
-        }
+            onClick = onNextPage,
+        )
+    }
+}
+
+/**
+ * Flecha de la paginación: caja de 40dp con ripple.
+ *
+ * No es un `IconButton` porque el de Material3 ocupa 48dp por defecto
+ * y era la altura que estiraba toda la barra. 40dp sigue siendo una
+ * zona de toque cómoda, y el icono conserva su `contentDescription`
+ * para que TalkBack lea "Página anterior / Página siguiente".
+ */
+@Composable
+private fun FlechaPagina(
+    imageVector: ImageVector,
+    contentDescription: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = imageVector,
+            contentDescription = contentDescription,
+            tint = if (enabled) GoldInk else TextMuted,
+            modifier = Modifier.size(24.dp),
+        )
     }
 }
 
