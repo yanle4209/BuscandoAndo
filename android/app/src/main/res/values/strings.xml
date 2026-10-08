@@ -56,4 +56,29 @@
     <string name="card_featured">Destacado</string>
     <string name="home_search_clear">Borrar búsqueda</string>
     <string name="home_categories_error">No se pudieron cargar las categorías</string>
+
+    <!-- ===== Fase 8 · paridad con la web (portada, municipio, GPS) ===== -->
+    <string name="home_subtitle_country">República Dominicana</string>
+    <string name="home_subtitle_map_point">Punto elegido en el mapa</string>
+    <string name="home_search_submit">Buscar</string>
+
+    <string name="home_results_loading">Buscando…</string>
+    <string name="home_results_count">%1$d resultados</string>
+
+    <string name="home_municipio_label">Municipio</string>
+    <string name="home_municipio_empty">Elige tu municipio</string>
+    <string name="home_municipio_loading">Cargando municipios…</string>
+    <string name="home_municipio_clear">Quitar municipio</string>
+    <string name="home_municipio_hint">Buscar municipio…</string>
+    <string name="home_municipio_close">Cerrar el selector de municipio</string>
+    <string name="home_municipio_error">No se pudieron cargar los municipios</string>
+    <string name="home_municipio_empty_list">Ningún municipio coincide con tu búsqueda</string>
+
+    <string name="home_portada_hint">Elige tu municipio o activa tu ubicación para empezar</string>
+    <string name="home_portada_msg_1">Encuentra los mejores negocios cerca de ti</string>
+    <string name="home_portada_msg_2">Restaurantes, tiendas, servicios y más</string>
+    <string name="home_portada_msg_3">Descubre lo que tu comunidad tiene para ofrecer</string>
+    <string name="home_portada_msg_4">Tu guía de negocios en toda la República</string>
+    <string name="home_portada_msg_5">Conecta con los mejores profesionales</string>
+    <string name="home_portada_msg_6">Explora tu municipio como nunca antes</string>
 </resources>
