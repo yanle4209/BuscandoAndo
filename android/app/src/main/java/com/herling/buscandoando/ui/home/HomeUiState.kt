@@ -173,6 +173,36 @@ data class HomeUiState(
      * y sin aviso). Con este flag la UI puede decirlo con un snackbar.
      */
     val categoriesError: Boolean = false,
+
+    // ───────────── Fase 9 · botón "Corregir" ─────────────
+    //
+    // Es el formulario de CorrectionModal.jsx trasladado a estados:
+    // `correccionId != null` equivale a "el modal está abierto" (en la
+    // web es `correccionBiz`). La red vive en el ViewModel; aquí solo
+    // se pinta lo que diga el estado.
+
+    /** id del negocio que se quiere corregir; null = modal cerrado. */
+    val correccionId: Int? = null,
+
+    /** Nombre del negocio, para "…dato de %1$s está mal?". */
+    val correccionNombre: String = "",
+
+    /** true mientras el POST está en vuelo (fase "enviando"). */
+    val correccionEnviando: Boolean = false,
+
+    /** true cuando el backend contestó 201 (fase "listo"). */
+    val correccionEnviada: Boolean = false,
+
+    /**
+     * Motivo del fallo al enviar.
+     *
+     *  null  → no hubo error
+     *  ""    → hubo error sin detalle legible (el modal pinta el
+     *          genérico "No se pudo enviar el aviso…")
+     *  texto → el mensaje que devolvió el backend (p. ej. el de los
+     *          10 caracteres que exige validate_mensaje)
+     */
+    val correccionError: String? = null,
 ) {
     /** Total de páginas = ceil(totalCount / PAGE_SIZE), mínimo 1. */
     val totalPages: Int

@@ -49,6 +49,13 @@ val StatusOpen = Color(0xFF15803D)         // 'abierto'     -> Abierto
 val StatusClosed = Color(0xFFDC2626)       // 'cerrado'     -> Cerrado
 val StatusBySchedule = Color(0xFFC2410C)   // 'por-horario' -> Por Horario
 
+// ----- Fila de datos de la tarjeta (BusinessCard.css) -----
+// El gris de las filas (dirección, teléfono…) es el mismo --grey que
+// ya está arriba (#66615a = TextMuted); estos dos son los únicos
+// valores de esa hoja que faltaban en la paleta.
+val CardRowInk = Color(0xFF423E38)       // .biz-card__row (texto)
+val WhatsAppGreen = Color(0xFF25D366)    // .biz-card__row--whatsapp (icono)
+
 // ----- Niveles de destacado -----
 // ELIMINADOS: ya no hay escalonado por nivel. Hay una sola pastilla
 // "Destacado" (blanca, texto dorado) y el borde de la tarjeta.

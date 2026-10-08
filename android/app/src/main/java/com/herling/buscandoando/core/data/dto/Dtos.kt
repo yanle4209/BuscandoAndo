@@ -86,9 +86,12 @@ data class Business(
 
     val municipality: String? = null,
     val province: String? = null,
+    val street: String? = null,             // JSON: "Calle Duarte #12" o null
 
     // ----- Contacto (mira bien: "809-578-2374" y también null) -----
     val phone: String? = null,
+    val whatsapp: String? = null,           // el mismo número, o null
+    val email: String? = null,              // "ayuntamiento@moca.go.do"
     val contact_person: String? = null,      // JSON: "Ayuntamiento de Moca" y también null
 
     // ----- Multimedia -----
@@ -96,4 +99,38 @@ data class Business(
 
     // ----- Fechas -----
     val created_at: String? = null,          // JSON: "2026-09-20T17:36:04.256000-05:00"
+)
+
+/**
+ * POST /api/corrections/ — lo que manda el botón "Corregir".
+ *
+ * Mismos tres campos que CorrectionCreateSerializer (backend):
+ * `business` (PK), `campo` (una de las 8 opciones de Correction.CAMPOS)
+ * y `mensaje` (mínimo 10 caracteres, lo comprueba el backend).
+ *
+ * Es público: no lleva login ni token, igual que el formulario de la web.
+ */
+@Serializable
+data class CorrectionPayload(
+    val business: Int,
+    val campo: String,
+    val mensaje: String,
+)
+
+/**
+ * El 201 que devuelve el backend.
+ *
+ * Todos los campos llevan valor por defecto: a la app solo le importa
+ * que la respuesta sea 201, no el contenido del aviso (eso es cosa
+ * del admin). Con defaults cabemos ante cualquier cambio del
+ * serializer sin romper la app.
+ */
+@Serializable
+data class CorrectionCreada(
+    val id: Int = 0,
+    val business: Int = 0,
+    val campo: String = "",
+    val mensaje: String = "",
+    val estado: String = "pendiente",
+    val created_at: String? = null,
 )

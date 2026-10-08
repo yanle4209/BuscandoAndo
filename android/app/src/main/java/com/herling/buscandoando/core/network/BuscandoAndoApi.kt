@@ -4,8 +4,13 @@ import com.herling.buscandoando.core.data.dto.Business
 import com.herling.buscandoando.core.data.dto.BusinessDetail
 import com.herling.buscandoando.core.data.dto.Cabecera
 import com.herling.buscandoando.core.data.dto.Category
+import com.herling.buscandoando.core.data.dto.CorrectionCreada
+import com.herling.buscandoando.core.data.dto.CorrectionPayload
 import com.herling.buscandoando.core.data.dto.PagedResponse
+import retrofit2.Response
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -106,4 +111,20 @@ interface BuscandoAndoApi {
      */
     @GET("cabeceras/")
     suspend fun getCabeceras(): List<Cabecera>
+
+    /**
+     * POST /api/corrections/  ->  201 Created
+     *
+     * El botón "Corregir" de la tarjeta (Fase 9-B), público y sin login.
+     *
+     * Se devuelve `Response<…>` en vez del objeto directo porque
+     * queremos distinguir DOS fallos distintos:
+     *   - 400 con {campo: ["…"]} → el backend rechazó el texto
+     *   - IOException            → no hay internet / el servidor cae
+     * Con el objeto directo, Retrofit lanza y perderíamos el detalle.
+     */
+    @POST("corrections/")
+    suspend fun createCorrection(
+        @Body payload: CorrectionPayload,
+    ): Response<CorrectionCreada>
 }

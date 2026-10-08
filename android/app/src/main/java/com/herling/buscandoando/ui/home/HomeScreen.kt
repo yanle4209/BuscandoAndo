@@ -42,11 +42,14 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -54,11 +57,14 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationSearching
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -88,12 +94,14 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -105,14 +113,18 @@ import com.herling.buscandoando.R
 import com.herling.buscandoando.core.data.FeaturedTier
 import com.herling.buscandoando.core.data.dto.Business
 import com.herling.buscandoando.core.data.dto.Cabecera
+import com.herling.buscandoando.core.data.dto.ImageDto
 import com.herling.buscandoando.core.location.getCurrentCoordinates
 import com.herling.buscandoando.core.location.hasLocationPermission
 import com.herling.buscandoando.core.location.locationUpdates
+import com.herling.buscandoando.ui.Acciones
 import com.herling.buscandoando.ui.iconForCategory
 import com.herling.buscandoando.ui.theme.CanaryYellow
 import com.herling.buscandoando.ui.theme.CanvasWhite
 import com.herling.buscandoando.ui.theme.BrandBrown
+import com.herling.buscandoando.ui.theme.CardRowInk
 import com.herling.buscandoando.ui.theme.CardWhite
+import com.herling.buscandoando.ui.theme.WhatsAppGreen
 import com.herling.buscandoando.ui.theme.SurfaceWhite
 import com.herling.buscandoando.ui.theme.Hairline
 import com.herling.buscandoando.ui.theme.HairlineStrong
@@ -294,6 +306,7 @@ fun HomeScreen(
             // slug viene como String? — si no trae, no hacemos nada
             business.slug?.let(viewModel::onBusinessSelected)
         },
+        onReport = viewModel::onOpenCorrection,
     )
 
     // ── FASE 4: hoja modal con el detalle ──
@@ -304,6 +317,18 @@ fun HomeScreen(
             state = state,
             onDismiss = viewModel::onCloseDetail,
             onRetry = viewModel::onRetryDetail,
+        )
+    }
+
+    // ── FASE 9-B: formulario "Corregir" ──
+    // Igual que el detalle: solo se compone si hay un negocio abierto
+    // (`correccionId != null`), como {correccionBiz && <CorrectionModal/>}
+    // de Home.jsx.
+    if (state.correccionId != null) {
+        CorrectionDialog(
+            state = state,
+            onDismiss = viewModel::onCloseCorrection,
+            onSend = viewModel::onSendCorrection,
         )
     }
 }
@@ -323,6 +348,7 @@ private fun HomeContent(
     onClearLocation: () -> Unit,
     onOpenSettings: () -> Unit,
     onBusinessClick: (Business) -> Unit,
+    onReport: (Business) -> Unit,
 ) {
     // ── Fase 7 · avisos TRANSIATORIOS ──
     //
@@ -431,12 +457,14 @@ private fun HomeContent(
                 FeaturedRow(
                     featured = state.featuredBySearch,
                     onBusinessClick = onBusinessClick,
+                    onReport = onReport,
                 )
 
                 BusinessGrid(
                     state = state,
                     modifier = Modifier.weight(1f),
                     onBusinessClick = onBusinessClick,
+                    onReport = onReport,
                 )
             }
         }
@@ -910,6 +938,7 @@ private fun CategoryChip(
 private fun FeaturedRow(
     featured: List<Business>,
     onBusinessClick: (Business) -> Unit,
+    onReport: (Business) -> Unit,
 ) {
     if (featured.isEmpty()) return
 
@@ -934,107 +963,17 @@ private fun FeaturedRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             featured.take(3).forEach { business ->
-                FeaturedCard(
+                // MISMA tarjeta que la rejilla: en la web la fila de
+                // destacados pinta <BusinessCard> igual que los
+                // resultados (Home.jsx 592-599), así que aquí solo
+                // existe UNA tarjeta, con sus filas y su "Corregir".
+                BusinessCard(
                     business = business,
                     modifier = Modifier.weight(1f),
                     onClick = { onBusinessClick(business) },
+                    onReport = { onReport(business) },
                 )
             }
-        }
-    }
-}
-
-/**
- * Tarjeta de la fila de destacados, CON FOTO.
- *
- * Misma portada que BusinessCard —foto a lo ancho, `ContentScale.Crop`
- * y velo marrón encima— pero más baja y sin el punto de estado, para
- * que las 3 quepan en la fila sin robarle alto a la cuadrícula de
- * abajo. El nombre y la categoría van SOBRE la foto, abajo, donde el
- * velo espesa: sobre foto clara el texto del tema no se leía.
- *
- * Sin foto se queda en el fondo de la tarjeta y el texto vuelve a sus
- * colores normales: la fila solo se dibuja cuando la búsqueda ha
- * traído algo, así que no hace falta el placeholder de marca.
- */
-@Composable
-private fun FeaturedCard(
-    business: Business,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    val featured = business.is_featured == true ||
-        FeaturedTier.levelOf(business.featured_tier) != null
-    val imageUrl = business.images.firstOrNull()?.image_url
-    val conFoto = !imageUrl.isNullOrBlank()
-    // Radio --card (12px) y sombra suave de la web
-    val shape = RoundedCornerShape(12.dp)
-    // Velo = .biz-card__cover-veil de la web (12% arriba → 62% → 90%)
-    val veil = androidx.compose.ui.graphics.Brush.verticalGradient(
-        0f to Color(0x1F1C1504),
-        0.58f to Color(0x9E1C1504),
-        1f to Color(0xE61C1504),
-    )
-
-    Box(
-        modifier = modifier
-            .heightIn(min = 118.dp)
-            .shadow(2.dp, shape)
-            .clip(shape)
-            .background(if (conFoto) BrandBrown else CardWhite)
-            // Sin escalonado por nivel y sin filete amarillo: el mismo borde
-            // fino para todas, igual que la web.
-            .border(1.dp, Hairline, shape)
-            .clickable(onClick = onClick),
-    ) {
-        if (conFoto) {
-            AsyncImage(
-                model = imageUrl,
-                // null a propósito: la tarjeta COMPLETA ya es clicable
-                // y el Text de abajo expone el nombre. Si además le
-                // pusiéramos contentDescription, TalkBack leería el
-                // nombre dos veces.
-                contentDescription = null,
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-
-            // Velo marrón: el nombre se lee sobre cualquier foto
-            Box(modifier = Modifier.fillMaxSize().background(veil))
-        }
-
-        if (featured) {
-            DestacadoBadge(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 8.dp, top = 8.dp),
-            )
-        }
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth()
-                .padding(horizontal = 9.dp, vertical = 8.dp),
-        ) {
-            Text(
-                text = business.name,
-                color = if (conFoto) Color.White else TextPrimary,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            Spacer(Modifier.height(4.dp))
-
-            Text(
-                text = business.category_name ?: stringResource(R.string.home_no_category),
-                color = if (conFoto) CanaryYellow else TextMuted,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
         }
     }
 }
@@ -1056,6 +995,7 @@ private fun BusinessGrid(
     state: HomeUiState,
     modifier: Modifier,
     onBusinessClick: (Business) -> Unit,
+    onReport: (Business) -> Unit,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
@@ -1065,7 +1005,11 @@ private fun BusinessGrid(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(state.businesses, key = { it.id }) { business ->
-            BusinessCard(business = business, onClick = { onBusinessClick(business) })
+            BusinessCard(
+                business = business,
+                onClick = { onBusinessClick(business) },
+                onReport = { onReport(business) },
+            )
         }
     }
 }
@@ -1073,7 +1017,9 @@ private fun BusinessGrid(
 @Composable
 private fun BusinessCard(
     business: Business,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
+    onReport: () -> Unit,
 ) {
     // Destacado: is_featured (o un tier valido heredado) -> pastilla
     // "Destacado". SIN escalonado por nivel: todas las tarjetas miden
@@ -1081,12 +1027,27 @@ private fun BusinessCard(
     val featured = business.is_featured == true ||
         FeaturedTier.levelOf(business.featured_tier) != null
     val shape = RoundedCornerShape(12.dp)
+    val context = LocalContext.current
+
+    // Dirección: mismo armado que en la web —calle, municipio,
+    // provincia— saltando los trozos que vengan en blanco.
+    val direccion = listOfNotNull(
+        business.street?.takeIf { it.isNotBlank() },
+        business.municipality?.takeIf { it.isNotBlank() },
+        business.province?.takeIf { it.isNotBlank() },
+    ).joinToString(", ")
+
+    val lat = business.latitude
+    val lng = business.longitude
+    val telefono = business.phone?.takeIf { it.isNotBlank() }
+    val whatsapp = business.whatsapp?.takeIf { it.isNotBlank() }
+    val descripcion = business.short_description?.takeIf { it.isNotBlank() }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            // Altura MINIMA fija: portada 108 + cuerpo (estado + padding).
-            // La foto no puede hacer crecer la tarjeta.
+            // Altura MINIMA fija: portada 108 + cuerpo. Ni la foto ni
+            // el carrusel pueden hacer crecer la tarjeta.
             .heightIn(min = 152.dp)
             // Sombra suave, como .biz-card de la web
             .shadow(2.dp, shape)
@@ -1098,25 +1059,167 @@ private fun BusinessCard(
         CardCover(business = business, featured = featured)
 
         Column(modifier = Modifier.padding(horizontal = 9.dp, vertical = 9.dp)) {
-            StatusBadge(business = business)
+            // Descripción corta. En la web es `flex: 1` y absorbe el
+            // aire de las tarjetas cortas (la rejilla estira todas las
+            // de la fila a la altura de la más alta); aquí va suelta,
+            // que el alto mínimo de la tarjeta ya evita el hueco.
+            if (descripcion != null) {
+                Text(
+                    text = descripcion,
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(6.dp))
+            }
+
+            if (direccion.isNotEmpty()) {
+                CardFila(icon = Icons.Default.Place, texto = direccion)
+            }
+
+            // "Ver en mapa": en la web es un <a> dorado y subrayado que
+            // solo se pinta en móvil (.biz-card__map-row { display:none
+            // } → flex). La app ES el móvil, así que va siempre.
+            if (lat != null && lng != null) {
+                CardFilaAccion(
+                    icon = Icons.Default.Place,
+                    texto = stringResource(R.string.card_ver_mapa),
+                    colorTexto = GoldInk,
+                    negrita = true,
+                    subrayado = true,
+                ) { Acciones.mapa(context, lat, lng) }
+            }
+
+            if (telefono != null) {
+                CardFilaAccion(icon = Icons.Default.Phone, texto = telefono) {
+                    Acciones.telefono(context, telefono)
+                }
+            }
+
+            if (whatsapp != null) {
+                CardFilaAccion(
+                    icon = Icons.AutoMirrored.Filled.Chat,
+                    texto = stringResource(R.string.card_whatsapp),
+                    colorIcono = WhatsAppGreen,
+                ) { Acciones.whatsapp(context, whatsapp) }
+            }
+
+            // ── Pie: estado + "Corregir" ──
+            // Mismo filete que .biz-card__footer y misma pareja de
+            // controles. El "Corregir" es el de la web: abre el
+            // formulario que avisa al admin (POST /api/corrections/).
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider(color = Hairline)
+            Spacer(Modifier.height(7.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                EstadoPastilla(
+                    business = business,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                Spacer(Modifier.weight(1f))
+                BotonCorregir(onClick = onReport)
+            }
         }
     }
 }
 
 /**
- * Portada de la tarjeta: la foto (o el placeholder de marca si no
- * hay) arriba, con el nombre y la categoría ENCIMA, sobre un velo
- * marrón. Alto fijo y `ContentScale.Crop` = recorte a rellenar, la
- * misma regla que la web (`.biz-card__cover` + object-fit: cover).
+ * Fila de datos de la tarjeta: icono gris + texto (dirección).
+ *
+ * Espejo de `.biz-card__row`: 5px de hueco, icono #66615a y texto
+ * #423e38. Sin clickable: la dirección NO es un enlace (el enlace está
+ * en la fila de "Ver en mapa").
+ */
+@Composable
+private fun CardFila(icon: ImageVector, texto: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(bottom = 2.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            // null a propósito: la fila describe la tarjeta, que ya
+            // tiene su propio texto para TalkBack.
+            contentDescription = null,
+            tint = TextMuted,
+            modifier = Modifier.size(13.dp),
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(
+            text = texto,
+            color = CardRowInk,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * Fila ACCIONABLE: mismo dibujo que [CardFila], pero el texto es un
+ * enlace (tel:, wa.me, Google Maps), como los `<a>` de la web.
+ */
+@Composable
+private fun CardFilaAccion(
+    icon: ImageVector,
+    texto: String,
+    colorIcono: Color = TextMuted,
+    colorTexto: Color = CardRowInk,
+    negrita: Boolean = false,
+    subrayado: Boolean = false,
+    // ÚLTIMO a propósito: en Kotlin la lambda de cola solo puede ir al
+    // último parámetro, y así las filas se leen como las de la web.
+    onClick: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .padding(bottom = 2.dp)
+            .clickable(onClick = onClick),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = colorIcono,
+            modifier = Modifier.size(13.dp),
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(
+            text = texto,
+            color = colorTexto,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (negrita) FontWeight.Bold else FontWeight.Normal,
+            textDecoration = if (subrayado) TextDecoration.Underline else TextDecoration.None,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * Portada de la tarjeta: el CARRUSEL de fotos (o el placeholder de
+ * marca si no hay) arriba, con el nombre y la categoría ENCIMA, sobre
+ * un velo marrón. Alto fijo y `ContentScale.Crop` = recorte a
+ * rellenar, la misma regla que la web (`.biz-card__cover`).
+ *
+ * Hasta 5 fotos, como `images.slice(0, 5)` de la web; el resto se
+ * ignoran. Sin fotos se queda el placeholder de marca, que ya era lo
+ * que se veía antes.
  */
 @Composable
 private fun CardCover(business: Business, featured: Boolean) {
-    val imageUrl = business.images.firstOrNull()?.image_url
-    val statusColor = statusColorOf(business.effective_status)
+    val imagenes = business.images
+        .mapNotNull { img: ImageDto -> img.image_url ?: img.image }
+        .take(5)
+    val conFoto = imagenes.isNotEmpty()
     // Velo = mismo degradado que .biz-card__cover-veil de la web
     // (90% abajo → 62% al 42% → 12% arriba). SIN foto la web usa otro,
     // que solo oscurece la banda inferior y deja el blanco arriba.
-    val veil = if (imageUrl.isNullOrBlank()) {
+    val veil = if (!conFoto) {
         androidx.compose.ui.graphics.Brush.verticalGradient(
             0f to Color.Transparent,
             0.52f to Color.Transparent,
@@ -1137,36 +1240,16 @@ private fun CardCover(business: Business, featured: Boolean) {
             .height(108.dp)
             // Sin foto el fondo va blanco: el marrón oscuro pesaba
             // mucho a la vista. Con foto, marrón mientras carga.
-            .background(if (imageUrl.isNullOrBlank()) Color.White else BrandBrown),
+            .background(if (!conFoto) Color.White else BrandBrown),
     ) {
-        if (!imageUrl.isNullOrBlank()) {
-            AsyncImage(
-                model = imageUrl,
-                // null a propósito: la tarjeta COMPLETA ya es clicable
-                // y su Text expone el nombre. Si además le pusiéramos
-                // contentDescription, TalkBack leería el nombre dos veces.
-                contentDescription = null,
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
+        if (conFoto) {
+            CarruselPortada(imagenes = imagenes)
         } else {
             PlaceholderBrand(modifier = Modifier.align(Alignment.Center))
         }
 
         // Velo marrón: el nombre se lee sobre cualquier foto
         Box(modifier = Modifier.fillMaxSize().background(veil))
-
-        // Punto de estado, esquina superior izquierda. Con anillo blanco:
-        // los tonos de estado son ya oscuros y así se separan del velo.
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(7.dp)
-                .size(11.dp)
-                .clip(CircleShape)
-                .background(statusColor)
-                .border(1.5.dp, Color.White, CircleShape),
-        )
 
         // Título + categoría + pastilla "Destacado" encima de la foto
         Column(
@@ -1209,6 +1292,113 @@ private fun CardCover(business: Business, featured: Boolean) {
                 }
             }
         }
+    }
+}
+
+/**
+ * Carrusel de la portada (espejo de ImageCarousel.jsx dentro de
+ * `.biz-card__cover`).
+ *
+ * Deslizable (HorizontalPager) y con flechas y puntos ENCIMA de la
+ * foto, igual que la web: los puntos ARRIBA —en la variante portada
+ * la web los sube a `top: 5px` para no pisar el nombre, que va
+ * abajo— en blanco translúcido con el activo amarillo, y las flechas
+ * a media altura en círculos negros al 60%.
+ *
+ * Sin autoplay: en la web solo lo tiene la tarjeta resaltada de la
+ * portada, y esa pantalla la app todavía no tiene.
+ */
+@Composable
+private fun CarruselPortada(imagenes: List<String>, modifier: Modifier = Modifier) {
+    val pagina = rememberPagerState { imagenes.size }
+    val alcance = rememberCoroutineScope()
+
+    Box(modifier = modifier) {
+        HorizontalPager(
+            state = pagina,
+            modifier = Modifier.fillMaxSize(),
+        ) { indice ->
+            AsyncImage(
+                model = imagenes[indice],
+                // null a propósito: la tarjeta completa ya es clicable
+                // y el Text de abajo expone el nombre.
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
+        if (imagenes.size > 1) {
+            // ── Puntos ──
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 5.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                imagenes.indices.forEach { i ->
+                    val activo = i == pagina.currentPage
+                    val ancho by animateDpAsState(
+                        targetValue = if (activo) 16.dp else 6.dp,
+                        label = "punto",
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(ancho)
+                            .height(6.dp)
+                            .clip(if (activo) RoundedCornerShape(3.dp) else CircleShape)
+                            .background(
+                                if (activo) CanaryYellow else Color.White.copy(alpha = 0.65f),
+                            )
+                            // El punto activo no hace nada: ya estás
+                            // en esa foto.
+                            .clickable(enabled = !activo) {
+                                alcance.launch { pagina.animateScrollToPage(i) }
+                            },
+                    )
+                }
+            }
+
+            // ── Flechas ──
+            Row(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .fillMaxWidth()
+                    .padding(horizontal = 5.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                FlechaCarrusel(Icons.AutoMirrored.Filled.KeyboardArrowLeft) {
+                    val anterior =
+                        if (pagina.currentPage == 0) imagenes.lastIndex else pagina.currentPage - 1
+                    alcance.launch { pagina.animateScrollToPage(anterior) }
+                }
+                FlechaCarrusel(Icons.AutoMirrored.Filled.KeyboardArrowRight) {
+                    val siguiente =
+                        if (pagina.currentPage == imagenes.lastIndex) 0 else pagina.currentPage + 1
+                    alcance.launch { pagina.animateScrollToPage(siguiente) }
+                }
+            }
+        }
+    }
+}
+
+/** Flecha del carrusel: círculo negro 60% con chevron blanco. */
+@Composable
+private fun FlechaCarrusel(icon: ImageVector, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(20.dp)
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = 0.6f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(14.dp),
+        )
     }
 }
 
@@ -1264,26 +1454,297 @@ private fun DestacadoBadge(modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * Pastilla del estado operativo (espejo de `.biz-card__status`).
+ *
+ * Sólida y con texto blanco, como la web: verde para abierto, rojo
+ * para cerrado y naranja para por horario. Antes había además un
+ * puntito de color en la portada; se quitó para no decir lo mismo dos
+ * veces en la misma tarjeta (la web tampoco lo pinta).
+ */
 @Composable
-private fun StatusBadge(business: Business) {
+private fun EstadoPastilla(business: Business, modifier: Modifier = Modifier) {
     val color = statusColorOf(business.effective_status)
+    val shape = RoundedCornerShape(6.dp)
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(7.dp)
-                .clip(CircleShape)
-                .background(color),
-        )
-        Spacer(Modifier.width(6.dp))
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(color)
+            .padding(horizontal = 7.dp, vertical = 2.dp),
+    ) {
         Text(
-            text = business.effective_status_name ?: "—",
-            color = color,
+            text = (business.effective_status_name ?: "—").uppercase(),
+            color = Color.White,
             style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.4.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/**
+ * Botón "Corregir" (espejo de `.biz-card__fix`).
+ *
+ * Texto sobre filete, SIN relleno: es la regla de la paleta, que el
+ * marrón y el amarillo no rellenan nunca ni en la web ni en la app.
+ */
+@Composable
+private fun BotonCorregir(onClick: () -> Unit) {
+    val shape = RoundedCornerShape(8.dp)
+
+    Box(
+        modifier = Modifier
+            .clip(shape)
+            .border(1.dp, HairlineStrong, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.card_fix),
+            color = BrandBrown,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
+    }
+}
+
+/**
+ * Opciones del desplegable "Dato incorrecto".
+ *
+ * DEBE coincidir con Correction.CAMPOS de backend/businesses/models.py:
+ * si se añade un dato nuevo a la tarjeta, hay que añadirlo aquí Y
+ * allá, o el backend rechaza el envío con un 400.
+ */
+private val CAMPOS_CORRECCION = listOf(
+    "nombre" to "Nombre del negocio",
+    "direccion" to "Dirección",
+    "telefono" to "Teléfono / WhatsApp",
+    "categoria" to "Categoría",
+    "descripcion" to "Descripción",
+    "estado" to "Estado (abierto/cerrado)",
+    "horario" to "Horario",
+    "otro" to "Otro",
+)
+
+/** Igual que el backend: validate_mensaje exige 10 caracteres. */
+private const val MIN_CARACTERES_CORRECCION = 10
+
+/**
+ * Formulario que abre el botón "Corregir" (Fase 9-B).
+ *
+ * Espejo de CorrectionModal.jsx: mismas 8 opciones de campo, mismo
+ * mínimo de 10 caracteres y las mismas tres fases (escribiendo →
+ * enviando → listo). La red la hace el ViewModel; aquí solo se pinta
+ * el estado que diga `HomeUiState.correccion*`.
+ */
+@Composable
+private fun CorrectionDialog(
+    state: HomeUiState,
+    onDismiss: () -> Unit,
+    onSend: (campo: String, mensaje: String) -> Unit,
+) {
+    var campo by remember { mutableStateOf(CAMPOS_CORRECCION.first().first) }
+    var mensaje by remember { mutableStateOf("") }
+    var campoExpandido by remember { mutableStateOf(false) }
+
+    val restantes = (MIN_CARACTERES_CORRECCION - mensaje.trim().length).coerceAtLeast(0)
+    val puedeEnviar = restantes == 0 && !state.correccionEnviando
+
+    Dialog(onDismissRequest = { if (!state.correccionEnviando) onDismiss() }) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = CanvasWhite,
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = stringResource(R.string.correction_title),
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+
+                Spacer(Modifier.height(6.dp))
+
+                Text(
+                    text = stringResource(R.string.correction_desc, state.correccionNombre),
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+
+                if (state.correccionEnviada) {
+                    // ── Fase "listo" ──
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        text = stringResource(R.string.correction_ok_title),
+                        color = StatusOpen,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.correction_ok_desc, state.correccionNombre),
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.align(Alignment.End),
+                    ) {
+                        Text(stringResource(R.string.correction_ok_close), color = GoldInk)
+                    }
+                    return@Column
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                // ── Campo (desplegable, como el <select> de la web) ──
+                //
+                // NO es un OutlinedTextField readOnly: en Compose el
+                // campo de texto se queda con el toque para enfocarse y
+                // el menú no se abriría. Caja a mano = mismo dibujo y
+                // toque seguro.
+                Box {
+                    val formaCampo = RoundedCornerShape(4.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(formaCampo)
+                            .border(1.dp, HairlineStrong, formaCampo)
+                            .clickable(enabled = !state.correccionEnviando) {
+                                campoExpandido = true
+                            }
+                            .padding(horizontal = 14.dp, vertical = 9.dp),
+                    ) {
+                        Column {
+                            Text(
+                                text = stringResource(R.string.correction_campo_label),
+                                color = TextMuted,
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = CAMPOS_CORRECCION
+                                    .firstOrNull { it.first == campo }?.second ?: campo,
+                                color = TextPrimary,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = TextMuted,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .size(20.dp),
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = campoExpandido,
+                        onDismissRequest = { campoExpandido = false },
+                    ) {
+                        CAMPOS_CORRECCION.forEach { (clave, etiqueta) ->
+                            DropdownMenuItem(
+                                text = { Text(etiqueta) },
+                                onClick = {
+                                    campo = clave
+                                    campoExpandido = false
+                                },
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = mensaje,
+                    onValueChange = { mensaje = it },
+                    label = { Text(stringResource(R.string.correction_mensaje_label)) },
+                    placeholder = { Text(stringResource(R.string.correction_placeholder)) },
+                    enabled = !state.correccionEnviando,
+                    minLines = 3,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = HairlineStrong,
+                        unfocusedBorderColor = HairlineStrong,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                // Contador, como en la web: cuántos caracteres faltan.
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(
+                        R.string.correction_min,
+                        MIN_CARACTERES_CORRECCION,
+                        restantes,
+                    ),
+                    color = if (restantes > 0) TextMuted else StatusOpen,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+
+                // ── Error del backend (o genérico) ──
+                val error = state.correccionError
+                if (error != null) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = error.ifBlank { stringResource(R.string.correction_error) },
+                        color = StatusClosed,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (state.correccionEnviando) {
+                        CircularProgressIndicator(
+                            color = GoldInk,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(10.dp))
+                    }
+
+                    TextButton(onClick = onDismiss, enabled = !state.correccionEnviando) {
+                        Text(
+                            text = stringResource(R.string.correction_cancel),
+                            color = TextSecondary,
+                        )
+                    }
+
+                    Spacer(Modifier.width(6.dp))
+
+                    TextButton(
+                        onClick = { onSend(campo, mensaje) },
+                        enabled = puedeEnviar,
+                    ) {
+                        Text(
+                            text = stringResource(
+                                if (state.correccionEnviando) {
+                                    R.string.correction_sending
+                                } else {
+                                    R.string.correction_send
+                                },
+                            ),
+                            color = if (puedeEnviar) GoldInk else TextMuted,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

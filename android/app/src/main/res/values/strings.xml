@@ -81,4 +81,25 @@
     <string name="home_portada_msg_4">Tu guía de negocios en toda la República</string>
     <string name="home_portada_msg_5">Conecta con los mejores profesionales</string>
     <string name="home_portada_msg_6">Explora tu municipio como nunca antes</string>
+
+    <!-- ===== Fase 9 · tarjeta: acciones y "Corregir" ===== -->
+    <string name="card_ver_mapa">Ver en mapa</string>
+    <string name="card_whatsapp">WhatsApp</string>
+    <string name="card_address_content">Dirección</string>
+    <string name="card_fix">Corregir</string>
+
+    <string name="correction_title">Corregir información</string>
+    <string name="correction_desc">¿Qué dato de %1$s está mal? Dinos cuál es el correcto y lo revisamos.</string>
+    <string name="correction_campo_label">Dato incorrecto</string>
+    <string name="correction_mensaje_label">Qué está mal y cuál es el dato correcto</string>
+    <string name="correction_placeholder">Ej.: el teléfono es 809-555-0000, no el que aparece en la tarjeta.</string>
+    <string name="correction_min">Mínimo %1$d caracteres (te faltan %2$d).</string>
+    <string name="correction_cancel">Cancelar</string>
+    <string name="correction_send">Enviar corrección</string>
+    <string name="correction_sending">Enviando…</string>
+    <string name="correction_ok_title">Gracias por avisar</string>
+    <string name="correction_ok_desc">Recibimos tu corrección sobre %1$s. El admin la revisará y aplicará el dato correcto.</string>
+    <string name="correction_ok_close">Entendido</string>
+    <string name="correction_error">No se pudo enviar el aviso. Inténtalo de nuevo.</string>
+    <string name="correction_close">Cerrar</string>
 </resources>

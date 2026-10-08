@@ -7,6 +7,7 @@ import com.herling.buscandoando.core.data.MunicipioStore
 import com.herling.buscandoando.core.data.dto.Business
 import com.herling.buscandoando.core.data.dto.Cabecera
 import com.herling.buscandoando.core.data.dto.Category
+import com.herling.buscandoando.core.data.dto.CorrectionPayload
 import com.herling.buscandoando.core.network.ApiClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -17,6 +18,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import retrofit2.Response
 
 /**
  * ViewModel de la pantalla Home.
@@ -206,6 +213,120 @@ class HomeViewModel : ViewModel() {
                     }
                 }
             }
+        }
+    }
+
+    // ───────────── Fase 9-B · botón "Corregir" ─────────────
+
+    /**
+     * Tocó "Corregir" en la tarjeta: abre el formulario.
+     *
+     * Espejo de `setCorrectionBiz(biz)` de Home.jsx. Todavía no se pide
+     * nada al backend: el modal solo recuerda QUÉ negocio se quiere
+     * corregir (`correccionId != null` = modal abierto).
+     */
+    fun onOpenCorrection(business: Business) {
+        _uiState.update {
+            it.copy(
+                correccionId = business.id,
+                correccionNombre = business.name,
+                correccionEnviando = false,
+                correccionEnviada = false,
+                correccionError = null,
+            )
+        }
+    }
+
+    /**
+     * Cerró el modal (X, tap afuera o "Entendido"): se borra todo.
+     *
+     * Mientras el POST está en vuelo NO se cierra: si no, el usuario
+     * podría reenviar sin darse cuenta y el backend recibiría dos
+     * avisos iguales.
+     */
+    fun onCloseCorrection() {
+        if (_uiState.value.correccionEnviando) return
+        _uiState.update {
+            it.copy(
+                correccionId = null,
+                correccionNombre = "",
+                correccionEnviando = false,
+                correccionEnviada = false,
+                correccionError = null,
+            )
+        }
+    }
+
+    /**
+     * Envió el formulario → POST /api/corrections/ (público, sin login).
+     *
+     * La composable ya validó los 10 caracteres que exige
+     * `validate_mensaje` (y lo cuenta en pantalla); aquí solo se manda.
+     *
+     * `correccionError` guarda el motivo del backend cuando lo trae
+     * (DRF responde {"mensaje": ["…"]}), y "" cuando no lo hay: en ese
+     * caso el modal pinta el mensaje genérico de strings.xml.
+     */
+    fun onSendCorrection(campo: String, mensaje: String) {
+        val negocio = _uiState.value.correccionId ?: return
+        val texto = mensaje.trim()
+        if (texto.isEmpty()) return
+        if (_uiState.value.correccionEnviando) return
+
+        _uiState.update { it.copy(correccionEnviando = true, correccionError = null) }
+
+        viewModelScope.launch {
+            try {
+                val respuesta = ApiClient.api.createCorrection(
+                    CorrectionPayload(business = negocio, campo = campo, mensaje = texto),
+                )
+                Log.d(TAG, "corrections → HTTP ${respuesta.code()}")
+
+                if (respuesta.isSuccessful) {
+                    _uiState.update { it.copy(correccionEnviando = false, correccionEnviada = true) }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            correccionEnviando = false,
+                            correccionError = detalleDeError(respuesta) ?: "",
+                        )
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Sin internet, servidor dormido, timeout...
+                Log.w(TAG, "corrections falló: ${e::class.simpleName}: ${e.message}")
+                _uiState.update { it.copy(correccionEnviando = false, correccionError = "") }
+            }
+        }
+    }
+
+    /**
+     * Saca el primer mensaje legible del 4xx de DRF.
+     *
+     * DRF responde JSON con forma {"campo": ["Dato invalido"]} y el
+     * backend añade "Cuentanos un poco mas: al menos 10 caracteres."
+     * para `mensaje`. En vez de enseñar JSON crudo al usuario,
+     * buscamos el primer texto de los campos que conocemos.
+     */
+    private fun detalleDeError(respuesta: Response<*>): String? {
+        val cuerpo = try {
+            respuesta.errorBody()?.string()
+        } catch (e: Exception) {
+            null
+        } ?: return null
+
+        return try {
+            val objeto = Json.parseToJsonElement(cuerpo).jsonObject
+            listOf("mensaje", "campo", "business", "non_field_errors")
+                .firstNotNullOfOrNull { clave ->
+                    (objeto[clave] as? JsonArray)?.firstOrNull()?.jsonPrimitive?.contentOrNull
+                }
+        } catch (e: Exception) {
+            // Un cuerpo que no es JSON (p. ej. el HTML del 500 de
+            // Render): mejor nada que HTML en la pantalla.
+            null
         }
     }
 
