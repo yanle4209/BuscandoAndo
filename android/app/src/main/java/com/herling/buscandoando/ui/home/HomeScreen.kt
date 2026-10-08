@@ -42,8 +42,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -1243,7 +1241,7 @@ private fun CardCover(business: Business, featured: Boolean) {
             .background(if (!conFoto) Color.White else BrandBrown),
     ) {
         if (conFoto) {
-            CarruselPortada(imagenes = imagenes)
+            FotosCarrusel(imagenes = imagenes)
         } else {
             PlaceholderBrand(modifier = Modifier.align(Alignment.Center))
         }
@@ -1296,113 +1294,6 @@ private fun CardCover(business: Business, featured: Boolean) {
 }
 
 /**
- * Carrusel de la portada (espejo de ImageCarousel.jsx dentro de
- * `.biz-card__cover`).
- *
- * Deslizable (HorizontalPager) y con flechas y puntos ENCIMA de la
- * foto, igual que la web: los puntos ARRIBA —en la variante portada
- * la web los sube a `top: 5px` para no pisar el nombre, que va
- * abajo— en blanco translúcido con el activo amarillo, y las flechas
- * a media altura en círculos negros al 60%.
- *
- * Sin autoplay: en la web solo lo tiene la tarjeta resaltada de la
- * portada, y esa pantalla la app todavía no tiene.
- */
-@Composable
-private fun CarruselPortada(imagenes: List<String>, modifier: Modifier = Modifier) {
-    val pagina = rememberPagerState { imagenes.size }
-    val alcance = rememberCoroutineScope()
-
-    Box(modifier = modifier) {
-        HorizontalPager(
-            state = pagina,
-            modifier = Modifier.fillMaxSize(),
-        ) { indice ->
-            AsyncImage(
-                model = imagenes[indice],
-                // null a propósito: la tarjeta completa ya es clicable
-                // y el Text de abajo expone el nombre.
-                contentDescription = null,
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-
-        if (imagenes.size > 1) {
-            // ── Puntos ──
-            Row(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 5.dp),
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-            ) {
-                imagenes.indices.forEach { i ->
-                    val activo = i == pagina.currentPage
-                    val ancho by animateDpAsState(
-                        targetValue = if (activo) 16.dp else 6.dp,
-                        label = "punto",
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(ancho)
-                            .height(6.dp)
-                            .clip(if (activo) RoundedCornerShape(3.dp) else CircleShape)
-                            .background(
-                                if (activo) CanaryYellow else Color.White.copy(alpha = 0.65f),
-                            )
-                            // El punto activo no hace nada: ya estás
-                            // en esa foto.
-                            .clickable(enabled = !activo) {
-                                alcance.launch { pagina.animateScrollToPage(i) }
-                            },
-                    )
-                }
-            }
-
-            // ── Flechas ──
-            Row(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .fillMaxWidth()
-                    .padding(horizontal = 5.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                FlechaCarrusel(Icons.AutoMirrored.Filled.KeyboardArrowLeft) {
-                    val anterior =
-                        if (pagina.currentPage == 0) imagenes.lastIndex else pagina.currentPage - 1
-                    alcance.launch { pagina.animateScrollToPage(anterior) }
-                }
-                FlechaCarrusel(Icons.AutoMirrored.Filled.KeyboardArrowRight) {
-                    val siguiente =
-                        if (pagina.currentPage == imagenes.lastIndex) 0 else pagina.currentPage + 1
-                    alcance.launch { pagina.animateScrollToPage(siguiente) }
-                }
-            }
-        }
-    }
-}
-
-/** Flecha del carrusel: círculo negro 60% con chevron blanco. */
-@Composable
-private fun FlechaCarrusel(icon: ImageVector, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(20.dp)
-            .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.6f))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier.size(14.dp),
-        )
-    }
-}
-
-/**
  * Placeholder de marca (espejo del de la web): el logotipo al 50%
  * de opacidad sobre fondo blanco. Es texto pintado (sin BD ni
  * storage), y así la tarjeta SIEMPRE muestra algo.
@@ -1432,9 +1323,13 @@ private fun PlaceholderBrand(modifier: Modifier = Modifier) {
  *
  * Espejo de `.biz-card__badge` de la web: blanca, texto dorado
  * (#8F6C14) y 6dp de radio. Sustituye a la antigua pastilla de nivel.
+ *
+ * `internal` porque también la pinta la ficha
+ * (BusinessDetailSheet.kt), igual que la web la pinta en la tarjeta
+ * Y en el modal.
  */
 @Composable
-private fun DestacadoBadge(modifier: Modifier = Modifier) {
+internal fun DestacadoBadge(modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(6.dp)
     Box(
         modifier = modifier

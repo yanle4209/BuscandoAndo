@@ -33,6 +33,11 @@
     <string name="detail_no_info">Sin información</string>
     <string name="detail_close">Cerrar detalle</string>
 
+    <!-- ===== Fase 9 · ficha completa ===== -->
+    <string name="detail_web">Sitio web</string>
+    <string name="detail_responsable">Responsable</string>
+    <string name="detail_ver_maps">Ver en Google Maps</string>
+
     <!-- ===== Fase 5 · Mapa ===== -->
     <string name="home_open_map">Ver mapa de resultados</string>
     <string name="map_title">Mapa</string>

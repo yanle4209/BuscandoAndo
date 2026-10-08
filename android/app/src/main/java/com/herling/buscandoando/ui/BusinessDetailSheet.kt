@@ -2,6 +2,7 @@ package com.herling.buscandoando.ui.home
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
@@ -42,16 +44,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.herling.buscandoando.R
+import com.herling.buscandoando.core.data.FeaturedTier
 import com.herling.buscandoando.core.data.dto.BusinessDetail
 import com.herling.buscandoando.core.data.dto.HourDto
+import com.herling.buscandoando.ui.Acciones
 import com.herling.buscandoando.ui.iconForCategory
 import com.herling.buscandoando.ui.theme.BrandBrown
 import com.herling.buscandoando.ui.theme.CanaryYellow
@@ -63,6 +67,7 @@ import com.herling.buscandoando.ui.theme.StatusClosed
 import com.herling.buscandoando.ui.theme.TextMuted
 import com.herling.buscandoando.ui.theme.TextPrimary
 import com.herling.buscandoando.ui.theme.TextSecondary
+import com.herling.buscandoando.ui.theme.WhatsAppGreen
 import com.herling.buscandoando.ui.theme.Gold
 import kotlinx.coroutines.launch
 
@@ -127,27 +132,33 @@ private fun DetailBody(detail: BusinessDetail, onClose: () -> Unit) {
             .verticalScroll(rememberScrollState())   // todo el sheet se desliza
             .padding(bottom = 24.dp),
     ) {
-        // ── Cabecera: foto grande, con el ícono detrás como fallback ──
+        // ── Cabecera: carrusel de fotos (hasta 5), con el ícono de la
+        //    categoría detrás como fallback cuando no hay ninguna ──
+        //
+        // En la web es ImageCarousel.jsx dentro de .modal-carousel:
+        // puntos debajo y flechas de 36px (EstiloCarrusel.Ficha).
+        val fotos = detail.images
+            .mapNotNull { it.image_url ?: it.image }
+            .take(5)
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(170.dp)
+                .height(210.dp)
                 .background(SurfaceWhite),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = iconForCategory(detail.category_icon),
-                contentDescription = null,
-                tint = TextSecondary,
-                modifier = Modifier.size(64.dp),
-            )
-
-            val photo = detail.images.firstOrNull()?.image_url
-            if (!photo.isNullOrBlank()) {
-                AsyncImage(
-                    model = photo,
-                    contentDescription = detail.name,
-                    contentScale = ContentScale.Crop,
+            if (fotos.isEmpty()) {
+                Icon(
+                    imageVector = iconForCategory(detail.category_icon),
+                    contentDescription = null,
+                    tint = TextSecondary,
+                    modifier = Modifier.size(64.dp),
+                )
+            } else {
+                FotosCarrusel(
+                    imagenes = fotos,
+                    estilo = EstiloCarrusel.Ficha,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -156,7 +167,7 @@ private fun DetailBody(detail: BusinessDetail, onClose: () -> Unit) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
             Spacer(Modifier.height(14.dp))
 
-            // ── Nombre + botón cerrar ──
+            // ── Nombre + pastilla "Destacado" + botón cerrar ──
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = detail.name,
@@ -167,6 +178,15 @@ private fun DetailBody(detail: BusinessDetail, onClose: () -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
+
+                // Mismo badge que en la tarjeta (.modal-badge--featured)
+                if (detail.is_featured == true ||
+                    FeaturedTier.levelOf(detail.featured_tier) != null
+                ) {
+                    Spacer(Modifier.width(8.dp))
+                    DestacadoBadge()
+                }
+
                 IconButton(onClick = onClose) {
                     Icon(
                         imageVector = Icons.Default.Close,
@@ -213,10 +233,14 @@ private fun DetailBody(detail: BusinessDetail, onClose: () -> Unit) {
                 )
             }
 
-            // ── Secciones: ubicación / contacto / horario ──
+            // ── Secciones: ubicación / contacto / responsable / horario ──
             LocationSection(detail)
             ContactSection(detail)
+            ResponsableSection(detail)
             ScheduleSection(detail)
+
+            // ── Botón "Ver en Google Maps" ──
+            MapsButton(detail)
         }
     }
 }
@@ -267,22 +291,112 @@ private fun LocationSection(detail: BusinessDetail) {
 
 // ─────────────────── CONTACTO ───────────────────
 
+/**
+ * Contacto ACCIONABLE (paridad con la web).
+ *
+ * Allí son `<a href="tel:…">`, `wa.me`, `mailto:` y el sitio web;
+ * aquí cada línea abre la app que corresponda vía Intent
+ * (ui/Acciones.kt). El responsable no entra aquí: la web le da su
+ * propia tarjeta, y así lo dejamos en [ResponsableSection].
+ */
 @Composable
 private fun ContactSection(detail: BusinessDetail) {
+    val context = LocalContext.current
     val c = detail.contact
-    val lines = listOfNotNull(
-        c?.phone?.takeIf { it.isNotBlank() }?.let { Icons.Default.Phone to it },
-        c?.whatsapp?.takeIf { it.isNotBlank() }?.let { Icons.AutoMirrored.Filled.Chat to it },
-        c?.email?.takeIf { it.isNotBlank() }?.let { Icons.Default.Email to it },
-        c?.website?.takeIf { it.isNotBlank() }?.let { Icons.Default.Language to it },
-        c?.contact_person?.takeIf { it.isNotBlank() }?.let { Icons.Default.Person to it },
-    )
+
+    val phone = c?.phone?.takeIf { it.isNotBlank() }
+    val whatsapp = c?.whatsapp?.takeIf { it.isNotBlank() }
+    val email = c?.email?.takeIf { it.isNotBlank() }
+    val web = c?.website?.takeIf { it.isNotBlank() }
 
     SectionShell(title = stringResource(R.string.detail_contact), icon = Icons.Default.Phone) {
-        if (lines.isEmpty()) {
+        if (phone == null && whatsapp == null && email == null && web == null) {
             NoInfo()
         } else {
-            lines.forEach { (icon, text) -> InfoLine(icon = icon, text = text) }
+            phone?.let { numero ->
+                InfoLineAccion(icon = Icons.Default.Phone, text = numero) {
+                    Acciones.telefono(context, numero)
+                }
+            }
+
+            // "WhatsApp" y "Sitio web" van con su nombre, no con el
+            // dato crudo, igual que en la web.
+            whatsapp?.let { numero ->
+                InfoLineAccion(
+                    icon = Icons.AutoMirrored.Filled.Chat,
+                    text = stringResource(R.string.card_whatsapp),
+                    colorIcono = WhatsAppGreen,
+                ) { Acciones.whatsapp(context, numero) }
+            }
+
+            email?.let { direccion ->
+                InfoLineAccion(icon = Icons.Default.Email, text = direccion) {
+                    Acciones.correo(context, direccion)
+                }
+            }
+
+            web?.let { url ->
+                InfoLineAccion(
+                    icon = Icons.Default.Language,
+                    text = stringResource(R.string.detail_web),
+                ) { Acciones.web(context, url) }
+            }
+        }
+    }
+}
+
+/**
+ * Responsable del negocio (hueco "Responsable" del modal de la web).
+ *
+ * Solo se pinta si el negocio trae nombre de responsable: si no, no
+ * dejamos una sección vacía debajo del contacto.
+ */
+@Composable
+private fun ResponsableSection(detail: BusinessDetail) {
+    val persona = detail.contact?.contact_person?.takeIf { it.isNotBlank() } ?: return
+
+    SectionShell(title = stringResource(R.string.detail_responsable), icon = Icons.Default.Person) {
+        InfoLine(icon = Icons.Default.Person, text = persona)
+    }
+}
+
+/**
+ * "Ver en Google Maps" (espejo de `.modal-map-link`).
+ *
+ * Botón marrón con texto blanco, como en la web. Solo aparece si el
+ * negocio tiene coordenadas, y abre Maps en el punto exacto.
+ */
+@Composable
+private fun MapsButton(detail: BusinessDetail) {
+    val lat = detail.latitude ?: detail.location?.lat
+    val lng = detail.longitude ?: detail.location?.lng
+    if (lat == null || lng == null) return
+
+    val context = LocalContext.current
+    val shape = RoundedCornerShape(8.dp)
+
+    Box(
+        modifier = Modifier
+            .padding(top = 18.dp)
+            .clip(shape)
+            .background(BrandBrown)
+            .clickable { Acciones.mapa(context, lat, lng) }
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Place,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.detail_ver_maps),
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
     }
 }
@@ -395,6 +509,42 @@ private fun InfoLine(icon: ImageVector, text: String) {
             text = text,
             color = TextPrimary,
             style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+/**
+ * Una línea ACCIONABLE: mismo dibujo que [InfoLine], pero el texto es
+ * un enlace (tel:, wa.me, mailto: o el sitio web) y va en dorado, como
+ * los `modal-link` de la web.
+ */
+@Composable
+private fun InfoLineAccion(
+    icon: ImageVector,
+    text: String,
+    colorIcono: Color = TextMuted,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = colorIcono,
+            modifier = Modifier.size(17.dp),
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = text,
+            color = GoldInk,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(1f),
         )
     }
