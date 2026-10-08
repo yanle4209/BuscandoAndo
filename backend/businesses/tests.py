@@ -2938,3 +2938,49 @@ class EstadoEfectivoTests(TestCase):
             (lista[0]['effective_status'], lista[0]['effective_status_name']),
             (ficha['effective_status'], ficha['effective_status_name']),
         )
+
+
+@override_settings(STORAGES=STATIC_SIN_MANIFEST)
+class EnlaceLevantamientoTests(TestCase):
+    """El enlace a la herramienta de campo, dentro del admin.
+
+    El colaborador no entra aqui, pero quien lo da de alta si: el
+    enlace y su boton de compartir estan en el inicio (para pasarlo sin
+    buscar) y en la ficha del colaborador (junto al token que ya se le
+    esta entregando). Sin JS el enlace sigue siendo un <a> clicable.
+    """
+
+    ENLACE = 'https://buscandoando.onrender.com/levantamiento'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = get_user_model().objects.create_superuser(
+            'admin', 'admin@example.com', 'x')
+        cls.colaborador = Colaborador.objects.create(
+            nombre='Herling', municipio='Moca')
+
+    def test_en_el_inicio(self):
+        self.client.force_login(self.admin)
+
+        html = self.client.get('/admin/').content.decode()
+
+        self.assertIn(f'href="{self.ENLACE}"', html)
+        self.assertIn('data-ba-compartir', html)
+
+    def test_en_la_ficha_del_colaborador(self):
+        self.client.force_login(self.admin)
+
+        html = self.client.get(
+            f'/admin/businesses/colaborador/{self.colaborador.pk}/change/'
+        ).content.decode()
+
+        self.assertIn(f'href="{self.ENLACE}"', html)
+        self.assertIn('data-ba-compartir', html)
+
+    def test_el_boton_tiene_su_javascript_cargado(self):
+        """El panel sin JS deja el enlace, pero no el compartir."""
+        self.client.force_login(self.admin)
+
+        html = self.client.get('/admin/').content.decode()
+
+        self.assertIn('admin/js/buscandoando_share.js', html)

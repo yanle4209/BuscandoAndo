@@ -883,3 +883,111 @@ table thead th .text a:hover {
 /* El overlay de los popups es un velo translucido por encima del contenido
    (no una superficie del tema): se deja como esta para que el dialogo se
    distinga de la pagina. */
+
+/* ===== PANEL DEL ENLACE DE LEVANTAMIENTO (admin/includes/levantamiento.html) =====
+   Mismo lenguaje que el resto: superficie blanca, el color solo en el
+   filete y en el enlace, y el hover/foco marcado con filete mas fuerte y
+   anillo, nunca con relleno. */
+.ba-levantamiento {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    background: var(--white-pure) !important;
+    border: 1px solid var(--border) !important;
+    border-left: 3px solid var(--yellow) !important;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin: 0 0 18px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.ba-levantamiento__cuerpo {
+    flex: 1 1 320px;
+    min-width: 0;
+}
+
+.ba-levantamiento__titulo {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--brown) !important;
+}
+
+.ba-levantamiento__texto {
+    margin: 0 0 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink-soft) !important;
+}
+
+.ba-levantamiento__enlace {
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    font-size: 13px;
+    color: var(--yellow-ink) !important;
+    text-decoration: none;
+    border-bottom: 1px solid var(--yellow);
+    word-break: break-all;
+}
+
+.ba-levantamiento__enlace:hover,
+.ba-levantamiento__enlace:focus {
+    color: var(--brown) !important;
+    border-bottom-color: var(--brown) !important;
+}
+
+.ba-levantamiento__acciones {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.ba-levantamiento__compartir {
+    background: var(--white-pure) !important;
+    color: var(--dark) !important;
+    border: 1px solid var(--yellow) !important;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.ba-levantamiento__compartir:hover,
+.ba-levantamiento__compartir:focus {
+    background: var(--white-pure) !important;
+    color: var(--brown) !important;
+    border-color: var(--yellow-ink) !important;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.28) !important;
+}
+
+.ba-levantamiento__compartir:active {
+    transform: scale(0.98);
+}
+
+/* El aviso "Enlace copiado" ocupa su sitio solo cuando lo hay. */
+.ba-levantamiento__estado {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--brown) !important;
+}
+
+.ba-levantamiento__estado:empty {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .ba-levantamiento {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .ba-levantamiento__acciones {
+        flex-wrap: wrap;
+    }
+}

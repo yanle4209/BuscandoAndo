@@ -1,0 +1,25 @@
+{# Panel con el enlace a la herramienta de campo y su boton de compartir. #}
+{# El enlace es CANONICO a proposito: la herramienta vive en el frontend #}
+{# (el catch-all de config/urls.py), fuera del admin, y es el mismo en #}
+{# produccion que en local — es el que se le entrega al colaborador. #}
+{% with enlace="https://buscandoando.onrender.com/levantamiento" %}
+<div class="ba-levantamiento">
+  <div class="ba-levantamiento__cuerpo">
+    <h2 class="ba-levantamiento__titulo">Herramienta de levantamiento</h2>
+    <p class="ba-levantamiento__texto">
+      La pantalla con la que el colaborador revisa las fichas de su
+      municipio y firma los envios. Pide el token una sola vez y lo
+      guarda en el navegador.
+    </p>
+    <a class="ba-levantamiento__enlace" href="{{ enlace }}" target="_blank" rel="noopener">{{ enlace }}</a>
+  </div>
+  <div class="ba-levantamiento__acciones">
+    <span class="ba-levantamiento__estado" data-ba-estado role="status" aria-live="polite"></span>
+    <button type="button" class="ba-levantamiento__compartir"
+            data-ba-compartir
+            data-ba-url="{{ enlace }}"
+            data-ba-titulo="BuscandoAndo - Levantamiento"
+            data-ba-texto="Herramienta de levantamiento de fichas">Compartir</button>
+  </div>
+</div>
+{% endwith %}
