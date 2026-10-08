@@ -3,13 +3,15 @@ package com.herling.buscandoando.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.util.Log
+import com.herling.buscandoando.core.data.MunicipioStore
 import com.herling.buscandoando.core.data.dto.Business
-import com.herling.buscandoando.core.data.dto.BusinessDetail
+import com.herling.buscandoando.core.data.dto.Cabecera
 import com.herling.buscandoando.core.data.dto.Category
 import com.herling.buscandoando.core.network.ApiClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,13 +31,17 @@ import kotlinx.coroutines.launch
  *   useEffect(() => fetch(), [])            init { load() }
  *   return state                            val uiState: StateFlow<..>
  *
+ * ── La máquina de estados de la web ────────────────────────────────
+ *
+ * Las transiciones de `modo` / `punto` / `destino` / `llego` viven en
+ * [HomeMachine] (el `reducer` de Home.jsx). Aquí solo se orquesta: se
+ * aplica la transición, se miran los efectos que en React son
+ * `useEffect` (refresco por movimiento, reset R3.2, borrado sin punto)
+ * y se dispara la consulta.
+ *
  * `viewModelScope` es una corrutina ligada al ciclo de vida del
  * ViewModel: si el usuario sale de la pantalla, las peticiones en
  * vuelo se cancelan SOLEAS (no quedan zombis).
- *
- * `MutableStateFlow` es privado ("_") y solo se expone como
- * `StateFlow` ("solo lectura") — así NADIE desde fuera puede hacer
- * update() del estado. Se llama "encapsulamiento".
  */
 class HomeViewModel : ViewModel() {
 
@@ -48,49 +54,96 @@ class HomeViewModel : ViewModel() {
     /** Cancela el detalle anterior (se cierra la hoja o se pide otro). */
     private var detailJob: Job? = null
 
+    // ── Refresco automático por movimiento (R1.a) ──
+    //
+    // Espejo literal de programarRefresco/cancelarRefresco de Home.jsx:
+    // el throttle NO descarta el punto que llega dentro de la ventana,
+    // lo deja pendiente y dispara al vencer. Si no, quien camina y se
+    // detiene justo en esa ventana se quedaría mirando resultados viejos.
+    private var refrescoJob: Job? = null
+    private var pendienteRefresco: Punto? = null
+    private var ultimoRefrescoMs = 0L
+
     init {
         loadCategories()
-        search(page = 1)
+        loadCabeceras()
+        // OJO: aquí NO se consulta nada. Sin punto activo la app se
+        // queda en portada, igual que la web (R1.1). El primer resultado
+        // sale cuando el usuario busca, elige municipio o pulsa
+        // "Mi ubicación".
     }
 
     // ─────────────── EVENTOS que la UI puede emitir ───────────────
 
-    /** El usuario escribe en la caja. Solo actualiza el texto, NO busca. */
+    /**
+     * El usuario escribe en la caja. Solo actualiza el texto, NO busca.
+     *
+     * La Única excepción es vaciarla: espejo del efecto del input de
+     * SearchBar.jsx (línea 31), que reintenta la búsqueda al quedar en
+     * blanco — y si no queda ningún filtro, vuelve a portada.
+     */
     fun onQueryChange(value: String) {
-        _uiState.update { it.copy(query = value) }
+        val antes = _uiState.value
+        if (value.isBlank() && antes.haBuscado) {
+            aplicarBuscar { it.copy(query = value) }
+        } else {
+            _uiState.update { it.copy(query = value) }
+        }
     }
 
-    /** Enter en el teclado o botón de buscar. */
-    fun onSearch() = search(page = 1)
+    /** Enter en el teclado o botón "Buscar". */
+    fun onSearch() = aplicarBuscar { it }
 
     /** Tocó un chip de categoría. Cambia el filtro Y recarga. */
-    fun onCategorySelected(category: Category?) {
-        _uiState.update { it.copy(selectedCategory = category) }
-        search(page = 1)
+    fun onCategorySelected(category: Category?) = aplicarBuscar {
+        it.copy(selectedCategory = category)
     }
 
     fun onNextPage() {
         val s = _uiState.value
-        if (s.canGoNext) search(page = s.currentPage + 1)
+        if (s.canGoNext) aplicar(HomeMachine.pagina(s, s.currentPage + 1), buscar = true)
     }
 
     fun onPreviousPage() {
         val s = _uiState.value
-        if (s.canGoPrevious) search(page = s.currentPage - 1)
+        if (s.canGoPrevious) aplicar(HomeMachine.pagina(s, s.currentPage - 1), buscar = true)
     }
 
     /**
      * Botón "Reintentar" del banner de error.
      *
-     * ⚠️ También reintenta las CATEGORÍAS si no llegaron. De lo
-     * contrario, si el servidor estaba dormido al arrancar, los chips
-     * de categoría quedarían invisibles para siempre, porque
-     * `loadCategories()` traga su error a propósito y nadie lo
-     * volvía a pedir.
+     * ⚠️ También reintenta las CATEGORÍAS y las CABECERAS si no
+     * llegaron. De lo contrario, si el servidor estaba dormido al
+     * arrancar, los chips quedarían invisibles para siempre.
      */
     fun onRetry() {
         if (_uiState.value.categories.isEmpty()) loadCategories()
-        search(page = _uiState.value.currentPage)
+        if (_uiState.value.cabeceras.isEmpty()) loadCabeceras()
+        if (_uiState.value.haBuscado) search(page = _uiState.value.currentPage)
+    }
+
+    // ─────────────── Municipio (R3.4) ───────────────
+
+    /**
+     * El usuario eligió (o quitó) un municipio en el selector.
+     *
+     * Elegir EMPIEZA a consultar y además se RECUERDA entre sesiones
+     * (R3.4); quitar borra ese recuerdo. El punto del mapa, en cambio,
+     * no se guarda nunca.
+     */
+    fun onMunicipioSelected(cabecera: Cabecera?) {
+        if (cabecera == null) MunicipioStore.borrar() else MunicipioStore.guardar(cabecera)
+        val nuevo = HomeMachine.municipio(_uiState.value, cabecera, restaurado = false)
+        aplicar(nuevo, buscar = cabecera != null)
+    }
+
+    /**
+     * El usuario tocó un punto del mapa para buscar desde ahí.
+     * Mismo acto que elegir municipio, pero NO se recuerda (R3.4).
+     */
+    fun onMapPointSelected(lat: Double, lng: Double) {
+        val nuevo = HomeMachine.mapa(_uiState.value, Punto(lat, lng))
+        aplicar(nuevo, buscar = true)
     }
 
     // ─────────────── Fase 4 · DETALLE (hoja modal) ───────────────
@@ -156,57 +209,127 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    // ───────────── Fase 6 · GPS ─────────────
+    // ───────────── Fase 8 · GPS y máquina de estados ─────────────
 
     /**
-     * El usuario tocó el botón de ubicación.
+     * Vamos a buscar el fix: solo marcamos "buscando".
      *
-     * Solo marcamos "buscando": el PERMISO lo pide la UI (necesita un
-     * diálogo del sistema y una explicación), y las coordenadas las
-     * obtiene la UI y nos las devuelve con `onLocationAcquired`.
+     * El PERMISO lo pide la UI (necesita un diálogo del sistema y una
+     * explicación) y las coordenadas las obtiene la UI y nos las
+     * devuelve con [onGpsFix] o [onGpsForzado].
      */
     fun onStartLocating() {
         _uiState.update { it.copy(locationStatus = LocationStatus.Locating) }
     }
 
-    /** La UI ya tiene permiso y el GPS respondió con un fix. */
-    fun onLocationAcquired(lat: Double, lng: Double) {
-        _uiState.update {
-            it.copy(locationStatus = LocationStatus.Active, myLat = lat, myLng = lng)
+    /**
+     * Fix del WATCH (posición en movimiento). Espejo de
+     * `dispatch({ type: 'gps', pos })` de Home.jsx.
+     *
+     * Encadena los tres efectos del `useEffect` de posiciones:
+     *  1. reset R3.2 si te alejas de un destino ya alcanzado,
+     *  2. refresco por movimiento con throttle de 30 s,
+     *  3. nueva consulta si el punto de consulta cambió de modo.
+     */
+    fun onGpsFix(lat: Double, lng: Double) {
+        val antes = _uiState.value
+        val pos = Punto(lat, lng)
+        val nuevo = HomeMachine.gps(antes, pos)
+        _uiState.update { nuevo.copy(locationStatus = LocationStatus.Active) }
+
+        // R3.2: salir de >5 km del destino DESPUÉS de haber entrado
+        // borra TODO y vuelve a portada.
+        if (HomeMachine.necesitaReset(nuevo, pos)) {
+            cancelarRefresco()
+            aplicar(HomeMachine.reset(nuevo), buscar = false)
+            return
         }
-        search(page = 1)
+
+        val puntoCambio = nuevo.punto != antes.punto
+        if (puntoCambio) {
+            // S0→S1 o S2→S1: cambió el centro del círculo consultado.
+            // Con una búsqueda encima hay que pedirla otra vez; sin ella
+            // (portada) se queda como está, igual que en la web.
+            if (nuevo.haBuscado) search(page = 1)
+        } else if (HomeMachine.refrescoPorMovimiento(nuevo, pos)) {
+            // R1.a: te has alejado ≥ 500 m del último punto consultado.
+            programarRefresco(pos)
+        }
     }
 
     /**
-     * No hubo permiso o no hubo GPS.
-     * Un único estado "Denied" para ambas causas: el aviso de la UI
-     * ofrece las dos salidas (reintentar / ajustes) y las cubre.
+     * Botón "Mi ubicación": es EXPLÍCITO, además de mover el punto
+     * EMPIEZA a consultar (forzar_gps de Home.jsx 167-201).
      */
-    fun onLocationFailed() {
-        _uiState.update {
-            it.copy(locationStatus = LocationStatus.Denied, myLat = null, myLng = null)
-        }
+    fun onGpsForzado(lat: Double, lng: Double) {
+        val nuevo = HomeMachine.forzarGps(_uiState.value, Punto(lat, lng))
+        _uiState.update { nuevo.copy(locationStatus = LocationStatus.Active) }
+        aplicar(nuevo, buscar = true)
     }
 
-    /** Apaga el filtro por cercanía y vuelve a la búsqueda normal. */
-    fun onClearLocation() {
-        _uiState.update {
-            it.copy(locationStatus = LocationStatus.Idle, myLat = null, myLng = null)
+    /**
+     * No hubo permiso, no hubo GPS o se agotó el tiempo de espera.
+     *
+     * Espejo del error de `getCurrentPosition` (Home.jsx 313): se
+     * restaura el municipio GUARDADO, que es la única salida que tiene
+     * quien no puede usar GPS (R1.1). Si lo había, el usuario ni se
+     * entera: los resultados salen solos. Si no lo había, queda la
+     * portada con el aviso.
+     */
+    fun onLocationFailed() {
+        val actual = _uiState.value
+
+        // Un fix posterior hace inútil este aviso: no tapamos lo bueno.
+        if (actual.locationStatus == LocationStatus.Active) return
+
+        // Solo restauramos si el usuario no había elegido ya otro destino.
+        val guardado = if (actual.destino == null) MunicipioStore.leer() else null
+
+        if (guardado == null) {
+            _uiState.update { it.copy(locationStatus = LocationStatus.Denied) }
+            return
         }
-        search(page = 1)
+
+        val nuevo = HomeMachine.municipio(actual, guardado, restaurado = true)
+            .copy(locationStatus = LocationStatus.Idle)
+        aplicar(nuevo, buscar = true)
+    }
+
+    /** 15 s sin fix: mismo camino que un fallo de permiso. */
+    fun onGpsTimeout() {
+        if (_uiState.value.locationStatus == LocationStatus.Locating) onLocationFailed()
+    }
+
+    /**
+     * La X de "Cerca de mí": quitar la ubicación es volver a empezar.
+     * Aplica el mismo `reset` total que R3.2 (borra filtros y destino).
+     */
+    fun onClearLocation() {
+        cancelarRefresco()
+        aplicar(HomeMachine.reset(_uiState.value), buscar = false)
     }
 
     // ─────────────── Acceso a datos ───────────────
 
     /**
-     * GET /api/businesses/?page=&page_size=12&text=&category=
+     * GET /api/businesses/?page=&page_size=12&text=&category=&lat=&lng=&radius=
+     *
+     * R1.1: sin punto activo NO se consulta nada y los resultados que
+     * hubiera se borran (efecto de Home.jsx línea 440).
      *
      * `ifBlank { null }` es clave: Retrofit NO agrega los parámetros
      * cuyo valor es null, así que una búsqueda vacía manda
-     * /api/businesses/?page=1&page_size=12  (sin &text=)
+     * /api/businesses/?page=1&page_size=12&lat=…  (sin &text=)
      */
     private fun search(page: Int) {
         searchJob?.cancel()
+
+        val punto = _uiState.value.punto
+        if (punto == null) {
+            limpiarResultados()
+            return
+        }
+
         searchJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
@@ -215,29 +338,28 @@ class HomeViewModel : ViewModel() {
                 val text = current.query.trim().ifBlank { null }
                 val catId = current.selectedCategory?.id
 
-                // Fase 6: deja en logcat QUÉ mandamos al API (lat/lng/radius).
+                // Deja en logcat QUÉ mandamos al API (punto + filtros).
                 Log.d(
                     "BuscandoAndo",
-                    "search page=$page text='${current.query}' cat=${current.selectedCategory?.id} " +
-                        "lat=${current.myLat} lng=${current.myLng} " +
-                        "radio=${HomeUiState.RADIO_KM}km cerca=${current.hasLocation}",
+                    "search page=$page text='${current.query}' cat=$catId " +
+                        "lat=${punto.lat} lng=${punto.lng} radio=${HomeUiState.RADIO_KM}km " +
+                        "modo=${current.mode}",
                 )
 
-                // ── Fase 7: los DESTACADOS viajan EN PARALELO ──
+                // ── Los DESTACADOS viajan EN PARALELO ──
                 //
-                // `async` lanza la corrutina YA mismo (es "eager"), así que
-                // mientras `getBusinesses` se queda esperando a la red, este
-                // otro trabajo corre solo. Es el equivalente a:
+                // `async` lanza la corrutina YA mismo (es "eager"), así
+                // que mientras `getBusinesses` se queda esperando a la
+                // red, este otro trabajo corre solo. Es el equivalente a:
                 //
                 //   const [res, feat] = await Promise.all([fetch(..), fetch(..)])
                 //
-                // Si no hay filtros el endpoint devuelve [] por contrato, así
-                // que ni lo pedimos: ahorramos una petición en la carga
-                // inicial y en cada página.
+                // Si no hay filtros el endpoint devuelve [] por contrato,
+                // así que ni lo pedimos.
                 val featuredJob = if (text == null && catId == null) {
                     null
                 } else {
-                    async { fetchFeaturedFor(text, catId, current.myLat, current.myLng) }
+                    async { fetchFeaturedFor(text, catId, punto) }
                 }
 
                 val response = ApiClient.api.getBusinesses(
@@ -245,13 +367,13 @@ class HomeViewModel : ViewModel() {
                     pageSize = HomeUiState.PAGE_SIZE,
                     text = text,
                     category = catId,
-                    // ── Fase 6: filtro por cercanía ──
-                    // Si no hay ubicación, los tres vienen en null y
-                    // Retrofit los OMITE de la URL (mismo truco que
-                    // ifBlank { null } de "text").
-                    lat = current.myLat,
-                    lng = current.myLng,
-                    radius = if (current.hasLocation) HomeUiState.RADIO_KM.toDouble() else null,
+                    // ── El círculo de 5 km ──
+                    // El punto SIEMPRE existe aquí (si no, ya habríamos
+                    // salido arriba), así que lat/lng/radius van juntos:
+                    // nadie consulta "a todo el país" (R3.5).
+                    lat = punto.lat,
+                    lng = punto.lng,
+                    radius = HomeUiState.RADIO_KM.toDouble(),
                 )
 
                 // Siempre llegamos aquí: `featuredJob` nunca falla (ver abajo).
@@ -284,7 +406,7 @@ class HomeViewModel : ViewModel() {
     }
 
     /**
-     * GET /api/businesses/featured-by-search/  (Fase 7)
+     * GET /api/businesses/featured-by-search/
      *
      * Es una llamada SECUNDARIA: si falla, la búsqueda principal NO
      * debe caer. Por eso esta función JAMÁS lanza hacia arriba —
@@ -292,26 +414,22 @@ class HomeViewModel : ViewModel() {
      * lanzar la CancellationException, que no es un error sino la
      * señal de que el usuario cambió de búsqueda.
      *
-     * En React sería un `try { ... } catch { return [] }` dentro de
-     * un `Promise.allSettled`.
-     *
-     * Recibe lat/lng para que los DESTACADOS entren en el mismo
+     * Recibe el punto para que los DESTACADOS entren en el MISMO
      * círculo de 5 km que los normales (R1.2): si no, un destacado
      * a 12 km aparecería sobre resultados que se cortaron en 5.
      */
     private suspend fun fetchFeaturedFor(
         text: String?,
         category: Int?,
-        lat: Double?,
-        lng: Double?,
+        punto: Punto,
     ): List<Business> =
         try {
             val featured = ApiClient.api.getFeaturedBySearch(
                 text = text,
                 category = category,
-                lat = lat,
-                lng = lng,
-                radius = if (lat != null && lng != null) HomeUiState.RADIO_KM.toDouble() else null,
+                lat = punto.lat,
+                lng = punto.lng,
+                radius = HomeUiState.RADIO_KM.toDouble(),
             )
             Log.d(TAG, "featured-by-search → ${featured.size} resultados")
             featured
@@ -323,6 +441,29 @@ class HomeViewModel : ViewModel() {
         }
 
     /**
+     * GET /api/cabeceras/ — las 158 cabeceras municipales.
+     *
+     * Sin ellas el selector de municipio no existe, y el municipio es
+     * la ÚNICA salida que tiene quien niega la ubicación (R1.1). Por
+     * eso se piden ya al arrancar, igual que en Home.jsx línea 278.
+     */
+    private fun loadCabeceras() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(cabecerasError = false) }
+            try {
+                val cabeceras = ApiClient.api.getCabeceras()
+                _uiState.update { it.copy(cabeceras = cabeceras) }
+                Log.d(TAG, "cabeceras → ${cabeceras.size}")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Fallo cabeceras: ${e::class.simpleName}: ${e.message}", e)
+                _uiState.update { it.copy(cabecerasError = true) }
+            }
+        }
+    }
+
+    /**
      * GET /api/categories/ — los chips son "nice to have": si fallan,
      * la pantalla sigue siendo útil, así que NO disparamos el error
      * hacia la UI como si fuera un error de búsqueda.
@@ -330,10 +471,6 @@ class HomeViewModel : ViewModel() {
      * SÍ lo marcamos en `categoriesError` para que la pantalla pueda
      * avisarlo con un snackbar (antes los chips desaparecían en
      * silencio y nadie sabía por qué).
-     *
-     * ⚠️ AUNDO ASÍ lo registramos con Log. Tragar la excepción a
-     * ciegas escondió un fallo real y los chips desaparecieron sin
-     * que nadie supiera por qué.
      */
     private fun loadCategories() {
         viewModelScope.launch {
@@ -352,6 +489,100 @@ class HomeViewModel : ViewModel() {
                 _uiState.update { it.copy(categoriesError = true) }
             }
         }
+    }
+
+    // ─────────────── orquestación ───────────────
+
+    /**
+     * Aplica un filtro (texto o categoría) y decide si hay consulta.
+     *
+     * Espejo de `case 'buscar'`: se conserva lo demás, se vuelve a la
+     * página 1 y un filtro vacío vuelve a la portada SIN borrar lo que
+     * ya se cargó.
+     */
+    private fun aplicarBuscar(transform: (HomeUiState) -> HomeUiState) {
+        val nuevo = HomeMachine.buscar(transform(_uiState.value))
+        aplicar(nuevo, buscar = nuevo.haBuscado)
+    }
+
+    /**
+     * Pinta un estado nuevo y deja la búsqueda al día.
+     *
+     *   - sin punto  → se borran los resultados (efecto Home.jsx 440)
+     *   - con punto  → se pide la página que toca (efecto 430-432)
+     */
+    private fun aplicar(nuevo: HomeUiState, buscar: Boolean) {
+        _uiState.update { nuevo }
+        when {
+            nuevo.punto == null -> limpiarResultados()
+            buscar && nuevo.haBuscado -> search(page = nuevo.currentPage)
+        }
+    }
+
+    /**
+     * Borra resultados, destacados y totales.
+     *
+     * `hasLoaded = true` significa "ya sabemos que aquí no hay nada",
+     * para que la UI pinte el vacío en vez de un grid fantasma.
+     */
+    private fun limpiarResultados() {
+        _uiState.update {
+            it.copy(
+                businesses = emptyList(),
+                featuredBySearch = emptyList(),
+                totalCount = 0,
+                currentPage = 1,
+                hasLoaded = true,
+                isLoading = false,
+                errorMessage = null,
+            )
+        }
+    }
+
+    /**
+     * Refresco automático por movimiento (R1.a) con throttle de 30 s.
+     *
+     * Si el disparo cae dentro de la ventana NO se descarta: se deja el
+     * último punto pendiente y se dispara al vencer.
+     */
+    private fun programarRefresco(pos: Punto) {
+        pendienteRefresco = pos
+
+        val espera = HomeUiState.THROTTLE_MS - (System.currentTimeMillis() - ultimoRefrescoMs)
+        if (espera <= 0) {
+            refrescar()
+            return
+        }
+        if (refrescoJob?.isActive == true) return
+
+        refrescoJob = viewModelScope.launch {
+            delay(espera)
+            refrescar()
+        }
+    }
+
+    private fun refrescar() {
+        val pos = pendienteRefresco ?: return
+        pendienteRefresco = null
+        ultimoRefrescoMs = System.currentTimeMillis()
+
+        val antes = _uiState.value
+        val nuevo = HomeMachine.mover(antes, pos)
+        if (nuevo.punto == antes.punto) return   // no llegó al umbral
+
+        _uiState.update { nuevo }
+        if (nuevo.haBuscado) search(page = 1)
+    }
+
+    private fun cancelarRefresco() {
+        refrescoJob?.cancel()
+        refrescoJob = null
+        pendienteRefresco = null
+    }
+
+    override fun onCleared() {
+        cancelarRefresco()
+        super.onCleared()
     }
 
     private companion object {

@@ -2,14 +2,20 @@ package com.herling.buscandoando.ui.home
 
 import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,6 +36,7 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -42,6 +49,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationSearching
 import androidx.compose.material.icons.filled.Map
@@ -56,8 +64,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -65,6 +76,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -75,6 +87,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -84,15 +97,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.ui.draw.shadow
 import coil3.compose.AsyncImage
 import com.herling.buscandoando.R
 import com.herling.buscandoando.core.data.FeaturedTier
 import com.herling.buscandoando.core.data.dto.Business
+import com.herling.buscandoando.core.data.dto.Cabecera
 import com.herling.buscandoando.core.location.getCurrentCoordinates
+import com.herling.buscandoando.core.location.hasLocationPermission
+import com.herling.buscandoando.core.location.locationUpdates
 import com.herling.buscandoando.ui.iconForCategory
 import com.herling.buscandoando.ui.theme.CanaryYellow
 import com.herling.buscandoando.ui.theme.CanvasWhite
@@ -111,10 +126,27 @@ import com.herling.buscandoando.ui.theme.TextMuted
 import com.herling.buscandoando.ui.theme.TextOnYellow
 import com.herling.buscandoando.ui.theme.TextPrimary
 import com.herling.buscandoando.ui.theme.TextSecondary
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.text.Collator
+import java.text.Normalizer
+import java.util.Locale
 
 /** Etiqueta para logcat (Fase 6: seguir el GPS desde Android Studio). */
 private const val TAG = "BuscandoAndo"
+
+/**
+ * Los DOS permisos de ubicación que se piden juntos (Android 12+ deja
+ * elegir solo el aproximado).
+ */
+private val LOCATION_PERMISSIONS = arrayOf(
+    Manifest.permission.ACCESS_FINE_LOCATION,
+    Manifest.permission.ACCESS_COARSE_LOCATION,
+)
+
+/** Sin fix en 15 s → se restaura el municipio guardado (timeout de la web). */
+private const val GPS_TIMEOUT_MS = 15_000L
 
 /**
  * Pantalla Home: búsqueda → chips de categoría → cuadrícula de
@@ -136,29 +168,57 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // ═══════════ FASE 6 · permiso y GPS ═══════════
+    // ═══════════ FASE 8 · permiso, watch y portada ═══════════
     //
     // La composable es la ÚNICA que habla con el sistema operativo
     // (diálogo de permisos, GPS). El ViewModel solo sabe de estados.
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // El watch (geo.watchPosition de la web) vive mientras está esta
+    // pantalla: al salir se cancela solo, porque va con el scope de
+    // rememberCoroutineScope — sin eso el GPS seguiría corriendo con
+    // la pantalla cerrada.
+    var watchJob by remember { mutableStateOf<Job?>(null) }
+
+    // Si el permiso se pidió desde el botón "Mi ubicación", el fix que
+    // llegue tiene que ser EXPLÍCITO (forzar_gps); si fue al abrir, no.
+    var gpsExplicitoPendiente by remember { mutableStateOf(false) }
+
     /**
-     * Ir a buscar las coordenadas.
+     * Arranca el GPS: fix rápido de vuelo + watch de posiciones.
      *
-     * Nota el orden: se declara ANTES del `permissionLauncher` porque
-     * el callback de éste lo usa. En Kotlin un local fun no puede
-     * referenciar algo declarado más abajo.
+     * Espejo del useEffect de GPS de Home.jsx (304-322):
+     * `getCurrentPosition` para tener coordenadas YA y `watchPosition`
+     * para seguir moviéndote (refresco R1.a).
      */
-    fun fetchCoordinates() {
+    fun arrancarGps(explicito: Boolean) {
         viewModel.onStartLocating()
+
+        if (watchJob == null) {
+            watchJob = scope.launch {
+                runCatching {
+                    context.locationUpdates().collect { loc ->
+                        viewModel.onGpsFix(loc.latitude, loc.longitude)
+                    }
+                }.onFailure { Log.w(TAG, "watch de ubicación parado: ${it.message}") }
+            }
+
+            // 15 s sin fix = mismo camino que un fallo de permiso: se
+            // restaura el municipio guardado y no se queda colgada la
+            // barra "Buscando tu ubicación…" para siempre.
+            scope.launch {
+                delay(GPS_TIMEOUT_MS)
+                viewModel.onGpsTimeout()
+            }
+        }
+
         scope.launch {
-            // getCurrentCoordinates devuelve null si no hay permiso,
-            // si no hay GPS o si algo falla -> mismo estado "Denied".
-            val location = context.getCurrentCoordinates()
-            Log.d(TAG, "fix = ${location?.latitude}, ${location?.longitude}")
-            if (location == null) viewModel.onLocationFailed()
-            else viewModel.onLocationAcquired(location.latitude, location.longitude)
+            val fix = context.getCurrentCoordinates()
+            Log.d(TAG, "fix = ${fix?.latitude}, ${fix?.longitude}")
+            if (fix == null) return@launch
+            if (explicito) viewModel.onGpsForzado(fix.latitude, fix.longitude)
+            else viewModel.onGpsFix(fix.latitude, fix.longitude)
         }
     }
 
@@ -166,27 +226,44 @@ fun HomeScreen(
      * Diálogo del sistema de Android: "¿Permitir a BuscandoAndo usar
      * la ubicación del dispositivo?".
      *
-     * Es un "contrato de actividad": lanza el diálogo y devuelve el
-     * resultado como callback. Si el usuario marcó "No volver a
-     * preguntar", Android responde `false` al instante y caemos en
-     * el estado Denied (por eso ese estado ofrece "Ajustes").
+     * Se piden las DOS variantes (fina y aproximada): en Android 12+
+     * el usuario puede elegir solo "Aproximada", y con un radio de
+     * 5 km eso es de sobra. Si solo miráramos FINE, daríamos por
+     * denegado un permiso concedido.
      */
     val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        if (granted) fetchCoordinates() else viewModel.onLocationFailed()
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { resultados ->
+        if (resultados.values.any { it }) {
+            arrancarGps(explicito = gpsExplicitoPendiente)
+        } else {
+            // "No volver a preguntar" → Android responde al instante y
+            // caemos en Denied (por eso ese estado ofrece "Ajustes").
+            viewModel.onLocationFailed()
+        }
     }
 
     fun requestLocation() {
-        val granted = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION,
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (granted) {
-            fetchCoordinates()          // ya lo tiene: directo al GPS
+        if (context.hasLocationPermission()) {
+            arrancarGps(explicito = true)
         } else {
-            permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            gpsExplicitoPendiente = true
+            permissionLauncher.launch(LOCATION_PERMISSIONS)
+        }
+    }
+
+    /**
+     * R3.6 · "Mi ubicación manda al abrir": el permiso se pide SOLO,
+     * igual que hace la web al cargar (getCurrentPosition en el
+     * mount). Si el usuario lo niega, no se vuelve a insistir en cada
+     * arranque: Android lo hace solo a partir de la segunda vez.
+     */
+    LaunchedEffect(Unit) {
+        if (context.hasLocationPermission()) {
+            arrancarGps(explicito = false)
+        } else {
+            gpsExplicitoPendiente = false
+            permissionLauncher.launch(LOCATION_PERMISSIONS)
         }
     }
 
@@ -205,6 +282,7 @@ fun HomeScreen(
         onQueryChange = viewModel::onQueryChange,
         onSearch = viewModel::onSearch,
         onCategorySelected = viewModel::onCategorySelected,
+        onMunicipioSelected = viewModel::onMunicipioSelected,
         onPreviousPage = viewModel::onPreviousPage,
         onNextPage = viewModel::onNextPage,
         onRetry = viewModel::onRetry,
@@ -236,6 +314,7 @@ private fun HomeContent(
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     onCategorySelected: (com.herling.buscandoando.core.data.dto.Category?) -> Unit,
+    onMunicipioSelected: (Cabecera?) -> Unit,
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
     onRetry: () -> Unit,
@@ -248,16 +327,21 @@ private fun HomeContent(
     // ── Fase 7 · avisos TRANSIATORIOS ──
     //
     // Un snackbar es para lo que "se va solo": aquí lo usamos para el
-    // fallo de CATEGORÍAS, que antes desaparecía en silencio (los chips
-    // son "nice to have" y su error se traga a propósito).
+    // fallo de CATEGORÍAS y de CABECERAS, que si no desaparecerían en
+    // silencio (ambos son "nice to have" y su error se traga a propósito).
     //
     // NO lo usamos para el fallo de BÚSQUEDA: ahí ya hay un banner
     // fijo con botón "Reintentar", que es mejor porque no caduca.
     val snackbarHostState = remember { SnackbarHostState() }
     val categoriesErrorMessage = stringResource(R.string.home_categories_error)
+    val cabecerasErrorMessage = stringResource(R.string.home_municipio_error)
 
     LaunchedEffect(state.categoriesError) {
         if (state.categoriesError) snackbarHostState.showSnackbar(categoriesErrorMessage)
+    }
+
+    LaunchedEffect(state.cabecerasError) {
+        if (state.cabecerasError) snackbarHostState.showSnackbar(cabecerasErrorMessage)
     }
 
     Column(
@@ -270,12 +354,13 @@ private fun HomeContent(
             // Ajusta el contenido cuando sube el teclado (IME)
             .imePadding(),
     ) {
-        // ── Cabecera fija: título + buscador + chips ──
+        // ── Cabecera fija: título + buscador + municipio + chips ──
         HomeHeader(
             state = state,
             onQueryChange = onQueryChange,
             onSearch = onSearch,
             onCategorySelected = onCategorySelected,
+            onMunicipioSelected = onMunicipioSelected,
             onOpenMap = onOpenMap,
             onMyLocation = onMyLocation,
         )
@@ -292,8 +377,23 @@ private fun HomeContent(
         //    #header de la web. Separa sobre fondo blanco ──
         HorizontalDivider(color = CanaryYellow, thickness = 3.dp)
 
-        // ── Cuerpo: carga / error / vacío / cuadrícula ──
+        // ── Contador de resultados (espejo de .right-section-header) ──
+        // Solo EXISTE tras la primera consulta: en portada no hay nada
+        // que contar.
+        if (state.haBuscado) {
+            ResultsHeader(state = state)
+        }
+
+        // ── Cuerpo ──
+        // R1.1: sin la primera consulta, la PORTADA ocupa el hueco de la
+        // rejilla (`.right-portada` de Home.jsx), con el aviso de cómo
+        // salir de ahí cuando todavía no hay punto activo.
         when {
+            !state.haBuscado -> PortadaOverlay(
+                modifier = Modifier.weight(1f),
+                hint = portadaHint(state),
+            )
+
             state.isLoading && state.businesses.isEmpty() ->
                 CenteredMessage(Modifier.weight(1f)) {
                     CircularProgressIndicator(color = GoldInk, strokeWidth = 3.dp)
@@ -313,28 +413,12 @@ private fun HomeContent(
                 )
 
             state.isEmpty ->
-                CenteredMessage(Modifier.weight(1f)) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        tint = TextSecondary,
-                        modifier = Modifier.size(40.dp),
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        text = stringResource(R.string.home_empty),
-                        color = TextPrimary,
-                        style = MaterialTheme.typography.titleMedium,
-                        textAlign = TextAlign.Center,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = stringResource(R.string.home_empty_hint),
-                        color = TextMuted,
-                        style = MaterialTheme.typography.bodySmall,
-                        textAlign = TextAlign.Center,
-                    )
-                }
+                // 0 destacados + 0 normales -> el MISMO overlay que usa la
+                // web en `.sin-resultados` (DISENO.md a1 / m2).
+                PortadaOverlay(
+                    modifier = Modifier.weight(1f),
+                    hint = portadaHint(state),
+                )
 
             else -> {
                 // Banner de error no bloqueante (ya hay datos en pantalla)
@@ -357,8 +441,11 @@ private fun HomeContent(
             }
         }
 
-        // ── Paginación ──
-        if (state.businesses.isNotEmpty()) {
+        // ── Paginación (mismo guardante que la web: hay varias páginas,
+        //    no está cargando y no estamos en el overlay vacío) ──
+        if (state.haBuscado && !state.isLoading && state.totalPages > 1 &&
+            state.businesses.isNotEmpty()
+        ) {
             PaginationBar(
                 state = state,
                 onPreviousPage = onPreviousPage,
@@ -386,6 +473,7 @@ private fun HomeHeader(
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     onCategorySelected: (com.herling.buscandoando.core.data.dto.Category?) -> Unit,
+    onMunicipioSelected: (Cabecera?) -> Unit,
     onOpenMap: () -> Unit,
     onMyLocation: () -> Unit,
 ) {
@@ -402,8 +490,15 @@ private fun HomeHeader(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Black,
                 )
+                // El subtítulo dice el ALCANCE de la búsqueda, no un sitio
+                // fijo: al elegir municipio cambia solo (el hardcodeo
+                // "Moca · Espaillat" mentía en cuanto te ibas del municipio).
                 Text(
-                    text = "Moca · Espaillat",
+                    text = when {
+                        state.destino == null -> stringResource(R.string.home_subtitle_country)
+                        state.municipioEtiqueta != null -> state.municipioEtiqueta.orEmpty()
+                        else -> stringResource(R.string.home_subtitle_map_point)
+                    },
                     color = TextMuted,
                     style = MaterialTheme.typography.labelMedium,
                 )
@@ -427,7 +522,7 @@ private fun HomeHeader(
                             Icons.Default.LocationSearching
                         },
                         contentDescription = stringResource(R.string.home_my_location),
-                        tint = if (state.hasLocation) GoldInk else TextSecondary,
+                        tint = if (state.mode == SearchMode.Gps) GoldInk else TextSecondary,
                     )
                 }
             }
@@ -447,6 +542,17 @@ private fun HomeHeader(
             query = state.query,
             onQueryChange = onQueryChange,
             onSearch = onSearch,
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        // R1.1: sin GPS, elegir municipio es OBLIGATORIO, así que el
+        // selector va FUERA de cualquier panel y a la vista (lo mismo
+        // que en la web, donde nunca está escondido tras "Filtros").
+        MunicipioSelector(
+            clave = state.municipioClave,
+            cabeceras = state.cabeceras,
+            onSelect = onMunicipioSelected,
         )
 
         Spacer(Modifier.height(12.dp))
@@ -485,6 +591,11 @@ private fun LocationBar(
     onOpenSettings: () -> Unit,
 ) {
     if (state.locationStatus == LocationStatus.Idle) return
+
+    // Cuando manda un municipio o un punto del mapa, el punto de
+    // consulta ERES tú solo cuando el modo es GPS: en ese caso la barra
+    // "cerca de mí" confundiría (estás buscando en otro sitio).
+    if (state.locationStatus == LocationStatus.Active && state.mode != SearchMode.Gps) return
 
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp)) {
         when (state.locationStatus) {
@@ -670,13 +781,34 @@ private fun SearchField(
             },
             trailingIcon = {
                 if (query.isNotEmpty()) {
-                    IconButton(onClick = { onQueryChange("") }) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            // Sin esto TalkBack anuncia "activar" y nada más.
-                            contentDescription = stringResource(R.string.home_search_clear),
-                            tint = TextSecondary,
-                        )
+                    // El botón "Buscar" de la web, en el mismo sitio
+                    // (dentro de la caja, a la derecha). El X de borrar
+                    // se queda: en móvil no todos saben que se puede
+                    // seleccionar y suprimir.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(
+                            onClick = {
+                                onSearch()
+                                focusManager.clearFocus()
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.home_search_submit),
+                                color = GoldInk,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+
+                        IconButton(onClick = { onQueryChange("") }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                // Sin esto TalkBack anuncia "activar" y nada más.
+                                contentDescription = stringResource(R.string.home_search_clear),
+                                tint = TextSecondary,
+                            )
+                        }
                     }
                 }
             },
@@ -1325,6 +1457,516 @@ private fun ErrorBanner(message: String, onRetry: () -> Unit) {
         }
     }
 }
+
+// ═══════════════════════ RESULTADOS ═══════════════════════
+
+/**
+ * Cabecera de la rejilla: "Buscando…" o "12 resultados".
+ *
+ * Espejo de `.right-section-header` de Home.jsx: solo EXISTE tras la
+ * primera consulta — en portada no hay nada que contar.
+ */
+@Composable
+private fun ResultsHeader(state: HomeUiState) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = if (state.isLoading) {
+                stringResource(R.string.home_results_loading)
+            } else {
+                stringResource(R.string.home_results_count, state.totalCount)
+            },
+            color = TextPrimary,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+// ═══════════════════════ PORTADA (R1.1) ═══════════════════════
+
+/**
+ * El aviso de "todavía no hay punto activo".
+ *
+ * Solo aparece cuando NO hay punto: con punto el usuario ya tiene un
+ * círculo de 5 km trazado y el aviso sería mentira.
+ */
+@Composable
+private fun portadaHint(state: HomeUiState): String? =
+    if (state.sinPunto) stringResource(R.string.home_portada_hint) else null
+
+/** Las 6 frases de MapOverlay.jsx (ninguna nombra un municipio). */
+private val PORTADA_MENSAJES = listOf(
+    R.string.home_portada_msg_1,
+    R.string.home_portada_msg_2,
+    R.string.home_portada_msg_3,
+    R.string.home_portada_msg_4,
+    R.string.home_portada_msg_5,
+    R.string.home_portada_msg_6,
+)
+
+/**
+ * La portada de la web, adaptada al formato vertical.
+ *
+ * Espejo de `MapOverlay.jsx` + `.right-portada` de Home.jsx: logotipo
+ * animado, frase que rota cada 3,5 s con fundido de 400 ms, el aviso
+ * de cómo empezar cuando no hay punto, y los puntos indicadores.
+ *
+ * Se usa en DOS sitios, igual que en la web:
+ *  - `!haBuscado` → ocupa el hueco de la rejilla (la portada),
+ *  - `isEmpty`    → el overlay de "sin resultados".
+ */
+@Composable
+private fun PortadaOverlay(modifier: Modifier = Modifier, hint: String?) {
+    var indice by remember { mutableIntStateOf(0) }
+    var oculto by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(3500)
+            oculto = true
+            delay(400)
+            indice = (indice + 1) % PORTADA_MENSAJES.size
+            oculto = false
+        }
+    }
+
+    val alpha by animateFloatAsState(
+        targetValue = if (oculto) 0f else 1f,
+        animationSpec = tween(durationMillis = 400),
+        label = "portadaFade",
+    )
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(CanvasWhite)
+            .padding(horizontal = 24.dp, vertical = 18.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            PortadaLogo()
+
+            Spacer(Modifier.height(14.dp))
+
+            // Mismo logotipo que la web: "Buscando" dorado y "Ando"
+            // amarillo (los dos colores de .map-overlay__title).
+            Row {
+                Text(
+                    text = "Buscando",
+                    color = GoldInk,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp,
+                )
+                Text(
+                    text = "Ando",
+                    color = CanaryYellow,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp,
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Text(
+                text = stringResource(PORTADA_MENSAJES[indice]),
+                color = TextSecondary,
+                style = MaterialTheme.typography.bodyMedium,
+                letterSpacing = 0.5.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.graphicsLayer { this.alpha = alpha },
+            )
+
+            if (hint != null) {
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = hint,
+                    color = GoldInk,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.4.sp,
+                    textAlign = TextAlign.Center,
+                )
+            }
+
+            Spacer(Modifier.height(18.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                PORTADA_MENSAJES.forEachIndexed { i, _ ->
+                    val activo = i == indice
+                    Box(
+                        modifier = Modifier
+                            .height(6.dp)
+                            .width(if (activo) 18.dp else 6.dp)
+                            .clip(RoundedCornerShape(if (activo) 3.dp else 50.dp))
+                            .background(if (activo) CanaryYellow else Color(0x381A1A1A)),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * El logotipo animado de la portada: aro exterior que gira, aro
+ * interior, chinchete que rebota y anillo que pulsa — las tres
+ * animaciones de `.map-overlay__*` de MapOverlay.css.
+ */
+@Composable
+private fun PortadaLogo() {
+    val transicion = rememberInfiniteTransition(label = "portadaLogo")
+
+    val giro by transicion.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(durationMillis = 20_000)),
+        label = "giro",
+    )
+    val rebote by transicion.animateFloat(
+        initialValue = 0f,
+        targetValue = -6f,
+        animationSpec = infiniteRepeatable(tween(durationMillis = 1_000), RepeatMode.Reverse),
+        label = "rebote",
+    )
+    val pulso by transicion.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(durationMillis = 2_000)),
+        label = "pulso",
+    )
+
+    Box(modifier = Modifier.size(104.dp), contentAlignment = Alignment.Center) {
+        // Anillo que se expande y se desvanece (pulseRing de la web)
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .graphicsLayer {
+                    scaleX = 1f + pulso * 1.1f
+                    scaleY = 1f + pulso * 1.1f
+                    alpha = (1f - pulso) * 0.8f
+                }
+                .border(1.5.dp, BrandBrown, CircleShape),
+        )
+
+        // Aro exterior girando (stroke-dasharray + spinSlow de la web)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { rotationZ = giro }
+                .border(2.dp, BrandBrown, CircleShape),
+        )
+
+        // Aro interior, girando al revés en la web; aquí es estático
+        // porque sin discontinuidad no se ve el movimiento.
+        Box(
+            modifier = Modifier
+                .size(84.dp)
+                .border(1.dp, BrandBrown.copy(alpha = 0.35f), CircleShape),
+        )
+
+        // El chinchete: contorno marrón + relleno amarillo, que es lo
+        // que hace legible la aguja sobre el blanco.
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Default.Place,
+                contentDescription = null,
+                tint = BrandBrown,
+                modifier = Modifier
+                    .size(56.dp)
+                    .graphicsLayer { translationY = rebote },
+            )
+            Icon(
+                imageVector = Icons.Default.Place,
+                contentDescription = null,
+                tint = CanaryYellow,
+                modifier = Modifier
+                    .size(46.dp)
+                    .graphicsLayer { translationY = rebote },
+            )
+        }
+    }
+}
+
+// ═══════════════════════ MUNICIPIO (R3.4) ═══════════════════════
+
+/**
+ * Selector de municipio: el `<select class="municipio-group">` de
+ * SearchBar.jsx hecho para el dedo.
+ *
+ * La web lo deja FUERA de "Filtros" a propósito (R1.1): quien niega la
+ * ubicación tiene que llegar al selector en un toque, si no se queda
+ * mirando el overlay sin salida. Aquí va igual, siempre visible bajo
+ * el buscador.
+ */
+@Composable
+private fun MunicipioSelector(
+    clave: String,
+    cabeceras: List<Cabecera>,
+    onSelect: (Cabecera?) -> Unit,
+) {
+    var abierto by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(8.dp)
+
+    // El <option> de la web muestra SOLO el nombre del municipio; la
+    // provincia está en la clave porque puede haber homónimos.
+    val nombre = clave.split('~').getOrNull(1)?.takeIf { it.isNotBlank() }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.home_municipio_label),
+            color = TextMuted,
+            style = MaterialTheme.typography.labelMedium,
+        )
+
+        Spacer(Modifier.height(4.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(SurfaceWhite)
+                .border(1.dp, HairlineStrong, shape)
+                .clickable(enabled = cabeceras.isNotEmpty()) { abierto = true }
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Place,
+                contentDescription = null,
+                tint = if (nombre != null) GoldInk else TextSecondary,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = nombre ?: stringResource(
+                    if (cabeceras.isEmpty()) R.string.home_municipio_loading
+                    else R.string.home_municipio_empty,
+                ),
+                color = if (nombre != null) TextPrimary else TextMuted,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                imageVector = Icons.Default.ArrowDropDown,
+                contentDescription = null,
+                tint = TextSecondary,
+            )
+        }
+    }
+
+    if (abierto) {
+        MunicipioPickerDialog(
+            clave = clave,
+            cabeceras = cabeceras,
+            onDismiss = { abierto = false },
+            onSelect = { cabecera ->
+                onSelect(cabecera)
+                abierto = false
+            },
+        )
+    }
+}
+
+/**
+ * Diálogo con los 158 municipios, agrupados por provincia y con un
+ * campo de filtro (sin tildes y en cualquier orden, como la búsqueda).
+ *
+ * En la web es un `<optgroup>` con 158 `<option>`; en un teléfono eso
+ * es ilegible, así que se abre a pantalla completa con buscador.
+ */
+@Composable
+private fun MunicipioPickerDialog(
+    clave: String,
+    cabeceras: List<Cabecera>,
+    onDismiss: () -> Unit,
+    onSelect: (Cabecera?) -> Unit,
+) {
+    var filtro by remember { mutableStateOf("") }
+    val grupos = remember(cabeceras) { agruparPorProvincia(cabeceras) }
+    val visibles = remember(grupos, filtro) { filtrarGrupos(grupos, filtro) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = CardWhite,
+            border = BorderStroke(1.dp, Hairline),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 640.dp),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(R.string.home_municipio_label),
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.home_municipio_close),
+                            tint = TextSecondary,
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(6.dp))
+
+                OutlinedTextField(
+                    value = filtro,
+                    onValueChange = { filtro = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(
+                            text = stringResource(R.string.home_municipio_hint),
+                            color = TextMuted,
+                        )
+                    },
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = TextSecondary,
+                        )
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = CanaryYellow,
+                        unfocusedBorderColor = HairlineStrong,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        cursorColor = GoldInk,
+                        focusedContainerColor = SurfaceWhite,
+                        unfocusedContainerColor = SurfaceWhite,
+                    ),
+                )
+
+                if (clave != "") {
+                    TextButton(onClick = { onSelect(null) }) {
+                        Text(
+                            text = stringResource(R.string.home_municipio_clear),
+                            color = GoldInk,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    HorizontalDivider(color = Hairline, thickness = 1.dp)
+                }
+
+                when {
+                    cabeceras.isEmpty() -> CenteredMessage(Modifier.heightIn(min = 140.dp)) {
+                        CircularProgressIndicator(color = GoldInk, strokeWidth = 3.dp)
+                    }
+
+                    visibles.isEmpty() -> CenteredMessage(Modifier.heightIn(min = 140.dp)) {
+                        Text(
+                            text = stringResource(R.string.home_municipio_empty_list),
+                            color = TextMuted,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+
+                    else -> LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 420.dp),
+                    ) {
+                        visibles.forEach { grupo ->
+                            item(key = "provincia-${grupo.provincia}") {
+                                Text(
+                                    text = grupo.provincia,
+                                    color = GoldInk,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
+                                )
+                            }
+                            items(grupo.lista, key = { it.clave }) { cabecera ->
+                                val activa = cabecera.clave == clave
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onSelect(cabecera) }
+                                        .padding(vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = cabecera.municipio,
+                                        color = if (activa) GoldInk else TextPrimary,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (activa) FontWeight.Bold else FontWeight.Normal,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    if (activa) {
+                                        Icon(
+                                            imageVector = Icons.Default.Place,
+                                            contentDescription = null,
+                                            tint = GoldInk,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Un grupo del selector: provincia + sus municipios ordenados. */
+private data class GrupoProvincia(val provincia: String, val lista: List<Cabecera>)
+
+/**
+ * Agrupa las cabeceras como el `<optgroup>` de la web: provincias
+ * ordenadas y municipios ordenados dentro de cada una, con colación
+ * española (¡Caños!, ¡Cordero!) para que "Íñigo" no acabe en la I.
+ */
+private fun agruparPorProvincia(cabeceras: List<Cabecera>): List<GrupoProvincia> {
+    val collator = Collator.getInstance(Locale("es"))
+    return cabeceras
+        .groupBy { it.provincia }
+        .map { (provincia, lista) ->
+            GrupoProvincia(provincia, lista.sortedWith(compareBy(collator) { it.municipio }))
+        }
+        .sortedWith(compareBy(collator) { it.provincia })
+}
+
+private fun filtrarGrupos(grupos: List<GrupoProvincia>, texto: String): List<GrupoProvincia> {
+    val consulta = normalizar(texto)
+    if (consulta.isBlank()) return grupos
+    return grupos.mapNotNull { grupo ->
+        val lista = grupo.lista.filter {
+            normalizar(it.municipio).contains(consulta) ||
+                normalizar(it.provincia).contains(consulta)
+        }
+        if (lista.isEmpty()) null else GrupoProvincia(grupo.provincia, lista)
+    }
+}
+
+/** Quita tildes y pasa a minúsculas: "SÁNCHEZ" encuentra "sanchez". */
+private fun normalizar(texto: String): String =
+    Normalizer.normalize(texto, Normalizer.Form.NFD)
+        .replace(Regex("\\p{M}"), "")
+        .lowercase(Locale.ROOT)
 
 // ═══════════════════════ HELPERS ═══════════════════════
 

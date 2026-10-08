@@ -2,6 +2,7 @@ package com.herling.buscandoando.core.network
 
 import com.herling.buscandoando.core.data.dto.Business
 import com.herling.buscandoando.core.data.dto.BusinessDetail
+import com.herling.buscandoando.core.data.dto.Cabecera
 import com.herling.buscandoando.core.data.dto.Category
 import com.herling.buscandoando.core.data.dto.PagedResponse
 import retrofit2.http.GET
@@ -92,4 +93,17 @@ interface BuscandoAndoApi {
         @Query("lng") lng: Double? = null,
         @Query("radius") radius: Double? = null,
     ): List<Business>
+
+    /**
+     * GET /api/cabeceras/  ->  [{ provincia, municipio, lat, lng }, …]
+     *
+     * Las 158 cabeceras municipales: el selector "Municipio" de la web
+     * (SearchBar.jsx) y el respaldo cuando no hay GPS. NO está paginado.
+     *
+     * Sin ellas la app no puede ofrecer la ÚNICA salida que tiene quien
+     * niega la ubicación (R1.1), así que este endpoint es obligatorio
+     * para la paridad de funciones.
+     */
+    @GET("cabeceras/")
+    suspend fun getCabeceras(): List<Cabecera>
 }

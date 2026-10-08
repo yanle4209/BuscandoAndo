@@ -40,6 +40,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.herling.buscandoando.core.data.MunicipioStore
 import com.herling.buscandoando.ui.home.HomeScreen
 import com.herling.buscandoando.ui.home.HomeViewModel
 import com.herling.buscandoando.ui.map.MapScreen
@@ -89,6 +90,10 @@ class MainActivity : ComponentActivity() {
             isAppearanceLightStatusBars = true
             isAppearanceLightNavigationBars = true
         }
+        // R3.4: el municipio elegido se recuerda entre sesiones. Se
+        // inicializa ANTES de que exista el primer ViewModel, así que
+        // nunca se lee un SharedPreferences vacío.
+        MunicipioStore.init(this)
         setContent {
             BuscandoAndoTheme {
                 // Fase 5: raíz con navegación Home <-> Mapa.

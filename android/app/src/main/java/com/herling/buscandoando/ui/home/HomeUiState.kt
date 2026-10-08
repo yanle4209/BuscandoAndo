@@ -2,6 +2,7 @@ package com.herling.buscandoando.ui.home
 
 import com.herling.buscandoando.core.data.dto.Business
 import com.herling.buscandoando.core.data.dto.BusinessDetail
+import com.herling.buscandoando.core.data.dto.Cabecera
 import com.herling.buscandoando.core.data.dto.Category
 
 /**
@@ -92,14 +93,61 @@ data class HomeUiState(
     /** null = todo bien. Con texto = la hoja muestra el error. */
     val detailError: String? = null,
 
-    // ───────────── Fase 6 · GPS ─────────────
+    // ───────────── Fase 8 · la máquina de la web ─────────────
 
     /** ¿En qué punto está el permiso / el GPS? */
     val locationStatus: LocationStatus = LocationStatus.Idle,
 
-    /** Coordenadas del usuario. Solo válidas cuando status == Active. */
-    val myLat: Double? = null,
-    val myLng: Double? = null,
+    /**
+     * Última posición GPS conocida (equivale a `pos` de Home.jsx).
+     *
+     * OJO: NO es el punto de consulta. Ese es `punto`. Están separados
+     * porque al andar la posición cambia sin mover el círculo que se
+     * está consultando (y al revés: eliges un municipio a 20 km y el
+     * punto se va sin que te muevas).
+     */
+    val pos: Punto? = null,
+
+    /**
+     * Centro del círculo de 5 km que se está consultando (equivale a
+     * `punto` de Home.jsx). null = sin punto activo = NO se consulta
+     * NADA y la pantalla se queda en portada (R1.1).
+     */
+    val punto: Punto? = null,
+
+    /** Municipio elegido o punto tocado en el mapa (equivale a `destino`). */
+    val destino: Punto? = null,
+
+    /** Espera (S0) | Gps (S1) | Destino (S2): ver [SearchMode]. */
+    val mode: SearchMode = SearchMode.Espera,
+
+    /** El destino viene del almacén, no de una elección (R3.4). */
+    val restaurado: Boolean = false,
+
+    /** Ya estuvo dentro del destino: habilita el reset de R3.2. */
+    val llego: Boolean = false,
+
+    /**
+     * ¿Se ha hecho la primera consulta? false = portada.
+     *
+     * Se separa de `punto` a propósito: el GPS puede darte coordenadas
+     * y seguir mostrándose la portada hasta que el usuario haga algo
+     * explícito (buscar, elegir municipio o tocar "Mi ubicación"),
+     * exactamente igual que en la web.
+     */
+    val haBuscado: Boolean = false,
+
+    /**
+     * Clave "Provincia~Municipio" del selector (equivale a
+     * `municipioClave`). "" = el selector muestra "Elige tu municipio".
+     */
+    val municipioClave: String = "",
+
+    /** Las 158 cabeceras del API, para el selector de municipio. */
+    val cabeceras: List<Cabecera> = emptyList(),
+
+    /** true si GET /api/cabeceras/ falló (el selector lo avisa). */
+    val cabecerasError: Boolean = false,
 
     // ───────────── Fase 7 · destacados ─────────────
 
@@ -137,12 +185,34 @@ data class HomeUiState(
     val isEmpty: Boolean get() = hasLoaded && !isLoading && businesses.isEmpty()
 
     /**
-     * ¿El filtro por cercanía está ACTIVO?
-     * Se comprueba el estado Y que haya coordenadas: si alguien deja
-     * `Active` con `myLat = null`, no mandamos parámetros rotos.
+     * ¿Hay POSICIÓN GPS conocida? (equivale a `estado.pos != null`)
+     *
+     * Es lo que enciende el icono del botón de ubicación. NO decide lo
+     * que se consulta: eso es [hasPunto].
      */
-    val hasLocation: Boolean
-        get() = locationStatus == LocationStatus.Active && myLat != null && myLng != null
+    val hasLocation: Boolean get() = pos != null
+
+    /**
+     * ¿Hay punto activo que consultar? (equivale a `estado.punto != null`)
+     *
+     * Sin punto no se manda ni un byte al API (R1.1) y la pantalla se
+     * queda en portada.
+     */
+    val hasPunto: Boolean get() = punto != null
+
+    /** "Elige tu municipio o activa tu ubicación para empezar" (R1.1). */
+    val sinPunto: Boolean get() = punto == null
+
+    /**
+     * Etiqueta del municipio elegido, o null si no lo hay.
+     * "Moca · Espaillat" a partir de la clave "Espaillat~Moca".
+     */
+    val municipioEtiqueta: String?
+        get() {
+            val partes = municipioClave.split('~')
+            if (partes.size != 2 || partes[1].isBlank()) return null
+            return "${partes[1]} · ${partes[0]}"
+        }
 
     companion object {
         /** 12 por página = la cuadrícula 4x3 de la web. */
@@ -161,5 +231,20 @@ data class HomeUiState(
          * Aquí está para los logs y para el texto de la barra.
          */
         const val RADIO_KM = 5
+
+        /**
+         * R1.a · disparo 3: refrescar cuando el usuario se aleja ≥ 0,5 km
+         * del último punto consultado (UMBRAL_MOV_KM de Home.jsx).
+         */
+        const val UMBRAL_MOV_KM = 0.5
+
+        /**
+         * R1.a · mínimo 30 s entre refrescos AUTOMÁTICOS por movimiento
+         * (THROTTLE_MS de Home.jsx). Los cambios explícitos de punto
+         * (llegada, municipio, primera búsqueda, "Mi ubicación") NO se
+         * limitan: si no, el refresco de llegada se descartaría y
+         * te quedarías mirando resultados viejos.
+         */
+        const val THROTTLE_MS = 30_000L
     }
 }
