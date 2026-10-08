@@ -24,22 +24,50 @@
     }, 4000);
   }
 
+  function enlaceDelPanel(boton) {
+    var acciones = boton.parentElement;
+    var panel = acciones ? acciones.parentElement : null;
+    return panel ? panel.querySelector('a.ba-levantamiento__enlace') : null;
+  }
+
   function copiar(boton, url) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(
         function () { anunciar(boton, 'Enlace copiado'); },
-        function () { copiarAPie(boton, url); }
+        function () { copiarSinPermiso(boton, url); }
       );
     } else {
-      copiarAPie(boton, url);
+      copiarSinPermiso(boton, url);
     }
   }
 
-  function copiarAPie(boton, url) {
-    // Sin portapapeles (permiso denegado, contexto no seguro): se abre
-    // la caja de texto con el enlace ya puesto para copiarlo a mano.
-    window.prompt('Copia el enlace para el colaborador:', url);
-    anunciar(boton, 'Copia el enlace');
+  function copiarSinPermiso(boton, url) {
+    // El portapapeles puede estar denegado o no existir (contexto no
+    // seguro, navegador viejo). Se selecciona el enlace VISIBLE para
+    // copiarlo con Ctrl+C y se intenta copiar a la antigua.
+    var enlace = enlaceDelPanel(boton);
+    if (enlace && window.getSelection && document.createRange) {
+      var seleccion = window.getSelection();
+      var rango = document.createRange();
+      rango.selectNodeContents(enlace);
+      seleccion.removeAllRanges();
+      seleccion.addRange(rango);
+      try {
+        if (document.execCommand('copy')) {
+          anunciar(boton, 'Enlace copiado');
+          return;
+        }
+      } catch (e) { /* se sigue por la caja de texto */ }
+    }
+
+    try {
+      window.prompt('Copia el enlace para el colaborador:', url);
+      anunciar(boton, 'Copia el enlace');
+    } catch (e) {
+      // Navegador sin prompt(): el enlace ya esta seleccionado, el
+      // aviso solo tiene que decir que copie de ahi.
+      anunciar(boton, 'Enlace seleccionado, copialo');
+    }
   }
 
   document.addEventListener('click', function (evento) {
