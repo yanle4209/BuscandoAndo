@@ -756,11 +756,12 @@ private fun CategoryChip(
 // ═══════════════════════ FASE 7 · DESTACADOS ═══════════════════════
 
 /**
- * Fila horizontal de destacados de la BÚSQUEDA.
+ * Destacados de la BÚSQUEDA, en TRES columnas.
  *
  * Espejo de `searchFeatured` en Home.jsx: hasta 3 tarjetas que el
  * endpoint /api/businesses/featured-by-search/ devuelve y que la web
- * pinta POR ENCIMA de los resultados.
+ * pinta POR ENCIMA de los resultados, en `.search-featured-top`
+ * (repeat(3, 1fr)) y alineadas con la rejilla que hay debajo.
  *
  * Es contenido de "si hay": si la lista viene vacía (no hay
  * destacados que coincidan, no hay filtros todavía, o la llamada
@@ -782,73 +783,131 @@ private fun FeaturedRow(
             modifier = Modifier.padding(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 8.dp),
         )
 
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        // Tres columnas alineadas con la rejilla de resultados que hay
+        // debajo: mismo margen de 14dp y mismo hueco de 12dp, igual que
+        // .search-featured-top en la web (repeat(3, 1fr)). El endpoint
+        // devuelve como mucho 3, así que caben las 3 de golpe y no hace
+        // falta scroll horizontal.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            items(featured, key = { "destacado-${it.id}" }) { business ->
-                FeaturedCard(business = business, onClick = { onBusinessClick(business) })
+            featured.take(3).forEach { business ->
+                FeaturedCard(
+                    business = business,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onBusinessClick(business) },
+                )
             }
         }
     }
 }
 
 /**
- * Tarjeta compacta de la fila de destacados.
+ * Tarjeta de la fila de destacados, CON FOTO.
  *
- * NO reutiliza BusinessCard: ésta tiene ancho FIJO y no lleva imagen,
- * para que 3 quepan en horizontal sin robarle alto a la cuadrícula.
+ * Misma portada que BusinessCard —foto a lo ancho, `ContentScale.Crop`
+ * y velo marrón encima— pero más baja y sin el punto de estado, para
+ * que las 3 quepan en la fila sin robarle alto a la cuadrícula de
+ * abajo. El nombre y la categoría van SOBRE la foto, abajo, donde el
+ * velo espesa: sobre foto clara el texto del tema no se leía.
+ *
+ * Sin foto se queda en el fondo de la tarjeta y el texto vuelve a sus
+ * colores normales: la fila solo se dibuja cuando la búsqueda ha
+ * traído algo, así que no hace falta el placeholder de marca.
  */
 @Composable
-private fun FeaturedCard(business: Business, onClick: () -> Unit) {
+private fun FeaturedCard(
+    business: Business,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     val featured = business.is_featured == true ||
         FeaturedTier.levelOf(business.featured_tier) != null
+    val imageUrl = business.images.firstOrNull()?.image_url
+    val conFoto = !imageUrl.isNullOrBlank()
     val shape = RoundedCornerShape(10.dp)
+    val veil = androidx.compose.ui.graphics.Brush.verticalGradient(
+        0f to Color.Transparent,
+        0.45f to Color(0x991C1504),
+        1f to Color(0xF21C1504),
+    )
 
-    Column(
-        modifier = Modifier
-            .width(170.dp)
-            .heightIn(min = 100.dp)
+    Box(
+        modifier = modifier
+            .heightIn(min = 118.dp)
             .clip(shape)
-            .background(DarkCard)
+            .background(if (conFoto) BrandBrown else DarkCard)
             // Sin escalonado por nivel y sin filete amarillo: el mismo borde
             // fino para todas, igual que la web.
             .border(1.dp, DividerDark, shape)
-            .clickable(onClick = onClick)
-            .padding(9.dp),
+            .clickable(onClick = onClick),
     ) {
-        if (featured) {
-            DestacadoBadge()
-            Spacer(Modifier.height(6.dp))
+        if (conFoto) {
+            AsyncImage(
+                model = imageUrl,
+                // null a propósito: la tarjeta COMPLETA ya es clicable
+                // y el Text de abajo expone el nombre. Si además le
+                // pusiéramos contentDescription, TalkBack leería el
+                // nombre dos veces.
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+
+            // Velo marrón: el nombre se lee sobre cualquier foto
+            Box(modifier = Modifier.fillMaxSize().background(veil))
         }
 
-        Text(
-            text = business.name,
-            color = TextPrimary,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (featured) {
+            DestacadoBadge(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 8.dp, top = 8.dp),
+            )
+        }
 
-        Spacer(Modifier.height(4.dp))
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(horizontal = 9.dp, vertical = 8.dp),
+        ) {
+            Text(
+                text = business.name,
+                color = if (conFoto) Color.White else TextPrimary,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
 
-        Text(
-            text = business.category_name ?: stringResource(R.string.home_no_category),
-            color = TextMuted,
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+            Spacer(Modifier.height(4.dp))
+
+            Text(
+                text = business.category_name ?: stringResource(R.string.home_no_category),
+                color = if (conFoto) CanaryYellow else TextMuted,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
 // ═══════════════════════ CUADRÍCULA ═══════════════════════
 
 /**
- * Tarjetas. `Adaptive(150.dp)` da 2 columnas en teléfono y 4 en
- * tablet — el mismo "espíritu" de la cuadrícula 4x3 de la web sin
- * partir los nombres en 4 letras.
+ * Tarjetas. TRES columnas fijas: las mismas que la rejilla de la web
+ * (`.right-results-list { grid-template-columns: repeat(3, …) }`).
+ *
+ * Antes era `Adaptive(150.dp)`, que en teléfono daba 2 columnas y en
+ * tablet 4 — la app no coincidía con la web. Con `Fixed(3)` la página
+ * es la misma en los dos sitios: 3 tarjetas por fila, y en tablet el
+ * hueco de más se va al ancho de cada tarjeta en vez de a más
+ * columnas.
  */
 @Composable
 private fun BusinessGrid(
@@ -857,7 +916,7 @@ private fun BusinessGrid(
     onBusinessClick: (Business) -> Unit,
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 150.dp),
+        columns = GridCells.Fixed(3),
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(14.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
