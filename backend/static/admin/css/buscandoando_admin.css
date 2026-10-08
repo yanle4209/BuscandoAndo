@@ -922,7 +922,10 @@ table thead th .text a:hover {
     color: var(--ink-soft) !important;
 }
 
-.ba-levantamiento__enlace {
+/* El prefijo `a.` sube la especificidad a la del `a:link` global: sin
+   el, el filete de color de los enlaces del admin ganaba y el enlace
+   del levantamiento salia marron como cualquier otro. */
+a.ba-levantamiento__enlace {
     font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
     font-size: 13px;
     color: var(--yellow-ink) !important;
@@ -931,8 +934,8 @@ table thead th .text a:hover {
     word-break: break-all;
 }
 
-.ba-levantamiento__enlace:hover,
-.ba-levantamiento__enlace:focus {
+a.ba-levantamiento__enlace:hover,
+a.ba-levantamiento__enlace:focus {
     color: var(--brown) !important;
     border-bottom-color: var(--brown) !important;
 }
