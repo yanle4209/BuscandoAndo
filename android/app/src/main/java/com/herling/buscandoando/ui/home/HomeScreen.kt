@@ -530,13 +530,25 @@ private fun HomeHeader(
         // Título + botones (ubicación · mapa) en la misma línea.
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = "BuscandoAndo",
-                    // Título marrón como .right-brand-title de la web
-                    color = BrandBrown,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Black,
-                )
+                // Logotipo como .right-brand-title de la web:
+                // "Buscando" en marrón y "Ando" en amarillo canario
+                // (el .right-brand-accent de Home.jsx). El amarillo
+                // casi no contrasta con el blanco, pero es marca:
+                // WCAG exime a los logotipos del contraste (1.4.3).
+                Row {
+                    Text(
+                        text = "Buscando",
+                        color = BrandBrown,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Black,
+                    )
+                    Text(
+                        text = "Ando",
+                        color = CanaryYellow,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Black,
+                    )
+                }
                 // El subtítulo dice el ALCANCE de la búsqueda, no un sitio
                 // fijo: al elegir municipio cambia solo (el hardcodeo
                 // "Moca · Espaillat" mentía en cuanto te ibas del municipio).
