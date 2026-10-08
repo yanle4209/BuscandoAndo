@@ -21,6 +21,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -102,6 +103,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -1089,12 +1091,17 @@ private fun CategoryChip(
 // ═══════════════════════ FASE 7 · DESTACADOS ═══════════════════════
 
 /**
- * Destacados de la BÚSQUEDA, en TRES columnas.
+ * Destacados de la BÚSQUEDA.
  *
  * Espejo de `searchFeatured` en Home.jsx: hasta 3 tarjetas que el
  * endpoint /api/businesses/featured-by-search/ devuelve y que la web
  * pinta POR ENCIMA de los resultados, en `.search-featured-top`
  * (repeat(3, 1fr)) y alineadas con la rejilla que hay debajo.
+ *
+ * Se colapsan o no al MISMO corte que esa rejilla (ver
+ * [columnasDeRejilla]): en móvil, apiladas de una en una —igual que
+ * `.search-featured-top { grid-template-columns: 1fr }` en el
+ * breakpoint móvil de la web—; en tablet, las 3 en fila.
  *
  * Es contenido de "si hay": si la lista viene vacía (no hay
  * destacados que coincidan, no hay filtros todavía, o la llamada
@@ -1117,44 +1124,92 @@ private fun FeaturedRow(
             modifier = Modifier.padding(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 8.dp),
         )
 
-        // Tres columnas alineadas con la rejilla de resultados que hay
-        // debajo: mismo margen de 14dp y mismo hueco de 12dp, igual que
-        // .search-featured-top en la web (repeat(3, 1fr)). El endpoint
-        // devuelve como mucho 3, así que caben las 3 de golpe y no hace
-        // falta scroll horizontal.
-        Row(
+        // Mismo margen de 14dp y mismo hueco de 12dp que la rejilla de
+        // debajo, para que las columnas de la fila de destacados y las
+        // de los resultados caigan en el mismo sitio. El endpoint
+        // devuelve como mucho 3, así que no hace falta scroll.
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            featured.take(3).forEach { business ->
-                // MISMA tarjeta que la rejilla: en la web la fila de
-                // destacados pinta <BusinessCard> igual que los
-                // resultados (Home.jsx 592-599), así que aquí solo
-                // existe UNA tarjeta, con sus filas y su "Corregir".
-                BusinessCard(
-                    business = business,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onBusinessClick(business) },
-                    onReport = { onReport(business) },
-                )
+            val columnas = columnasDeRejilla(maxWidth)
+
+            if (columnas == 1) {
+                // Móvil: apiladas, de a una.
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    featured.take(3).forEach { business ->
+                        FeaturedCard(business, onBusinessClick, onReport)
+                    }
+                }
+            } else {
+                // Tablet: las 3 en fila, con el mismo reparto que
+                // repeat(3, 1fr) de la web.
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    featured.take(3).forEach { business ->
+                        FeaturedCard(
+                            business = business,
+                            onBusinessClick = onBusinessClick,
+                            onReport = onReport,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
             }
         }
     }
 }
 
+/**
+ * MISMA tarjeta que la rejilla: en la web la fila de destacados pinta
+ * <BusinessCard> igual que los resultados (Home.jsx 592-599), así que
+ * aquí solo existe UNA tarjeta, con sus filas y su "Corregir".
+ */
+@Composable
+private fun FeaturedCard(
+    business: Business,
+    onBusinessClick: (Business) -> Unit,
+    onReport: (Business) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    BusinessCard(
+        business = business,
+        modifier = modifier.fillMaxWidth(),
+        onClick = { onBusinessClick(business) },
+        onReport = { onReport(business) },
+    )
+}
+
 // ═══════════════════════ CUADRÍCULA ═══════════════════════
 
 /**
- * Tarjetas. TRES columnas fijas: las mismas que la rejilla de la web
- * (`.right-results-list { grid-template-columns: repeat(3, …) }`).
+ * Cuántas columnas lleva la rejilla según el ancho de la ventana.
  *
- * Antes era `Adaptive(150.dp)`, que en teléfono daba 2 columnas y en
- * tablet 4 — la app no coincidía con la web. Con `Fixed(3)` la página
- * es la misma en los dos sitios: 3 tarjetas por fila, y en tablet el
- * hueco de más se va al ancho de cada tarjeta en vez de a más
- * columnas.
+ * Regla de diseño: **móvil = 1 columna, tablet = 3**. La web no se
+ * toca (allí ya hace lo mismo: `.right-results-list` es `repeat(3, …)`
+ * y en `@media (max-width: 768px)` baja a `1fr`).
+ *
+ * El corte de 600dp es el del Material Design para salir de la clase
+ * "Compact": por debajo es ventana de móvil —aunque gires el
+ * teléfono— y a partir de ahí, tablet (las de 7" arrancan justo ahí).
+ *
+ * Sirve para la rejilla de resultados Y para la fila de destacados,
+ * que en la web baja a una columna en el MISMO breakpoint
+ * (`.search-featured-top { grid-template-columns: 1fr }`).
+ */
+internal fun columnasDeRejilla(ancho: Dp): Int = if (ancho < 600.dp) 1 else 3
+
+/**
+ * Tarjetas de los resultados.
+ *
+ * Mismo dibujo que `.right-results-list`, pero con las columnas
+ * calculadas al vuelo (ver [columnasDeRejilla]): en una ventana de
+ * móvil (lo normal en el teléfono) va de a UNA, que es como se lee en
+ * pantalla pequeña; en tablet, las mismas TRES de la web.
+ *
+ * Antes era `Adaptive(150.dp)` (2 columnas en móvil, 4 en tablet) y
+ * luego `Fixed(3)` (3 hasta en los teléfonos más estrechos): ninguna
+ * de las dos servía. Ahora el número de columnas depende del ancho.
  */
 @Composable
 private fun BusinessGrid(
@@ -1163,19 +1218,24 @@ private fun BusinessGrid(
     onBusinessClick: (Business) -> Unit,
     onReport: (Business) -> Unit,
 ) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(14.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        items(state.businesses, key = { it.id }) { business ->
-            BusinessCard(
-                business = business,
-                onClick = { onBusinessClick(business) },
-                onReport = { onReport(business) },
-            )
+    // BoxWithConstraints mide el hueco REAL que le da la pantalla: el
+    // `weight(1f)` del padre va en esta caja, y la rejilla de dentro
+    // ocupa lo que quede (fillMaxSize).
+    BoxWithConstraints(modifier = modifier) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(columnasDeRejilla(maxWidth)),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(state.businesses, key = { it.id }) { business ->
+                BusinessCard(
+                    business = business,
+                    onClick = { onBusinessClick(business) },
+                    onReport = { onReport(business) },
+                )
+            }
         }
     }
 }
