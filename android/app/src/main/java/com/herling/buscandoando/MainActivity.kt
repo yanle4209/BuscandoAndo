@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.herling.buscandoando.ui.home.HomeScreen
 import com.herling.buscandoando.ui.home.HomeViewModel
@@ -47,23 +48,22 @@ import com.herling.buscandoando.ui.theme.CanaryYellow
 import com.herling.buscandoando.ui.theme.CanaryYellowDark
 import com.herling.buscandoando.ui.theme.CanaryYellowLight
 import com.herling.buscandoando.ui.theme.ChocolatePlum
-import com.herling.buscandoando.ui.theme.DarkBackground
-import com.herling.buscandoando.ui.theme.DarkCard
-import com.herling.buscandoando.ui.theme.DarkSurface
-import com.herling.buscandoando.ui.theme.DividerDark
-import com.herling.buscandoando.ui.theme.GreyOlive
 import com.herling.buscandoando.ui.theme.Gold
 import com.herling.buscandoando.ui.theme.GoldInk
 import com.herling.buscandoando.ui.theme.BrandBrown
+import com.herling.buscandoando.ui.theme.CanvasWhite
+import com.herling.buscandoando.ui.theme.CardWhite
+import com.herling.buscandoando.ui.theme.GreyOlive
+import com.herling.buscandoando.ui.theme.Hairline
 import com.herling.buscandoando.ui.theme.StatusBySchedule
 import com.herling.buscandoando.ui.theme.StatusClosed
 import com.herling.buscandoando.ui.theme.StatusOpen
+import com.herling.buscandoando.ui.theme.SurfaceWhite
 import com.herling.buscandoando.ui.theme.TextBrown
 import com.herling.buscandoando.ui.theme.TextMuted
 import com.herling.buscandoando.ui.theme.TextOnYellow
 import com.herling.buscandoando.ui.theme.TextPrimary
 import com.herling.buscandoando.ui.theme.TextSecondary
-import com.herling.buscandoando.ui.theme.WhiteSmoke
 import com.herling.buscandoando.ui.theme.BrandBlack
 
 /** Un color de la paleta: nombre visible + valor hex (para la guía). */
@@ -81,7 +81,14 @@ data class SwatchGroup(val title: String, val items: List<Swatch>)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // La app es SIEMPRE clara: sin esto, con el móvil en modo
+        // oscuro Android dejaría los iconos de barra en BLANCO y no se
+        // verían sobre nuestro fondo blanco.
         enableEdgeToEdge()
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
+        }
         setContent {
             BuscandoAndoTheme {
                 // Fase 5: raíz con navegación Home <-> Mapa.
@@ -148,7 +155,7 @@ fun StyleGuideScreen() {
                     Text(
                         text = stringResource(R.string.styleguide_title),
                         style = MaterialTheme.typography.headlineLarge,
-                        color = CanaryYellow
+                        color = BrandBrown
                     )
                     Text(
                         text = stringResource(R.string.styleguide_subtitle),
@@ -180,8 +187,11 @@ private fun SwatchGroupCard(group: SwatchGroup) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(DarkCard)
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardWhite)
+                // Sobre lienzo blanco el grupo se separa con filete,
+                // igual que las tarjetas de la web.
+                .border(1.dp, Hairline, RoundedCornerShape(12.dp))
                 .padding(vertical = 6.dp)
         ) {
             group.items.forEach { swatch ->
@@ -206,7 +216,7 @@ private fun SwatchRow(swatch: Swatch) {
                 .background(swatch.color)
                 .border(
                     width = 1.dp,
-                    color = DividerDark,
+                    color = Hairline,
                     shape = RoundedCornerShape(8.dp)
                 )
         )
@@ -251,50 +261,49 @@ private fun paletteGroups(): List<SwatchGroup> = listOf(
             Swatch("Amarillo BuscandoAndo", "#FBBF24", CanaryYellow, TextOnYellow),
             Swatch("Amarillo claro", "#FCD34D", CanaryYellowLight, TextOnYellow),
             Swatch("Amarillo oscuro", "#D99A0B", CanaryYellowDark, TextOnYellow),
-            Swatch("Gris olivo", "#88898A", GreyOlive),
-            Swatch("Marrón (--brown)", "#513E0C", ChocolatePlum),
-            Swatch("Negro marca", "#000600", BrandBlack),
-            Swatch("White smoke", "#F3F3F3", WhiteSmoke, TextOnYellow),
+            Swatch("Gris olivo (--grey)", "#66615A", GreyOlive, TextOnYellow),
+            Swatch("Marrón (--brown)", "#513E0C", ChocolatePlum, TextOnYellow),
+            Swatch("Negro marca", "#000600", BrandBlack, TextOnYellow),
         )
     ),
     SwatchGroup(
-        title = "Fondos y superficies",
+        title = "Lienzo y superficies (blanco literal)",
         items = listOf(
-            Swatch("Fondo general (--dark)", "#1A1A1A", DarkBackground),
-            Swatch("Superficie elevada", "#212121", DarkSurface),
-            Swatch("Contenedor tarjetas", "#252525", DarkCard),
-            Swatch("Divisores / bordes", "#2A2A2A", DividerDark),
+            Swatch("Fondo de página (--bg)", "#FFFFFF", CanvasWhite),
+            Swatch("Buscador / barra (--surface)", "#FFFFFF", SurfaceWhite),
+            Swatch("Tarjetas / ficha", "#FFFFFF", CardWhite),
+            Swatch("Filete (--border)", "#E2E1C9", Hairline),
         )
     ),
     SwatchGroup(
         title = "Texto",
         items = listOf(
-            Swatch("Texto principal", "#FFFFFF", TextPrimary),
-            Swatch("Texto secundario", "#AAAAAA", TextSecondary),
-            Swatch("Texto apagado", "#666666", TextMuted),
-            Swatch("Texto dorado (tarjetas)", "#8F6C14", TextBrown),
-            Swatch("Sobre amarillo", "#1A1A1A", TextOnYellow),
+            Swatch("Tinta principal (--ink)", "#1F1A1A", TextPrimary, TextOnYellow),
+            Swatch("Texto suave (--ink-soft)", "#5B564D", TextSecondary, TextOnYellow),
+            Swatch("Metadatos (--grey)", "#66615A", TextMuted, TextOnYellow),
+            Swatch("Texto dorado (tarjetas)", "#8F6C14", TextBrown, TextOnYellow),
+            Swatch("Sobre amarillo", "#1F1A1A", TextOnYellow, CanaryYellow),
         )
     ),
     SwatchGroup(
         title = "Estados operativos",
         items = listOf(
-            Swatch("Abierto", "#4CAF50", StatusOpen, TextOnYellow),
-            Swatch("Cerrado", "#E53935", StatusClosed),
-            Swatch("Por horario", "#FFA726", StatusBySchedule, TextOnYellow),
+            Swatch("Abierto", "#15803D", StatusOpen, TextOnYellow),
+            Swatch("Cerrado", "#DC2626", StatusClosed, TextOnYellow),
+            Swatch("Por horario", "#C2410C", StatusBySchedule, TextOnYellow),
         )
     ),
     SwatchGroup(
         title = "Dorado y marrón (paleta nueva)",
         items = listOf(
-            Swatch("Dorado títulos (--gold)", "#A67E18", Gold),
-            Swatch("Dorado texto (--yellow-ink)", "#8F6C14", GoldInk),
-            Swatch("Marrón superficies (--brown)", "#513E0C", BrandBrown),
+            Swatch("Dorado títulos (--gold)", "#A67E18", Gold, TextOnYellow),
+            Swatch("Dorado texto (--yellow-ink)", "#8F6C14", GoldInk, TextOnYellow),
+            Swatch("Marrón (--brown)", "#513E0C", BrandBrown, TextOnYellow),
         )
     ),
 )
 
-@Preview(showBackground = true, backgroundColor = 0xFF1A1A1A)
+@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
 @Composable
 private fun StyleGuidePreview() {
     BuscandoAndoTheme {

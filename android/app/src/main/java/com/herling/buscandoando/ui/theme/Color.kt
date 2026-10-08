@@ -5,7 +5,12 @@ import androidx.compose.ui.graphics.Color
 /*
  * ============================================================
  *  PALETA OFICIAL BUSCANDOANDO
- *  Misma que el sitio web (frontend/src/index.css)
+ *  Copiada de frontend/src/index.css: mismo lienzo blanco y
+ *  mismos valores que la web (y el panel de administracion).
+ *
+ *  Regla de contraste: sobre blanco, el amarillo SOLO va en
+ *  filetes y rellenos; para texto e iconos se usa el amarillo
+ *  legible (GoldInk, 4,9:1) o el marron.
  * ============================================================
  */
 
@@ -13,38 +18,43 @@ import androidx.compose.ui.graphics.Color
 val CanaryYellow = Color(0xFFFBBF24)      // Amarillo BuscandoAndo (--yellow)
 val CanaryYellowLight = Color(0xFFFCD34D) // Para pressed/hover (--yellow-light)
 val CanaryYellowDark = Color(0xFFD99A0B)  // Para variantes (primaryContainer)
-val BrandBrown = Color(0xFF513E0C)        // Marron (--brown): superficies
-val Gold = Color(0xFFA67E18)              // Dorado: titulos (--gold)
-val GoldInk = Color(0xFF8F6C14)           // Dorado: texto (--yellow-ink)
-val GreyOlive = Color(0xFF88898A)         // Gris olivo         (--grey)
+val BrandBrown = Color(0xFF513E0C)        // Marron (--brown): titulos de marca
+val Gold = Color(0xFFA67E18)              // Dorado (--gold): nombre en la ficha
+val GoldInk = Color(0xFF8F6C14)           // Amarillo legible (--yellow-ink)
+val GreyOlive = Color(0xFF66615A)         // Gris olivo calido (--grey)
 val ChocolatePlum = Color(0xFF513E0C)     // (heredado) marron de marca
 val BrandBlack = Color(0xFF000600)        // Negro marca        (--black)
-val WhiteSmoke = Color(0xFFF3F3F3)        // White smoke        (--white)
 
-// ----- Fondos oscuros (tema web) -----
-val DarkBackground = Color(0xFF1A1A1A)    // var(--dark)
-val DarkSurface = Color(0xFF212121)       // Elevación leve
-val DarkCard = Color(0xFF252525)          // Contenedor de tarjetas
-val DividerDark = Color(0xFF2A2A2A)       // Bordes/líneas
+// ----- Lienzo y superficies (blanco literal, como la web) -----
+// La web pinta de #ffffff las TRES zonas y separa las superficies con
+// el filete, nunca con un gris de fondo (frontend/src/index.css).
+val CanvasWhite = Color(0xFFFFFFFF)        // Fondo de pagina   (--bg)
+val SurfaceWhite = Color(0xFFFFFFFF)       // Buscador, barra   (--surface)
+val CardWhite = Color(0xFFFFFFFF)          // Tarjetas, ficha   (--surface-2)
+val Hairline = Color(0xFFE2E1C9)           // Unico gris de borde (--border)
+val HairlineStrong = Color(0xFFD4D3B6)     // Buscador y chips  (--border-strong)
 
 // ----- Texto -----
-val TextPrimary = Color(0xFFFFFFFF)       // Texto principal
-val TextSecondary = Color(0xFFAAAAAA)     // Texto secundario
-val TextMuted = Color(0xFF666666)         // Texto apagado
-val TextBrown = Color(0xFF8F6C14)         // Texto que era marron -> dorado
-val TextOnYellow = Color(0xFF1A1A1A)      // Texto sobre amarillo
+val TextPrimary = Color(0xFF1F1A1A)        // Tinta             (--ink)
+val TextSecondary = Color(0xFF5B564D)      // Texto suave       (--ink-soft)
+val TextMuted = Color(0xFF66615A)          // Metadatos         (--grey)
+val TextBrown = Color(0xFF8F6C14)          // Texto dorado      (--yellow-ink)
+val TextOnYellow = Color(0xFF1F1A1A)       // Texto sobre amarillo
 
 // ----- Estados operativos (effective_status) -----
-val StatusOpen = Color(0xFF4CAF50)        // 'abierto'   -> Abierto
-val StatusClosed = Color(0xFFE53935)      // 'cerrado'   -> Cerrado
-val StatusBySchedule = Color(0xFFFFA726)  // 'por-horario' -> Por Horario
+// Mismos tonos que las etiquetas de estado de la web
+// (BusinessCard.css: #15803d / #dc2626 / #c2410c), que ya son los que
+// pasan 4,5:1 como texto sobre blanco.
+val StatusOpen = Color(0xFF15803D)         // 'abierto'     -> Abierto
+val StatusClosed = Color(0xFFDC2626)       // 'cerrado'     -> Cerrado
+val StatusBySchedule = Color(0xFFC2410C)   // 'por-horario' -> Por Horario
 
 // ----- Niveles de destacado -----
 // ELIMINADOS: ya no hay escalonado por nivel. Hay una sola pastilla
 // "Destacado" (blanca, texto dorado) y el borde de la tarjeta.
 // (Web: .biz-card__badge / .biz-card__badge)
 
-// ----- Colores de categoría (para el ícono) -----
+// ----- Colores de categoria (para el icono) -----
 val CategoryTint = Color(0xFFFBBF24)
 
 // Borde de las tarjetas destacadas (amarillo al 55% sobre blanco)

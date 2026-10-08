@@ -2,11 +2,11 @@
 <resources>
     <!-- ===== Paleta BuscandoAndo (usada por la ventana y widgets XML) ===== -->
     <color name="canary_yellow">#FBBF24</color>
-    <color name="grey_olive">#88898A</color>
+    <color name="grey_olive">#66615A</color>
     <color name="chocolate_plum">#513E0C</color>
     <color name="brand_brown">#513E0C</color>
     <color name="gold_ink">#8F6C14</color>
     <color name="brand_black">#000600</color>
-    <color name="white_smoke">#F3F3F3</color>
-    <color name="dark_background">#1A1A1A</color>
+    <!-- Blanco literal: fondo de ventana, igual que el bg de la web -->
+    <color name="window_background">#FFFFFF</color>
 </resources>
