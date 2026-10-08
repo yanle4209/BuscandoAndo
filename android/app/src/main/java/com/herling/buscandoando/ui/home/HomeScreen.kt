@@ -52,6 +52,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.LocationSearching
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MyLocation
@@ -287,6 +288,13 @@ fun HomeScreen(
     }
     // ══════════════════════════════════════════════
 
+    // ── I · "Contactanos" de la cabecera ──
+    //
+    // Estado local, igual que setShowContact de Home.jsx: es puro
+    // componente, no le toca nada al ViewModel (ni a la máquina de
+    // estados, que solo se ocupa de la búsqueda).
+    var mostrarContacto by remember { mutableStateOf(false) }
+
     HomeContent(
         state = state,
         onQueryChange = viewModel::onQueryChange,
@@ -297,6 +305,7 @@ fun HomeScreen(
         onNextPage = viewModel::onNextPage,
         onRetry = viewModel::onRetry,
         onOpenMap = onOpenMap,
+        onOpenContact = { mostrarContacto = true },
         onMyLocation = { requestLocation() },
         onClearLocation = viewModel::onClearLocation,
         onOpenSettings = { openAppSettings() },
@@ -329,6 +338,13 @@ fun HomeScreen(
             onSend = viewModel::onSendCorrection,
         )
     }
+
+    // ── I · modal "Contactanos" ──
+    // Espejo de {showContact && <div …>} de Home.jsx: se compone SOLO
+    // mientras esté abierto.
+    if (mostrarContacto) {
+        ContactDialog(onDismiss = { mostrarContacto = false })
+    }
 }
 
 @Composable
@@ -342,6 +358,7 @@ private fun HomeContent(
     onNextPage: () -> Unit,
     onRetry: () -> Unit,
     onOpenMap: () -> Unit,
+    onOpenContact: () -> Unit,
     onMyLocation: () -> Unit,
     onClearLocation: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -386,6 +403,7 @@ private fun HomeContent(
             onCategorySelected = onCategorySelected,
             onMunicipioSelected = onMunicipioSelected,
             onOpenMap = onOpenMap,
+            onOpenContact = onOpenContact,
             onMyLocation = onMyLocation,
         )
 
@@ -501,6 +519,7 @@ private fun HomeHeader(
     onCategorySelected: (com.herling.buscandoando.core.data.dto.Category?) -> Unit,
     onMunicipioSelected: (Cabecera?) -> Unit,
     onOpenMap: () -> Unit,
+    onOpenContact: () -> Unit,
     onMyLocation: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp)) {
@@ -519,15 +538,29 @@ private fun HomeHeader(
                 // El subtítulo dice el ALCANCE de la búsqueda, no un sitio
                 // fijo: al elegir municipio cambia solo (el hardcodeo
                 // "Moca · Espaillat" mentía en cuanto te ibas del municipio).
-                Text(
-                    text = when {
-                        state.destino == null -> stringResource(R.string.home_subtitle_country)
-                        state.municipioEtiqueta != null -> state.municipioEtiqueta.orEmpty()
-                        else -> stringResource(R.string.home_subtitle_map_point)
-                    },
-                    color = TextMuted,
-                    style = MaterialTheme.typography.labelMedium,
-                )
+                //
+                // A su derecha, el "Contactanos" de la cabecera (I): en la
+                // web es un botón pegado a la esquina derecha del header, y
+                // esta línea es donde cabe sin apretar el título.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = when {
+                            state.destino == null -> stringResource(R.string.home_subtitle_country)
+                            state.municipioEtiqueta != null -> state.municipioEtiqueta.orEmpty()
+                            else -> stringResource(R.string.home_subtitle_map_point)
+                        },
+                        color = TextMuted,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+
+                    ContactLink(
+                        onClick = onOpenContact,
+                        modifier = Modifier.padding(start = 10.dp),
+                    )
+                }
             }
 
             // ── Fase 6: ubicación ──
@@ -590,6 +623,141 @@ private fun HomeHeader(
         )
 
         Spacer(Modifier.height(14.dp))
+    }
+}
+
+// ═══════════════════ CONTACTO (I de la paridad) ═══════════════════
+
+/**
+ * Botón "Contactanos" de la cabecera (espejo de `.contact-link`).
+ *
+ * Mismo dibujo que en la web: filete amarillo y texto dorado sobre
+ * fondo transparente — NUNCA relleno, como todo el resto de la app.
+ * En la web vive pegado a la esquina derecha del header; aquí va en la
+ * línea del subtítulo, que es el único hueco donde cabe sin apretar
+ * el título "BuscandoAndo".
+ */
+@Composable
+private fun ContactLink(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(8.dp)
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .border(1.dp, CanaryYellow, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.home_contact),
+            color = GoldInk,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+        )
+    }
+}
+
+/**
+ * Modal "Contactanos" (espejo del bloque showContact de Home.jsx).
+ *
+ * Título negro, descripción suave y DOS filas accionables centradas:
+ * el correo abre la app de correo y el teléfono marca. Nada más, igual
+ * que en la web.
+ */
+@Composable
+private fun ContactDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = CanvasWhite,
+        ) {
+            Box {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 30.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = stringResource(R.string.home_contact_title),
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        textAlign = TextAlign.Center,
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Text(
+                        text = stringResource(R.string.home_contact_desc),
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 20.sp,
+                    )
+
+                    Spacer(Modifier.height(24.dp))
+
+                    val email = stringResource(R.string.home_contact_email)
+                    ContactRow(
+                        icon = Icons.Default.Email,
+                        text = email,
+                    ) { Acciones.correo(context, email) }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    val telefono = stringResource(R.string.home_contact_phone)
+                    ContactRow(
+                        icon = Icons.Default.Phone,
+                        text = telefono,
+                    ) { Acciones.telefono(context, telefono) }
+                }
+
+                // ✕ arriba a la derecha, como .modal-close de la web.
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(R.string.home_contact_close),
+                        tint = TextSecondary,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Una fila del modal de contacto: ícono dorado + dato accionable. */
+@Composable
+private fun ContactRow(icon: ImageVector, text: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = GoldInk,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = text,
+            color = TextPrimary,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
