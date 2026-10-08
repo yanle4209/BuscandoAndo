@@ -1,50 +1,51 @@
 package com.herling.buscandoando.ui.theme
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
 /**
  * Tema de BuscandoAndo.
  *
- * Es SIEMPRE oscuro (igual que la web) y NO usa "dynamic color"
- * porque eso dejaría que Android eligiera los colores y rompería
- * la identidad de marca.
+ * Es SIEMPRE claro (igual que la web, que pinta de blanco literal
+ * #ffffff sus tres zonas) y NO usa "dynamic color" porque eso
+ * dejaría que Android eligiera los colores y rompería la identidad
+ * de marca.
  */
 
-private val BuscandoAndoColors = darkColorScheme(
+private val BuscandoAndoColors = lightColorScheme(
     // ----- Acentos -----
-    primary = CanaryYellow,                // botones, links, íconos activos
+    primary = CanaryYellow,                // filetes y rellenos
     onPrimary = TextOnYellow,              // texto encima del amarillo
     primaryContainer = CanaryYellowDark,
-    onPrimaryContainer = TextPrimary,
+    onPrimaryContainer = TextOnYellow,
 
     secondary = GreyOlive,                 // elementos secundarios
-    onSecondary = TextPrimary,
+    onSecondary = TextOnYellow,
 
-    tertiary = ChocolatePlum,              // acento cálido
-    onTertiary = TextPrimary,
+    tertiary = BrandBrown,                 // acento calido
+    onTertiary = TextOnYellow,
 
-    // ----- Superficies -----
-    background = DarkBackground,           // fondo general
+    // ----- Superficies (blanco literal) -----
+    background = CanvasWhite,              // fondo general
     onBackground = TextPrimary,
 
-    surface = DarkSurface,                 // tarjetas elevadas
+    surface = SurfaceWhite,                // buscador, barra de mapa
     onSurface = TextPrimary,
 
-    surfaceVariant = DarkCard,             // campos de texto, chips
+    surfaceVariant = CardWhite,            // campos de texto, chips
     onSurfaceVariant = TextSecondary,
 
-    surfaceContainer = DarkCard,
-    surfaceContainerHigh = DarkCard,
+    surfaceContainer = CardWhite,
+    surfaceContainerHigh = CardWhite,
 
     // ----- Bordes -----
-    outline = DividerDark,
-    outlineVariant = DividerDark,
+    outline = Hairline,
+    outlineVariant = Hairline,
 
     // ----- Errores -----
     error = StatusClosed,
-    onError = TextPrimary,
+    onError = TextOnYellow,
 )
 
 @Composable

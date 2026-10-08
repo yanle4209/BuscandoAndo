@@ -2,13 +2,15 @@
 <resources>
     <!--
       Tema de la VENTANA (no de Compose).
-      Parent oscuro + windowBackground oscuro = no hay "destello blanco"
-      al abrir la app antes de que Compose pinte.
+      Lienzo blanco, igual que la web: el windowBackground evita el
+      destello al abrir la app antes de que Compose pinte, y con
+      windowLight* los iconos de la barra de estado salen en tinta.
     -->
-    <style name="Theme.BuscandoAndo" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/dark_background</item>
-        <item name="android:statusBarColor">@color/dark_background</item>
-        <item name="android:navigationBarColor">@color/dark_background</item>
-        <item name="android:windowLightStatusBar">false</item>
+    <style name="Theme.BuscandoAndo" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@color/window_background</item>
+        <item name="android:navigationBarColor">@color/window_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>

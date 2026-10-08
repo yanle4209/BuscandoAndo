@@ -53,15 +53,17 @@ import com.herling.buscandoando.R
 import com.herling.buscandoando.core.data.dto.BusinessDetail
 import com.herling.buscandoando.core.data.dto.HourDto
 import com.herling.buscandoando.ui.iconForCategory
+import com.herling.buscandoando.ui.theme.BrandBrown
 import com.herling.buscandoando.ui.theme.CanaryYellow
-import com.herling.buscandoando.ui.theme.DarkCard
-import com.herling.buscandoando.ui.theme.DarkSurface
-import com.herling.buscandoando.ui.theme.DividerDark
+import com.herling.buscandoando.ui.theme.CardWhite
+import com.herling.buscandoando.ui.theme.GoldInk
+import com.herling.buscandoando.ui.theme.SurfaceWhite
+import com.herling.buscandoando.ui.theme.Hairline
 import com.herling.buscandoando.ui.theme.StatusClosed
 import com.herling.buscandoando.ui.theme.TextMuted
 import com.herling.buscandoando.ui.theme.TextPrimary
 import com.herling.buscandoando.ui.theme.TextSecondary
-import com.herling.buscandoando.ui.theme.WhiteSmoke
+import com.herling.buscandoando.ui.theme.Gold
 import kotlinx.coroutines.launch
 
 /**
@@ -101,8 +103,8 @@ fun BusinessDetailSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,   // tap en el fondo o botón Atrás
         sheetState = sheetState,
-        containerColor = DarkCard,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = DividerDark) },
+        containerColor = CardWhite,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Hairline) },
     ) {
         val detail = state.detail
         val error = state.detailError
@@ -130,7 +132,7 @@ private fun DetailBody(detail: BusinessDetail, onClose: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(170.dp)
-                .background(DarkSurface),
+                .background(SurfaceWhite),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -158,7 +160,7 @@ private fun DetailBody(detail: BusinessDetail, onClose: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = detail.name,
-                    color = WhiteSmoke,
+                    color = Gold,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Black,
                     maxLines = 2,
@@ -336,7 +338,7 @@ private fun HourRow(hour: HourDto) {
             } else {
                 "${hour.open_time!!.toHhMm()} – ${hour.close_time!!.toHhMm()}"
             },
-            color = if (closed) StatusClosed else CanaryYellow,
+            color = if (closed) StatusClosed else GoldInk,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
         )
@@ -345,7 +347,7 @@ private fun HourRow(hour: HourDto) {
 
 // ═══════════════════ PIEZAS REUTILIZABLES ═══════════════════
 
-/** Encabezado amarillo + línea divisoria. Igual que en la web. */
+/** Encabezado de sección: icono dorado + título marrón + filete. */
 @Composable
 private fun SectionShell(
     title: String,
@@ -357,18 +359,18 @@ private fun SectionShell(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = CanaryYellow,
+            tint = GoldInk,
             modifier = Modifier.size(17.dp),
         )
         Spacer(Modifier.width(8.dp))
         Text(
             text = title,
-            color = CanaryYellow,
+            color = BrandBrown,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
         )
     }
-    HorizontalDivider(color = DividerDark, thickness = 1.dp, modifier = Modifier.padding(top = 8.dp))
+    HorizontalDivider(color = Hairline, thickness = 1.dp, modifier = Modifier.padding(top = 8.dp))
     Spacer(Modifier.height(4.dp))
     content()
 }
@@ -418,7 +420,7 @@ private fun SheetLoading() {
             .padding(vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        CircularProgressIndicator(color = CanaryYellow, strokeWidth = 3.dp)
+        CircularProgressIndicator(color = GoldInk, strokeWidth = 3.dp)
         Spacer(Modifier.height(14.dp))
         Text(
             text = stringResource(R.string.detail_loading),
@@ -466,11 +468,11 @@ private fun SheetError(message: String, onRetry: () -> Unit) {
             Icon(
                 imageVector = Icons.Default.Refresh,
                 contentDescription = null,
-                tint = CanaryYellow,
+                tint = GoldInk,
                 modifier = Modifier.size(16.dp),
             )
             Spacer(Modifier.width(8.dp))
-            Text(text = stringResource(R.string.home_error_retry), color = CanaryYellow)
+            Text(text = stringResource(R.string.home_error_retry), color = GoldInk)
         }
     }
 }

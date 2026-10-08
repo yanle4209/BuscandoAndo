@@ -87,6 +87,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.draw.shadow
 import coil3.compose.AsyncImage
 import com.herling.buscandoando.R
 import com.herling.buscandoando.core.data.FeaturedTier
@@ -94,11 +95,12 @@ import com.herling.buscandoando.core.data.dto.Business
 import com.herling.buscandoando.core.location.getCurrentCoordinates
 import com.herling.buscandoando.ui.iconForCategory
 import com.herling.buscandoando.ui.theme.CanaryYellow
-import com.herling.buscandoando.ui.theme.DarkBackground
+import com.herling.buscandoando.ui.theme.CanvasWhite
 import com.herling.buscandoando.ui.theme.BrandBrown
-import com.herling.buscandoando.ui.theme.DarkCard
-import com.herling.buscandoando.ui.theme.DarkSurface
-import com.herling.buscandoando.ui.theme.DividerDark
+import com.herling.buscandoando.ui.theme.CardWhite
+import com.herling.buscandoando.ui.theme.SurfaceWhite
+import com.herling.buscandoando.ui.theme.Hairline
+import com.herling.buscandoando.ui.theme.HairlineStrong
 import com.herling.buscandoando.ui.theme.Gold
 import com.herling.buscandoando.ui.theme.GoldInk
 import com.herling.buscandoando.ui.theme.GreyOlive
@@ -261,7 +263,7 @@ private fun HomeContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(CanvasWhite)
             // Los insets del sistema: sin esto el título queda DETRÁS
             // del reloj/batería. statusBarsPadding = espacio arriba.
             .statusBarsPadding()
@@ -286,13 +288,15 @@ private fun HomeContent(
             onOpenSettings = onOpenSettings,
         )
 
-        HorizontalDivider(color = DividerDark, thickness = 1.dp)
+        // ── Filete de cabecera: 3px de amarillo, igual que el
+        //    #header de la web. Separa sobre fondo blanco ──
+        HorizontalDivider(color = CanaryYellow, thickness = 3.dp)
 
         // ── Cuerpo: carga / error / vacío / cuadrícula ──
         when {
             state.isLoading && state.businesses.isEmpty() ->
                 CenteredMessage(Modifier.weight(1f)) {
-                    CircularProgressIndicator(color = CanaryYellow, strokeWidth = 3.dp)
+                    CircularProgressIndicator(color = GoldInk, strokeWidth = 3.dp)
                     Spacer(Modifier.height(14.dp))
                     Text(
                         text = stringResource(R.string.home_loading),
@@ -393,7 +397,8 @@ private fun HomeHeader(
             Column(Modifier.weight(1f)) {
                 Text(
                     text = "BuscandoAndo",
-                    color = CanaryYellow,
+                    // Título marrón como .right-brand-title de la web
+                    color = BrandBrown,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Black,
                 )
@@ -410,7 +415,7 @@ private fun HomeHeader(
             IconButton(onClick = onMyLocation) {
                 if (state.locationStatus == LocationStatus.Locating) {
                     CircularProgressIndicator(
-                        color = CanaryYellow,
+                        color = GoldInk,
                         strokeWidth = 2.dp,
                         modifier = Modifier.size(20.dp),
                     )
@@ -422,7 +427,7 @@ private fun HomeHeader(
                             Icons.Default.LocationSearching
                         },
                         contentDescription = stringResource(R.string.home_my_location),
-                        tint = if (state.hasLocation) CanaryYellow else TextSecondary,
+                        tint = if (state.hasLocation) GoldInk else TextSecondary,
                     )
                 }
             }
@@ -431,7 +436,7 @@ private fun HomeHeader(
                 Icon(
                     imageVector = Icons.Default.Map,
                     contentDescription = stringResource(R.string.home_open_map),
-                    tint = CanaryYellow,
+                    tint = GoldInk,
                 )
             }
         }
@@ -490,7 +495,7 @@ private fun LocationBar(
                 modifier = Modifier.padding(top = 2.dp, bottom = 12.dp),
             ) {
                 CircularProgressIndicator(
-                    color = CanaryYellow,
+                    color = GoldInk,
                     strokeWidth = 2.dp,
                     modifier = Modifier.size(14.dp),
                 )
@@ -507,13 +512,13 @@ private fun LocationBar(
                     Icon(
                         imageVector = Icons.Default.Place,
                         contentDescription = null,
-                        tint = CanaryYellow,
+                        tint = GoldInk,
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
                         text = stringResource(R.string.home_near_me),
-                        color = CanaryYellow,
+                        color = GoldInk,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f),
@@ -577,7 +582,7 @@ private fun LocationBar(
                     TextButton(onClick = onRetry) {
                         Text(
                             text = stringResource(R.string.home_error_retry),
-                            color = CanaryYellow,
+                            color = GoldInk,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                         )
@@ -585,7 +590,7 @@ private fun LocationBar(
                     TextButton(onClick = onOpenSettings) {
                         Text(
                             text = stringResource(R.string.home_open_settings),
-                            color = CanaryYellow,
+                            color = GoldInk,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                         )
@@ -614,15 +619,17 @@ private fun SearchField(
     var focused by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
 
-    val shape = RoundedCornerShape(12.dp)
+    // Radio del buscador: --radius-sm de la web (8px)
+    val shape = RoundedCornerShape(8.dp)
 
-    // Glow: animamos elevación (la sombra) y el color del borde
+    // Glow: animamos elevación (la sombra) y el color del borde.
+    // La web usa un halo ajustado: box-shadow 0 0 0 3px amarillo.
     val elevation by animateDpAsState(
-        targetValue = if (focused) 10.dp else 0.dp,
+        targetValue = if (focused) 6.dp else 0.dp,
         label = "glowElevation",
     )
     val borderColor by animateColorAsState(
-        targetValue = if (focused) CanaryYellow else DividerDark,
+        targetValue = if (focused) CanaryYellow else HairlineStrong,
         label = "glowBorder",
     )
 
@@ -638,8 +645,8 @@ private fun SearchField(
                 spotColor = CanaryYellow,
             )
             .clip(shape)
-            .background(DarkSurface)
-            .border(1.5.dp, borderColor, shape),
+            .background(SurfaceWhite)
+            .border(1.dp, borderColor, shape),
     ) {
         TextField(
             value = query,
@@ -658,7 +665,7 @@ private fun SearchField(
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = stringResource(R.string.home_search_label),
-                    tint = if (focused) CanaryYellow else TextSecondary,
+                    tint = if (focused) GoldInk else TextSecondary,
                 )
             },
             trailingIcon = {
@@ -687,7 +694,7 @@ private fun SearchField(
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 disabledIndicatorColor = Color.Transparent,
-                cursorColor = CanaryYellow,
+                cursorColor = GoldInk,
                 focusedTextColor = TextPrimary,
                 unfocusedTextColor = TextPrimary,
                 focusedPlaceholderColor = TextMuted,
@@ -734,8 +741,8 @@ private fun CategoryChip(
     Box(
         modifier = Modifier
             .clip(shape)
-            .background(if (selected) CanaryYellow else DarkCard)
-            .border(1.dp, if (selected) CanaryYellow else DividerDark, shape)
+            .background(if (selected) CanaryYellow else CardWhite)
+            .border(1.dp, if (selected) CanaryYellow else HairlineStrong, shape)
             .clickable(onClick = onClick)
             // ACCESIBILIDAD: con 7dp los chips medían ~34dp de alto,
             // por debajo de la zona de toque recomendada. Con 10dp
@@ -828,21 +835,24 @@ private fun FeaturedCard(
         FeaturedTier.levelOf(business.featured_tier) != null
     val imageUrl = business.images.firstOrNull()?.image_url
     val conFoto = !imageUrl.isNullOrBlank()
-    val shape = RoundedCornerShape(10.dp)
+    // Radio --card (12px) y sombra suave de la web
+    val shape = RoundedCornerShape(12.dp)
+    // Velo = .biz-card__cover-veil de la web (12% arriba → 62% → 90%)
     val veil = androidx.compose.ui.graphics.Brush.verticalGradient(
-        0f to Color.Transparent,
-        0.45f to Color(0x991C1504),
-        1f to Color(0xF21C1504),
+        0f to Color(0x1F1C1504),
+        0.58f to Color(0x9E1C1504),
+        1f to Color(0xE61C1504),
     )
 
     Box(
         modifier = modifier
             .heightIn(min = 118.dp)
+            .shadow(2.dp, shape)
             .clip(shape)
-            .background(if (conFoto) BrandBrown else DarkCard)
+            .background(if (conFoto) BrandBrown else CardWhite)
             // Sin escalonado por nivel y sin filete amarillo: el mismo borde
             // fino para todas, igual que la web.
-            .border(1.dp, DividerDark, shape)
+            .border(1.dp, Hairline, shape)
             .clickable(onClick = onClick),
     ) {
         if (conFoto) {
@@ -938,7 +948,7 @@ private fun BusinessCard(
     // lo mismo: mismo borde fino para todas, sin filete amarillo.
     val featured = business.is_featured == true ||
         FeaturedTier.levelOf(business.featured_tier) != null
-    val shape = RoundedCornerShape(10.dp)
+    val shape = RoundedCornerShape(12.dp)
 
     Column(
         modifier = Modifier
@@ -946,9 +956,11 @@ private fun BusinessCard(
             // Altura MINIMA fija: portada 108 + cuerpo (estado + padding).
             // La foto no puede hacer crecer la tarjeta.
             .heightIn(min = 152.dp)
+            // Sombra suave, como .biz-card de la web
+            .shadow(2.dp, shape)
             .clip(shape)
-            .background(DarkCard)
-            .border(1.dp, DividerDark, shape)
+            .background(CardWhite)
+            .border(1.dp, Hairline, shape)
             .clickable(onClick = onClick),
     ) {
         CardCover(business = business, featured = featured)
@@ -969,11 +981,23 @@ private fun BusinessCard(
 private fun CardCover(business: Business, featured: Boolean) {
     val imageUrl = business.images.firstOrNull()?.image_url
     val statusColor = statusColorOf(business.effective_status)
-    val veil = androidx.compose.ui.graphics.Brush.verticalGradient(
-        0f to Color.Transparent,
-        0.45f to Color(0x991C1504),
-        1f to Color(0xF21C1504),
-    )
+    // Velo = mismo degradado que .biz-card__cover-veil de la web
+    // (90% abajo → 62% al 42% → 12% arriba). SIN foto la web usa otro,
+    // que solo oscurece la banda inferior y deja el blanco arriba.
+    val veil = if (imageUrl.isNullOrBlank()) {
+        androidx.compose.ui.graphics.Brush.verticalGradient(
+            0f to Color.Transparent,
+            0.52f to Color.Transparent,
+            0.78f to Color(0xE61C1504),
+            1f to Color(0xEB1C1504),
+        )
+    } else {
+        androidx.compose.ui.graphics.Brush.verticalGradient(
+            0f to Color(0x1F1C1504),
+            0.58f to Color(0x9E1C1504),
+            1f to Color(0xE61C1504),
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -1000,14 +1024,16 @@ private fun CardCover(business: Business, featured: Boolean) {
         // Velo marrón: el nombre se lee sobre cualquier foto
         Box(modifier = Modifier.fillMaxSize().background(veil))
 
-        // Punto de estado, esquina superior izquierda
+        // Punto de estado, esquina superior izquierda. Con anillo blanco:
+        // los tonos de estado son ya oscuros y así se separan del velo.
         Box(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(7.dp)
                 .size(11.dp)
                 .clip(CircleShape)
-                .background(statusColor),
+                .background(statusColor)
+                .border(1.5.dp, Color.White, CircleShape),
         )
 
         // Título + categoría + pastilla "Destacado" encima de la foto
@@ -1092,6 +1118,8 @@ private fun DestacadoBadge(modifier: Modifier = Modifier) {
         modifier = modifier
             .clip(shape)
             .background(Color.White)
+            // Filete fino como .biz-card__badge de la web
+            .border(1.dp, Color(0x261F1A1A), shape)
             .padding(horizontal = 8.dp, vertical = 2.dp),
     ) {
         Text(
@@ -1135,12 +1163,12 @@ private fun PaginationBar(
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
 ) {
-    HorizontalDivider(color = DividerDark, thickness = 1.dp)
+    HorizontalDivider(color = Hairline, thickness = 1.dp)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(DarkBackground)
+            .background(CanvasWhite)
             // Espacio para la barra de navegación (gestos / botones)
             .navigationBarsPadding()
             .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -1153,7 +1181,7 @@ private fun PaginationBar(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 contentDescription = stringResource(R.string.home_prev_page),
-                tint = if (state.canGoPrevious) CanaryYellow else TextMuted,
+                tint = if (state.canGoPrevious) GoldInk else TextMuted,
             )
         }
 
@@ -1185,7 +1213,7 @@ private fun PaginationBar(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = stringResource(R.string.home_next_page),
-                tint = if (state.canGoNext) CanaryYellow else TextMuted,
+                tint = if (state.canGoNext) GoldInk else TextMuted,
             )
         }
     }
@@ -1243,11 +1271,11 @@ private fun ErrorState(
             Icon(
                 imageVector = Icons.Default.Refresh,
                 contentDescription = null,
-                tint = CanaryYellow,
+                tint = GoldInk,
                 modifier = Modifier.size(16.dp),
             )
             Spacer(Modifier.width(8.dp))
-            Text(text = stringResource(R.string.home_error_retry), color = CanaryYellow)
+            Text(text = stringResource(R.string.home_error_retry), color = GoldInk)
         }
     }
 }
@@ -1257,7 +1285,9 @@ private fun ErrorBanner(message: String, onRetry: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF3A2A2A))
+            // Banda de error: tinte rojo muy suave sobre el lienzo
+            // blanco, como los avisos de la web (nada de fondo oscuro).
+            .background(Color(0x14DC2626))
             // 4dp + los 40dp mínimos de TextButton = 48dp de alto total.
             .padding(horizontal = 14.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1288,7 +1318,7 @@ private fun ErrorBanner(message: String, onRetry: () -> Unit) {
         ) {
             Text(
                 text = stringResource(R.string.home_error_retry),
-                color = CanaryYellow,
+                color = GoldInk,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
             )

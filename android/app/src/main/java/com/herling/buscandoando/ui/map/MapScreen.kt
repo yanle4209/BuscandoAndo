@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,13 +41,15 @@ import com.herling.buscandoando.core.data.dto.Business
 import com.herling.buscandoando.ui.home.BusinessDetailSheet
 import com.herling.buscandoando.ui.home.HomeViewModel
 import com.herling.buscandoando.ui.home.statusColorOf
+import com.herling.buscandoando.ui.theme.BrandBrown
 import com.herling.buscandoando.ui.theme.CanaryYellow
-import com.herling.buscandoando.ui.theme.DarkBackground
-import com.herling.buscandoando.ui.theme.DarkCard
-import com.herling.buscandoando.ui.theme.DividerDark
+import com.herling.buscandoando.ui.theme.CanvasWhite
+import com.herling.buscandoando.ui.theme.CardWhite
+import com.herling.buscandoando.ui.theme.GoldInk
+import com.herling.buscandoando.ui.theme.Hairline
 import com.herling.buscandoando.ui.theme.TextMuted
 import com.herling.buscandoando.ui.theme.TextSecondary
-import com.herling.buscandoando.ui.theme.WhiteSmoke
+import com.herling.buscandoando.ui.theme.TextPrimary
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
@@ -83,7 +86,7 @@ fun MapScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackground),
+            .background(CanvasWhite),
     ) {
         BusinessMap(
             businesses = state.businesses,
@@ -290,7 +293,7 @@ private fun MapTopBar(
             .fillMaxWidth()
             // background ANTES de statusBarsPadding para que la barra
             // cubra también la franja del reloj/batería.
-            .background(DarkCard)
+            .background(CardWhite)
             .statusBarsPadding()
             .padding(bottom = 4.dp),
     ) {
@@ -302,25 +305,30 @@ private fun MapTopBar(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = stringResource(R.string.map_back),
-                    tint = WhiteSmoke,
+                    tint = TextPrimary,
                 )
             }
 
             Column(Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.map_title),
-                    color = WhiteSmoke,
+                    // Título marrón, igual que la cabecera de la web
+                    color = BrandBrown,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Black,
                 )
                 Text(
                     text = stringResource(R.string.map_counter, visible),
-                    color = CanaryYellow,
+                    color = GoldInk,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                 )
             }
         }
+
+        // Filete amarillo 3dp bajo la barra: el mismo que separa la
+        // cabecera de la web de su contenido.
+        HorizontalDivider(color = CanaryYellow, thickness = 3.dp)
     }
 }
 
@@ -333,8 +341,8 @@ private fun LegendPill(modifier: Modifier = Modifier) {
             .navigationBarsPadding()
             .padding(bottom = 16.dp)
             .clip(shape)
-            .background(DarkCard)
-            .border(1.dp, DividerDark, shape)
+            .background(CardWhite)
+            .border(1.dp, Hairline, shape)
             .padding(horizontal = 18.dp, vertical = 9.dp),
     ) {
         Text(
