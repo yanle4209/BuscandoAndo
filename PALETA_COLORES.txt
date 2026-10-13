@@ -1,0 +1,114 @@
+════════════════════════════════════════════════════════════════════
+ BUSCANDOANDO — PALETA DE COLORES
+ Actualizada: 2026-10-13
+ Fuentes: frontend/src/index.css (:root)
+          android/.../MainActivity.kt → paletteGroups() (guía de estilos)
+ Nota: la web y la app usan los MISMOS colores; solo cambian los
+       nombres (variables CSS vs constantes de Kotlin).
+════════════════════════════════════════════════════════════════════
+
+
+═══ 1. MARCA ═══
+
+#FBBF24   Amarillo BuscandoAndo      --yellow / CanaryYellow
+          Rellenos, acentos y el "Ando" del logotipo.
+
+#FCD34D   Amarillo claro             --yellow-light / CanaryYellowLight
+          Hover suave.
+
+#D99A0B   Amarillo oscuro            (solo app) CanaryYellowDark
+          Versión oscura del amarillo.
+
+#513E0C   Marrón                     --brown / BrandBrown
+          Superficies, bordes y el "Buscando" del logotipo.
+
+#A67E18   Dorado títulos             --gold / Gold
+          Títulos grandes.
+
+#8F6C14   Dorado texto               --yellow-ink / GoldInk
+          Enlaces y texto dorado legible (4,9:1). "Ver en mapa",
+          "Contactanos".
+
+#66615A   Gris olivo                 --grey / GreyOlive
+          Metadatos e iconos.
+
+#000600   Negro marca                (solo app) BrandBlack
+          Marca oscura puntual.
+
+
+═══ 2. LIENZO (BLANCO LITERAL) ═══
+
+#FFFFFF   Fondo / superficie / tarjetas
+          --bg, --surface, --surface-2 / CanvasWhite, SurfaceWhite,
+          CardWhite
+          Las tres zonas (barra, mapa/overlay y rejilla) son el MISMO
+          blanco; lo que las separa es el filete y la sombra mínima.
+
+#E2E1C9   Filete                      --border / Hairline
+          Bordes finos de tarjetas y separadores.
+
+#D4D3B6   Filete fuerte               --border-strong
+          Bordes de destacados y hover.
+
+
+═══ 3. TEXTO ═══
+
+#1F1A1A   Tinta principal             --ink / TextPrimary
+          Texto normal. También se usa SOBRE amarillo
+          (TextOnYellow) porque el amarillo exige tinta oscura.
+
+#5B564D   Texto suave                 --ink-soft / TextSecondary
+          Texto secundario.
+
+#66615A   Metadatos                   --grey / TextMuted
+          Direcciones, etiquetas, texto apagado.
+
+#8F6C14   Texto dorado (tarjetas)     --yellow-ink / TextBrown
+          Categorías y enlaces dentro de las tarjetas.
+
+
+═══ 4. ESTADOS OPERATIVOS ═══
+
+#15803D   Abierto                     StatusOpen
+#DC2626   Cerrado                     StatusClosed
+#C2410C   Por horario                 StatusBySchedule
+
+
+═══ 5. VERDES Y OCRE (solo web, variables extra) ═══
+
+#87B332   Verde hierba                --grass
+          Rellenos de "disponible".
+
+#1A512D   Verde bosque                --green
+          Texto de "ok".
+
+#9F6D1E   Ocre                        --ochre
+          Avisos en relleno.
+
+
+═══ 6. RADIOS Y SOMBRAS ═══
+
+Radio tarjetas:      14px   (--radius)
+Radio controles:     8px    (--radius-sm)
+
+Sombra normal:       0 1px 2px rgba(31,26,26,0.05),
+                     0 10px 26px rgba(31,26,26,0.06)
+Sombra elevada:      0 2px 6px rgba(31,26,26,0.07),
+                     0 18px 36px rgba(31,26,26,0.10)
+
+
+═══ 7. REGLAS QUE RIGEN LA PALETA ═══
+
+1. BLANCO LITERAL (#FFFFFF) en web, admin y app: nada de fondos
+   grises ni oscuros; el color separa, no rellena.
+
+2. El color solo aparece en TEXTOS, BORDES, ICONOS Y FILETES.
+   El hover y el foco son filete + anillo, NUNCA relleno de color.
+
+3. Todo texto legible ≥ 4,5:1 sobre su fondo. EXENCIÓN: los
+   logotipos (WCAG 1.4.3), por eso el "Ando" en #FBBF24 se permite
+   sobre blanco.
+
+4. Amarillo #FBBF24 y marrón #513E0C son la firma de marca en TODA
+   la plataforma, incluido el logotipo ("Buscando" marrón +
+   "Ando" amarillo).
