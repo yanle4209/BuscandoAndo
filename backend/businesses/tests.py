@@ -3007,6 +3007,24 @@ class IPDelEnvioTests(SimpleTestCase):
 
         self.assertEqual(_ip(peticion), '8.8.8.8')
 
+    def test_cf_connecting_ip_manda_sobre_la_cadena(self):
+        """Detras de Cloudflare, solo el puede escribir esa cabecera:
+        si llega, es la del visitante aunque la cadena diga otra cosa."""
+        peticion = RequestFactory().get(
+            '/',
+            HTTP_CF_CONNECTING_IP='203.0.113.9',
+            HTTP_X_FORWARDED_FOR='9.9.9.9, 8.8.8.8')
+
+        self.assertEqual(_ip(peticion), '203.0.113.9')
+
+    def test_cf_connecting_ip_invalida_se_descarta(self):
+        peticion = RequestFactory().get(
+            '/',
+            HTTP_CF_CONNECTING_IP='no-es-ip',
+            HTTP_X_FORWARDED_FOR='9.9.9.9, 8.8.8.8')
+
+        self.assertEqual(_ip(peticion), '8.8.8.8')
+
     def test_sin_cadena_se_usa_remote_addr(self):
         peticion = RequestFactory().get('/')
 

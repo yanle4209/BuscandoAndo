@@ -33,7 +33,7 @@ se auditaron servicios de terceros (Render, Cloudinary, Cloudflare).
 | 2 | La IP del `Envio` se podía falsificar | Media | Corregido |
 | 3 | Sin HSTS ni CSP; cookies de sesión/CSRF sin `Secure` | Media | Corregido |
 | 4 | APK con `android:allowBackup="true"` | Baja | Corregido (surtirá en el próximo build) |
-| 5 | Sin límite de intentos en `/admin/login/` | Media | **Pendiente** (decisión del dueño) |
+| 5 | Sin límite de intentos en `/admin/login/` | Media | **Corregido** (freno en la app) |
 | 6 | Confirmar `SECRET_KEY` en el panel de Render | Media | **Verificado** (existe, valor aleatorio) |
 | 7 | Keystore de firmas dentro de la carpeta sincronizada con OneDrive | Media | **Recomendación** |
 | 8 | Varios menores (ver §8) | Baja/Info | Documentados |
@@ -107,9 +107,13 @@ justamente lo que no puede hacer un registro de auditoría.
 
 Corregido: ahora se lee la **última** entrada válida (la que declaró el
 último proxy, que el cliente no puede reescribir); si no hay cadena, se usa
-`REMOTE_ADDR`. Añadidos 3 tests (`IPDelEnvioTests`). Recordatorio del propio
-código: la IP es solo para mirar de dónde vienen los lotes; **el bloqueo es
-por token, no por IP**.
+`REMOTE_ADDR`. El mismo día se completó la regla con la cabecera
+**`CF-Connecting-IP`** por delante — solo Cloudflare puede escribirla y
+trae al visitante de verdad, mientras que en la cadena `X-Forwarded-For` la
+dirección del cliente queda en medio y al final acaba la del borde de
+Cloudflare, común a todos. Añadidos 5 tests (`IPDelEnvioTests`). Recordatorio
+del propio código: la IP es solo para mirar de dónde vienen los lotes;
+**el bloqueo es por token, no por IP**.
 
 ---
 
@@ -160,19 +164,44 @@ APKs ya repartidos quedan como están.
 
 ---
 
-## 5. MEDIA (pendiente) — Sin límite de intentos en `/admin/login/`
+## 5. MEDIA (corregido el 19/oct) — Freno de intentos en el login del admin
 
-No hay ningún freno al intento de contraseña: ni django-axes, ni throttling
-en el login, ni nada equivalente. La contraseña del admin
-(`BuscandoAndo2026!`, no está en el repositorio ni en su historial —
-verificado) aguanta un diccionario normal, pero un ataque de fuerza bruta o
-de diccionario dirigido no tiene nada que lo frene a nivel de aplicación.
+No había **ningún** freno al intento de contraseña: ni django-axes, ni
+throttling en el login, ni nada equivalente — un ataque de diccionario
+contra `/admin/login/` podía probar sin límite.
 
-**Recomendación (sin tocar código)**: delante ya está Cloudflare
-(`Server: cloudflare` en las respuestas). En el panel de Cloudflare:
-*Security → WAF → Rate limiting rules* — una regla para `/admin/login*` de,
-por ejemplo, 5 intentos cada 5 minutos por IP. Alternativa con código:
-instalar `django-axes`.
+Matiz descubierto al intentar la recomendación original: **el Cloudflare
+que se ve delante del sitio (`Server: cloudflare`) es el de Render, no una
+cuenta propia** — `buscandoando.onrender.com` vive en el dominio de Render
+y no admite reglas nuestras desde ningún panel. Poner un rate limiting de
+Cloudflare exigiría comprar un dominio propio (camino opcional, abajo), así
+que el freno se metió en la aplicación:
+
+**`config.middleware.ThrottleLoginAdmin`** — sin dependencias nuevas ni
+tablas (los contadores viven en la cache del proceso; un reinicio los
+borra, aceptable para un freno):
+
+* **por IP**: 5 fallos → 10 minutos sin validar contraseñas;
+* **por usuario**: 25 fallos → 15 minutos (un ataque que cambie de IP a
+  cada rista acaba en el techo de usuario; un escaner aleatorio no alcanza
+  25 veces el mismo usuario y no candade la cuenta a posta);
+* cuando salta, responde **429 + `Retry-After` sin comprobar la
+  contraseña** — el diccionario no gana nada probando contra el hash;
+* un login bueno **borra** sus contadores; el formulario (GET) nunca se
+  freña; los intentos que llegan con el freno puesto **no alargan** la
+  espera (nadie puede condenar la cuenta a candado permanente).
+
+La IP del contador usa la misma regla que los `Envio`, ahora con la
+cabecera **`CF-Connecting-IP`** por delante: solo Cloudflare puede
+escribirla y trae al visitante de verdad, que en la cadena
+`X-Forwarded-For` queda en medio (el cliente puede anteponer lo que quiera
+y al final acaba la dirección del borde de Cloudflare, que es la misma para
+todos). Respaldo: última entrada válida de la cadena, y `REMOTE_ADDR`.
+
+7 tests nuevos (los 5 caminos del freno + 2 de la cabecera nueva). Camino
+opcional futuro, si algún día hay dominio propio: la regla de Cloudflare
+describa en el camino B de los apuntes (5 cada 10 minutos por IP sobre
+`/admin/login/`) — con las dos capas a la vez no se estorban.
 
 ---
 
@@ -300,5 +329,6 @@ etiqueta); se corrigió antes de generar los APK nuevos.
 
 ## Estado de la suite
 
-200 tests del backend en verde tras los cambios: los del health check, los
-nuevos de la vista SPA (5), los de la IP (3) y toda la suite previa.
+209 tests del backend en verde tras los cambios: los del health check, los
+de la vista SPA (5), los de la IP (5), los del freno de login (7) y toda
+la suite previa.

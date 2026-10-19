@@ -81,18 +81,28 @@ def _en_su_municipio(colaborador, ficha):
 
 
 def _ip(request):
-    """La ultima IP valida de ``X-Forwarded-For`` (o ``REMOTE_ADDR``).
+    """La IP del cliente real (para mirar, no para decidir).
 
-    La cadena se construye de izquierda a derecha: lo PRIMERO lo teclea
-    el cliente —spoofable: quien manda el envio podia firmar la IP que
-    quisiera— y cada proxy anade el suyo al final. Leer la ultima es
-    leer lo que el ultimo proxy declaro, que el cliente no puede
-    reescribir (hallado en la auditoria del 19/oct).
+    Detras de Cloudflare/Render la cadena ``X-Forwarded-For`` no se lee
+    a ojo: el cliente puede anteponer lo que quiera y cada proxy anade
+    el suyo al final, donde acaba la direccion del borde de
+    Cloudflare, que es la misma para todos. Cloudflare mantiene ademas
+    ``CF-Connecting-IP`` con el visitante de verdad, y esa solo la puede
+    escribir el: si llega, manda ella. Si no llega, se toma la ultima
+    entrada valida de la cadena (la que declaro el ultimo proxy, que el
+    cliente no puede reescribir), y si no hay cadena, ``REMOTE_ADDR``.
 
     Solo para mirar si un lote de envios viene de un solo sitio. Nada se
     decide por aqui: el bloqueo es por token, no por IP, que detras de un
     operador movil comparten varias personas.
     """
+    conector = request.META.get('HTTP_CF_CONNECTING_IP', '').strip()
+    if conector:
+        try:
+            validate_ipv46_address(conector)
+            return conector
+        except ValidationError:
+            pass
     crudo = request.META.get('HTTP_X_FORWARDED_FOR', '')
     candidatos = [p.strip() for p in crudo.split(',') if p.strip()]
     if not candidatos:

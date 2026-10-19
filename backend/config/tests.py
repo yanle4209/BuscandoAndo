@@ -27,11 +27,24 @@ import tempfile
 from pathlib import Path
 from unittest import mock
 
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.db import connection
 from django.test import RequestFactory, SimpleTestCase, TestCase
 from django.test.utils import CaptureQueriesContext, override_settings
 
 from .health import current_commit
+
+# El admin maquilla las hojas con el storage con manifest, que solo
+# resuelve despues de `collectstatic`: en los tests no hay manifest y la
+# pagina de login ni llegaria a pintarse. Mismo tramite que en
+# businesses/tests.py (STATIC_SIN_MANIFEST).
+STATIC_SIN_MANIFEST = {
+    **settings.STORAGES,
+    'staticfiles': {'BACKEND':
+                    'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}
 
 # El serve_react vive en la raiz del backend (backend/views.py), no en
 # config/, de ahi el import plano.
@@ -152,3 +165,97 @@ class ServeReactSeguridadTests(SimpleTestCase):
     def test_ruta_inexistente_cae_al_index(self):
         """El fallback de SPA sigue funcionando."""
         self.assertIn(b'INDICE', self._contenido('algo/que/no/existe'))
+
+
+@override_settings(STORAGES=STATIC_SIN_MANIFEST)
+class FrenoLoginAdminTests(TestCase):
+    """El freno de intentos contra /admin/login/ (auditoria 19/oct).
+
+    Un ataque de diccionario no puede probar contrasenas sin limite:
+    5 fallos por IP y 25 por usuario, y cuando salta, 429 sin siquiera
+    mirar la contrasena.
+    """
+
+    CLAVE_BUENA = 'clave-correcta-12345'
+    URL = '/admin/login/'
+
+    def setUp(self):
+        cache.clear()
+        get_user_model().objects.create_superuser(
+            'admin', 'admin@example.com', self.CLAVE_BUENA)
+
+    def _post(self, clave='equivocada', ip='127.0.0.1', usuario='admin'):
+        return self.client.post(self.URL, {
+            'username': usuario,
+            'password': clave,
+            'next': '/admin/',
+        }, REMOTE_ADDR=ip)
+
+    def test_cinco_fallos_y_al_sexto_entra_el_freno(self):
+        for _ in range(5):
+            # Django pinta el error con 200: eso es lo que cuenta.
+            self.assertEqual(self._post().status_code, 200)
+
+        respuesta = self._post(clave=self.CLAVE_BUENA)
+
+        # Ni con la contrasena buena: la contraseña no llega a probarse.
+        self.assertEqual(respuesta.status_code, 429)
+        self.assertIn('Retry-After', respuesta)
+
+    def test_un_freno_en_una_ip_no_arrstra_a_otra(self):
+        for _ in range(5):
+            self._post(ip='203.0.113.9')
+
+        respuesta = self._post(clave=self.CLAVE_BUENA, ip='198.51.100.7')
+
+        self.assertEqual(respuesta.status_code, 302)
+
+    def test_el_freno_no_toca_al_formulario(self):
+        for _ in range(6):
+            self._post()
+
+        respuesta = self.client.get(self.URL)
+
+        self.assertEqual(respuesta.status_code, 200)
+
+    def test_un_login_bueno_borra_su_contador(self):
+        for _ in range(4):
+            self._post()
+        self.assertEqual(
+            self._post(clave=self.CLAVE_BUENA).status_code, 302)
+
+        for _ in range(4):
+            self._post()
+        self.assertEqual(
+            self._post(clave=self.CLAVE_BUENA).status_code, 302)
+
+    def test_el_freno_de_usuario_no_mira_ips(self):
+        """Un ataque que cambia de IP a cada rato acaba en el techo
+        de usuario (25), no se libra por cambiar de cubeta."""
+        for i in range(25):
+            self._post(ip='203.0.113.%d' % (i + 1))
+
+        respuesta = self._post(clave=self.CLAVE_BUENA, ip='198.51.100.7')
+
+        self.assertEqual(respuesta.status_code, 429)
+
+    def test_otros_usuarios_no_arrastran_al_admin(self):
+        """Si alguien candade 'otro' 25 veces, el admin sigue entrando."""
+        get_user_model().objects.create_user('otro', password='x')
+        for i in range(25):
+            self._post(usuario='otro', ip='203.0.113.%d' % (i + 1))
+
+        respuesta = self._post(clave=self.CLAVE_BUENA, ip='198.51.100.7')
+
+        self.assertEqual(respuesta.status_code, 302)
+
+    def test_los_intentos_bloqueados_no_alargan_la_espera(self):
+        """Quien llega con el freno puesto no suma ni reabre nada:
+        el candado se levanta solo cuando expira su ventana."""
+        for _ in range(5):
+            self._post()
+        for _ in range(3):
+            self.assertEqual(self._post().status_code, 429)
+
+        # siguen siendo 5: los3 bloqueados no cuentan como fallo
+        self.assertEqual(cache.get('ba-login:ip:127.0.0.1'), 5)
