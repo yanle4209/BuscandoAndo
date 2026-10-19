@@ -174,12 +174,18 @@ class ResumenDelAdminTests(TestCase):
         self.assertContains(vacio, 'Todavia no hay datos')
 
         UsoDiario.objects.create(
-            fecha=timezone.localdate(), evento='consulta', total=5)
+            fecha=timezone.localdate(), evento='consulta', total=7)
         con_login = self.client.get('/admin/uso/usodiario/resumen/')
 
         self.assertEqual(con_login.status_code, 200)
         self.assertContains(con_login, 'Por evento y dia')
         self.assertContains(con_login, 'Consulta al listado')
+        # El VALOR tiene que pintarse en su celda, no solo la etiqueta:
+        # el pivote por fecha fallo en silencio en produccion (la fecha
+        # del diccionario no coincidia en tipo con la de los dias) y
+        # la tabla salia entera en ceros.
+        self.assertContains(con_login, '<td>7</td>')
+        self.assertContains(con_login, '<td class="total">7</td>')
 
     def test_el_listado_ofrece_el_resumen(self):
         self.client.force_login(self.admin)

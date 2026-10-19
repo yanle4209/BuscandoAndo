@@ -64,15 +64,33 @@ class UsoAdmin(admin.ModelAdmin):
         filas = (UsoDiario.objects.filter(fecha__gte=desde)
                  .values('fecha', 'evento')
                  .annotate(n=Sum('total')))
+
+        def clave(valor):
+            """La fecha como llave de tabla, venga como venga.
+
+            El ``values('fecha')`` devuelve la fecha como objeto
+            ``date``... o como ``datetime``, o hasta como texto, segun
+            el motor y la version del conector. Si la llave del
+            diccionario no coincide EXACTAMENTE en tipo con la de la
+            lista de dias, el ``.get(dia, 0)`` falla en silencio y la
+            tabla sale entera en ceros — que es lo que le paso al
+            panel la primera vez en produccion. Formateada como
+            'AAAA-MM-DD' todas las formas caen en la misma llave.
+            """
+            if hasattr(valor, 'strftime'):
+                return valor.strftime('%Y-%m-%d')
+            return str(valor)
+
         por_evento = {}
         for fila in filas:
-            por_evento.setdefault(fila['evento'], {})[fila['fecha']] = fila['n']
+            por_evento.setdefault(fila['evento'], {})[
+                clave(fila['fecha'])] = fila['n']
 
         filas_tabla = []
         for codigo, etiqueta in EVENTOS:
             if codigo not in por_evento:
                 continue
-            celdas = [por_evento[codigo].get(dia, 0) for dia in dias]
+            celdas = [por_evento[codigo].get(clave(dia), 0) for dia in dias]
             filas_tabla.append({
                 'etiqueta': etiqueta,
                 'celdas': celdas,
@@ -106,6 +124,7 @@ class UsoAdmin(admin.ModelAdmin):
                 sum(fila['celdas'][i] for fila in filas_tabla)
                 for i in range(14)
             ],
+            'total_general': sum(fila['total'] for fila in filas_tabla),
             'plataformas': plataformas,
             'lugares': lugares,
             'terminos': list(
