@@ -322,6 +322,10 @@ sondeos, con este resultado:
   sexto responde **429 con `Retry-After: 600`**, y el séptimo **con la
   contraseña correcta sigue en 429** (no se llega a probar). El formulario
   GET sigue en 200. La web cargó después sin errores de consola.
+* **Aislamiento por IP confirmado en vivo**: con la IP de la prueba aún
+  bloqueada, el dueño entró, salió y volvió a entrar al panel desde su
+  propia IP sin ningún 429 — el freno se queda con la IP que falla y no
+  arrastra a las demás. Última comprobación que quedaba del hallazgo 5.
 * El resto seguía igual de limpio: CORS sin reflejar orígenes ajenos,
   http→https con 301, Host ajeno con 403, 404 genérico sin fuga de
   DEBUG.
