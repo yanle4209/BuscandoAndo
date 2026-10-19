@@ -22,6 +22,10 @@ from .geografia import (
 from .models import Business, Correction
 from .serializers import BusinessListSerializer, BusinessDetailSerializer, CorrectionCreateSerializer, CorrectionSerializer
 
+# Las metricas de uso se cuentan dentro de la vista que ya atiende la
+# peticion (uso.models): aqui solo se le avisa.
+from uso.models import registrar
+
 # Se traen los nombres sueltos y no el modulo: la vista se llama
 # ``pendientes`` igual que el modulo, y dentro de la funcion el nombre
 # local taparia al importado.
@@ -153,6 +157,11 @@ class CorrectionViewSet(viewsets.ModelViewSet):
             return CorrectionCreateSerializer
         return CorrectionSerializer
 
+    def perform_create(self, serializer):
+        """El aviso entra y de paso se cuenta, sin frenar el formulario."""
+        super().perform_create(serializer)
+        registrar('correccion', self.request)
+
 
 class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -259,6 +268,33 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
             qs = busqueda.filtrar_por_texto(qs, search)
 
         return qs
+
+    def list(self, request, *args, **kwargs):
+        """La consulta del buscador, y de paso su cuenta en las metricas.
+
+        El texto tecleado y el numero de resultados viajan juntos: es
+        lo que dice que buscan y si lo encuentran. Los destacados NO
+        cuentan (``featured-by-search``): el frontend dispara las dos
+        llamadas en la misma accion de buscar, y contar las dos seria
+        cobrar dos veces por un mismo clic.
+        """
+        respuesta = super().list(request, *args, **kwargs)
+        termino = (request.query_params.get('text')
+                   or request.query_params.get('search') or '')
+        resultados = None
+        if isinstance(respuesta.data, dict):
+            resultados = len(respuesta.data.get('results') or [])
+        elif isinstance(respuesta.data, list):
+            resultados = len(respuesta.data)
+        registrar('consulta', request,
+                  termino=termino or None, resultados=resultados)
+        return respuesta
+
+    def retrieve(self, request, *args, **kwargs):
+        """Abrir una ficha tambien se cuenta: es la pagina que importa."""
+        respuesta = super().retrieve(request, *args, **kwargs)
+        registrar('ficha', request)
+        return respuesta
 
     @action(detail=False, methods=['get'], url_path='featured-by-search')
     def featured_by_search(self, request):

@@ -1,0 +1,113 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main">
+  <style>
+    #uso th, #uso td { padding: 4px 7px; font-size: 12px; text-align: right;
+                       border-bottom: 1px solid #eee; }
+    #uso th:first-child, #uso td:first-child { text-align: left; }
+    #uso thead th { background: #f8f8f8; font-weight: 600; }
+    #uso .total { font-weight: 700; }
+    .resumen-bloque { margin-bottom: 26px; max-width: 980px; }
+  </style>
+
+  <p style="max-width:760px">
+    Del <strong>{{ desde|date:"j \\d\\e F" }}</strong> al
+    <strong>{{ hoy|date:"j \\d\\e F" }}</strong>.
+    Cuenta solo el backend, dentro de las peticiones que ya atiende:
+    sin cookies, sin IPs, sin scripts de terceros. La plataforma la
+    declara el propio cliente (<code>X-Plataforma</code>).
+  </p>
+
+  {% if not filas_tabla %}
+    <p>Todavia no hay datos: los contadores arrancan con la primera
+    consulta que entre al listado.</p>
+  {% else %}
+
+  <div class="resumen-bloque">
+    <h2>Por evento y dia</h2>
+    <table id="uso">
+      <thead>
+        <tr>
+          <th>Evento</th>
+          {% for dia in dias %}<th>{{ dia|date:"d/m" }}</th>{% endfor %}
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fila in filas_tabla %}
+        <tr>
+          <th>{{ fila.etiqueta }}</th>
+          {% for celda in fila.celdas %}<td>{{ celda }}</td>{% endfor %}
+          <td class="total">{{ fila.total }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <th>Todo</th>
+          {% for total in totales_dia %}<td>{{ total }}</td>{% endfor %}
+          <td class="total">{{ filas_tabla|length }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="resumen-bloque">
+    <h2>Por plataforma</h2>
+    <ul>
+      {% for fila in plataformas %}
+        <li><strong>{{ fila.etiqueta }}</strong>: {{ fila.n }}</li>
+      {% empty %}
+        <li>Sin datos todavia.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="resumen-bloque">
+    <h2>Municipios que mas pesan</h2>
+    <table id="uso">
+      <thead><tr><th>Municipio</th><th>Provincia</th><th>Consultas</th></tr></thead>
+      <tbody>
+        {% for fila in lugares %}
+        <tr>
+          <td>{{ fila.municipio }}</td>
+          <td>{{ fila.provincia }}</td>
+          <td class="total">{{ fila.n }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3">Sin datos todavia.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="resumen-bloque">
+    <h2>Lo que se busca</h2>
+    <table id="uso">
+      <thead><tr><th>Termino</th><th>Busquedas</th></tr></thead>
+      <tbody>
+        {% for fila in terminos %}
+        <tr><td>{{ fila.termino }}</td><td class="total">{{ fila.busquedas }}</td></tr>
+        {% empty %}
+        <tr><td colspan="2">Sin datos todavia.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="resumen-bloque">
+    <h2>Se busca y no se encuentra (lo que falta levantar)</h2>
+    <table id="uso">
+      <thead><tr><th>Termino</th><th>Sin resultados</th></tr></thead>
+      <tbody>
+        {% for fila in huecos %}
+        <tr><td>{{ fila.termino }}</td><td class="total">{{ fila.sin_resultados }}</td></tr>
+        {% empty %}
+        <tr><td colspan="2">Nada: todo lo buscado ha encontrado algo.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% endif %}
+</div>
+{% endblock %}
