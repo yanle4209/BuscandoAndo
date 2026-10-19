@@ -34,7 +34,7 @@ se auditaron servicios de terceros (Render, Cloudinary, Cloudflare).
 | 3 | Sin HSTS ni CSP; cookies de sesión/CSRF sin `Secure` | Media | Corregido |
 | 4 | APK con `android:allowBackup="true"` | Baja | Corregido (surtirá en el próximo build) |
 | 5 | Sin límite de intentos en `/admin/login/` | Media | **Pendiente** (decisión del dueño) |
-| 6 | Falta confirmar `SECRET_KEY` en el panel de Render | Media | **Pendiente** (comprobación manual) |
+| 6 | Confirmar `SECRET_KEY` en el panel de Render | Media | **Verificado** (existe, valor aleatorio) |
 | 7 | Keystore de firmas dentro de la carpeta sincronizada con OneDrive | Media | **Recomendación** |
 | 8 | Varios menores (ver §8) | Baja/Info | Documentados |
 
@@ -176,24 +176,20 @@ instalar `django-axes`.
 
 ---
 
-## 6. MEDIA (pendiente) — Confirmar `SECRET_KEY` en el panel de Render
+## 6. MEDIA (verificado el 19/oct) — `SECRET_KEY` en el panel de Render
 
 `settings.py` usa `SECRET_KEY` del entorno con un valor por defecto
 **público** (`django-insecure-cambiar-en-produccion`) si nadie la define. El
 `render.yaml` la genera (`generateValue: true`), **pero el propio archivo
 avisa de que el servicio `buscandoando` se dio de alta desde el panel, no
-desde un Blueprint, y que ese archivo no gobierna lo desplegado**. Es decir:
-no se puede saber desde aquí si el panel define la variable.
+desde un Blueprint, y que ese archivo no gobierna lo desplegado** — así que
+la única forma de saberlo era mirar el panel.
 
-Si no está definida, la clave por defecto estaría firmando mensajes, CSRF y
-cualquier token futuro con un valor que cualquiera conoce. Con las sesiones
-en BD no permite forjar una sesión de admin directamente, pero es una base
-mala para todo lo demás.
-
-**Acción**: en Render → servicio `buscandoando` → *Environment*, comprobar
-que existe `SECRET_KEY` (y copiarla a un sitio seguro). Si no existe,
-crearla (valor aleatorio largo) y redeplegar: no pasa nada con invalidar las
-sesiones actuales.
+**Resolución**: el dueño comprobó el 19/oct de 2026 en Render → servicio
+`buscandoando` → *Environment* que `SECRET_KEY` **existe con un valor
+aleatorio**. Producción firma con clave propia: sin acción pendiente. Único
+consejo: guardar una copia de esa variable en un lugar seguro (gestor de
+contraseñas o cuaderno), porque es la llave maestra del sitio.
 
 ---
 
