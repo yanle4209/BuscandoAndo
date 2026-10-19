@@ -317,6 +317,11 @@ sondeos, con este resultado:
   `/levantamiento` (campo de token). **Cero mensajes de consola y cero
   violaciones de CSP** en las cuatro páginas: la política cerrada no rompe
   nada de lo que se usa a diario.
+* **Freno de login (commit `fa4c116`)**: secuencia real contra
+  `/admin/login/` en producción — 5 intentos fallidos responden 200, el
+  sexto responde **429 con `Retry-After: 600`**, y el séptimo **con la
+  contraseña correcta sigue en 429** (no se llega a probar). El formulario
+  GET sigue en 200. La web cargó después sin errores de consola.
 * El resto seguía igual de limpio: CORS sin reflejar orígenes ajenos,
   http→https con 301, Host ajeno con 403, 404 genérico sin fuga de
   DEBUG.
