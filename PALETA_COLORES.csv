@@ -1,0 +1,22 @@
+﻿Categoria;Nombre;Hex;Uso;Variable CSS (web);Constante Kotlin (app);Contraste vs blanco (WCAG);Veredicto
+1. Marca;Amarillo BuscandoAndo;#FBBF24;"Rellenos, acentos y el ""Ando"" del logotipo";--yellow;CanaryYellow;1.67:1;Logotipo: exento de contraste (WCAG 1.4.3)
+1. Marca;Amarillo claro;#FCD34D;Hover suave;--yellow-light;CanaryYellowLight;1.44:1;Solo relleno decorativo (no legible)
+1. Marca;Amarillo oscuro (solo app);#D99A0B;Version oscura del amarillo;;CanaryYellowDark;2.45:1;Solo relleno decorativo (no legible)
+1. Marca;Marron;#513E0C;"Superficies, bordes y el ""Buscando"" del logotipo";--brown;BrandBrown;10.27:1;Texto legible
+1. Marca;Dorado titulos;#A67E18;Titulos grandes;--gold;Gold;3.74:1;Bordes, iconos o titulos grandes (>=3:1)
+1. Marca;Dorado texto;#8F6C14;"Enlaces y texto dorado legible: ""Ver en mapa"", ""Contactanos""";--yellow-ink;GoldInk;4.86:1;Texto legible
+1. Marca;Gris olivo;#66615A;Metadatos e iconos;--grey;GreyOlive;6.14:1;Texto legible
+1. Marca;Negro marca (solo app);#000600;Marca oscura puntual;;BrandBlack;20.47:1;Texto legible
+2. Lienzo;Fondo / superficie / tarjetas;#FFFFFF;Las tres zonas son el MISMO blanco: lo que las separa es el filete y la sombra minima;--bg, --surface, --surface-2;CanvasWhite, SurfaceWhite, CardWhite;1.00:1;Fondo: es el propio lienzo
+2. Lienzo;Filete;#E2E1C9;Bordes finos de tarjetas y separadores;--border;Hairline;1.33:1;Solo relleno decorativo (no legible)
+2. Lienzo;Filete fuerte;#D4D3B6;Bordes de destacados y hover;--border-strong;;1.52:1;Solo relleno decorativo (no legible)
+3. Texto;Tinta principal;#1F1A1A;Texto normal. Tambien sobre amarillo (TextOnYellow);--ink;TextPrimary;17.20:1;Texto legible
+3. Texto;Texto suave;#5B564D;Texto secundario;--ink-soft;TextSecondary;7.28:1;Texto legible
+3. Texto;Metadatos;#66615A;Direcciones, etiquetas, texto apagado;--grey;TextMuted;6.14:1;Texto legible
+3. Texto;Texto dorado (tarjetas);#8F6C14;Categorias y enlaces dentro de las tarjetas;--yellow-ink;TextBrown;4.86:1;Texto legible
+4. Estados operativos;Abierto;#15803D;Estado operativo abierto;;StatusOpen;5.02:1;Texto legible
+4. Estados operativos;Cerrado;#DC2626;Estado operativo cerrado;;StatusClosed;4.83:1;Texto legible
+4. Estados operativos;Por horario;#C2410C;Estado operativo por horario;;StatusBySchedule;5.18:1;Texto legible
+5. Verdes y ocre (solo web);Verde hierba;#87B332;"Rellenos de ""disponible""";--grass;;2.46:1;Solo relleno decorativo (no legible)
+5. Verdes y ocre (solo web);Verde bosque;#1A512D;"Texto de ""ok""";--green;;9.30:1;Texto legible
+5. Verdes y ocre (solo web);Ocre;#9F6D1E;Avisos en relleno;--ochre;;4.49:1;Bordes, iconos o titulos grandes (>=3:1)
