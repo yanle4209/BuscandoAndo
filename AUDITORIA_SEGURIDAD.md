@@ -35,7 +35,7 @@ se auditaron servicios de terceros (Render, Cloudinary, Cloudflare).
 | 4 | APK con `android:allowBackup="true"` | Baja | Corregido (surtirá en el próximo build) |
 | 5 | Sin límite de intentos en `/admin/login/` | Media | **Corregido** (freno en la app) |
 | 6 | Confirmar `SECRET_KEY` en el panel de Render | Media | **Verificado** (existe, valor aleatorio) |
-| 7 | Keystore de firmas dentro de la carpeta sincronizada con OneDrive | Media | **Recomendación** |
+| 7 | Keystore de firmas dentro de la carpeta sincronizada con OneDrive | Media | **Mitigado** (copia offline hecha) |
 | 8 | Varios menores (ver §8) | Baja/Info | Documentados |
 
 ---
@@ -222,7 +222,7 @@ contraseñas o cuaderno), porque es la llave maestra del sitio.
 
 ---
 
-## 7. MEDIA (recomendación) — El keystore de firmas
+## 7. MEDIA (mitigado el 19/oct) — El keystore de firmas
 
 `android/keystore/buscandoando-release.jks` vive dentro de la carpeta del
 proyecto, que está sincronizada con **OneDrive**, y su contraseña se ha
@@ -233,11 +233,18 @@ ni en el historial** (verificado con `git ls-files` y búsqueda por contenido
 en todo el historial) y `android/.gitignore` ya lo excluye correctamente —
 el riesgo es del copiado en la nube, no del repo.
 
-**Recomendación**: copia del `.jks` en un disco externo (fuera de OneDrive),
-y considerar cambiar la contraseña del keystore
-(`keytool -storepasswd -keystore buscandoando-release.jks`; el archivo no
-cambia, solo la clave). Repartir la nueva contraseña por un canal distinto
-al chat.
+**Hecho**: copia offline de `buscandoando-release.jks` y
+`keystore.properties` en un pendrive (disco externo, fuera de la nube),
+verificada por SHA-256: los dos archivos del pendrive son idénticos a los
+del proyecto. El original se deja donde está — quitarlo de OneDrive no
+protege más y sí arriesga perder la capacidad de firmar actualizaciones si
+el archivo se pierde.
+
+**Pendiente opcional (decisión del dueño)**: cambiar la contraseña del
+keystore (`keytool -storepasswd -keystore buscandoando-release.jks`; el
+archivo no cambia, solo la clave) y repartirla por un canal distinto al
+chat. Bajo prioridad: la contraseña actual ya es larga y aleatoria — lo
+que protege de verdad es la copia sin conexión, que ya existe.
 
 ---
 
