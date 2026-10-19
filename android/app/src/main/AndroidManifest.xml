@@ -15,10 +15,11 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
+    <!-- Nada de la app se copia a nubes de backup ni pasa por
+         'adb backup' (allowBackup=false): dentro no hay datos
+         privados que valgan, y hallado en la auditoria del 19/oct
+         se prefiere cerrado. -->
     <application
-        <!-- Nada de la app se copia a nubes de backup ni pasa por
-             'adb backup': dentro no hay datos privados que valgan, y
-             hallado en la auditoria del 19/oct se prefiere cerrado. -->
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
