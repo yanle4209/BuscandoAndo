@@ -81,17 +81,23 @@ def _en_su_municipio(colaborador, ficha):
 
 
 def _ip(request):
-    """La primera IP de ``X-Forwarded-For`` (que es lo que pone Render).
+    """La ultima IP valida de ``X-Forwarded-For`` (o ``REMOTE_ADDR``).
+
+    La cadena se construye de izquierda a derecha: lo PRIMERO lo teclea
+    el cliente —spoofable: quien manda el envio podia firmar la IP que
+    quisiera— y cada proxy anade el suyo al final. Leer la ultima es
+    leer lo que el ultimo proxy declaro, que el cliente no puede
+    reescribir (hallado en la auditoria del 19/oct).
 
     Solo para mirar si un lote de envios viene de un solo sitio. Nada se
     decide por aqui: el bloqueo es por token, no por IP, que detras de un
     operador movil comparten varias personas.
     """
-    for clave in ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'):
-        crudo = request.META.get(clave, '')
-        if not crudo:
-            continue
-        candidato = crudo.split(',')[0].strip()
+    crudo = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    candidatos = [p.strip() for p in crudo.split(',') if p.strip()]
+    if not candidatos:
+        candidatos = [request.META.get('REMOTE_ADDR', '')]
+    for candidato in reversed(candidatos):
         try:
             validate_ipv46_address(candidato)
         except ValidationError:

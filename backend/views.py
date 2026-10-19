@@ -17,8 +17,17 @@ def serve_react(request, path=''):
 
     # If requesting a specific file (JS, CSS, images, etc.)
     if path:
-        file_path = build_dir / path
-        if file_path.exists() and file_path.is_file():
+        # SEGURIDAD (auditoria del 19/oct): `path` viene de la URL, y
+        # pathlib une segmentos absolutos REEMPLAZANDO la base — con
+        # "//etc/passwd" esta vista abria /etc/passwd del servidor
+        # (lectura arbitraria de ficheros; se llegaba a leer el
+        # render.yaml entero del repositorio desplegado). Dos barreras:
+        # la ruta se aplana a relativa, y ademas se exige que resuelva
+        # DENTRO del build. Lo que no este dentro no se sirve: cae al
+        # index del SPA, que es lo que ya pasaba con las rutas normales.
+        base = build_dir.resolve()
+        file_path = (build_dir / path.lstrip('/')).resolve()
+        if file_path.is_relative_to(base) and file_path.is_file():
             content_type, _ = mimetypes.guess_type(str(file_path))
             response = FileResponse(open(file_path, 'rb'), content_type=content_type)
             # Asset con hash en el nombre (index-97q9MQp8.js): el nombre

@@ -21,7 +21,7 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
 from categories.models import Category
@@ -32,7 +32,7 @@ from business_locations.models import BusinessLocation
 from business_contacts.models import BusinessContact
 from business_hours.models import BusinessHours
 from . import geografia, osm, portar, validacion
-from .levantamiento import LIMITE_ENVIOS_POR_MINUTO
+from .levantamiento import LIMITE_ENVIOS_POR_MINUTO, _ip
 from .models import Business, Correction, Colaborador, Envio
 
 BUSINESSES_URL = '/api/businesses/'
@@ -2984,3 +2984,30 @@ class EnlaceLevantamientoTests(TestCase):
         html = self.client.get('/admin/').content.decode()
 
         self.assertIn('admin/js/buscandoando_share.js', html)
+
+
+class IPDelEnvioTests(SimpleTestCase):
+    """La IP del Envio se toma de donde la declaro el ULTIMO proxy.
+
+    X-Forwarded-For se construye de izquierda a derecha: lo primero lo
+    teclea el CLIENTE —spoofable: quien manda el envio podia firmar la
+    IP que quisiera— y cada proxy anade el suyo al final. Antes se leia
+    la primera entrada (hallado en la auditoria del 19/oct de 2026).
+    """
+
+    def test_la_ip_es_la_ultima_de_la_cadena(self):
+        peticion = RequestFactory().get(
+            '/', HTTP_X_FORWARDED_FOR='9.9.9.9, 8.8.8.8')
+
+        self.assertEqual(_ip(peticion), '8.8.8.8')
+
+    def test_entradas_invalidas_se_de_lado_y_sigue_la_anterior(self):
+        peticion = RequestFactory().get(
+            '/', HTTP_X_FORWARDED_FOR='no-es-ip, 9.9.9.9, 8.8.8.8')
+
+        self.assertEqual(_ip(peticion), '8.8.8.8')
+
+    def test_sin_cadena_se_usa_remote_addr(self):
+        peticion = RequestFactory().get('/')
+
+        self.assertEqual(_ip(peticion), '127.0.0.1')

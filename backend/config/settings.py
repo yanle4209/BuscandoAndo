@@ -61,6 +61,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'config.middleware.CabecerasSeguridadMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -195,3 +196,13 @@ if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
+    # HSTS: un ano. Cloudflare ya redirige http:// a https://, esto le
+    # dice al navegador que ni lo intente la proxima vez.
+    SECURE_HSTS_SECONDS = 31536000
+    # Detras de Cloudflare/Render el https llega declarado en
+    # X-Forwarded-Proto; sin esto Django cree que todo llega por http y
+    # no manda HSTS ni marca las cookies como seguras con criterio.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    # Cookies solo via https (el sitio siempre esta detras de https).
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
