@@ -7,6 +7,10 @@ import './App.css';
 function App() {
   return (
     <Router>
+      {/* Accesibilidad (auditoria D): el primer Tab de teclado salta
+          el mapa y la barra de busqueda y va derecho a los
+          resultados (#contenido es la <main> de cada pagina). */}
+      <a className="skip-link" href="#contenido">Saltar al contenido</a>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/business/:slug" element={<BusinessDetail />} />

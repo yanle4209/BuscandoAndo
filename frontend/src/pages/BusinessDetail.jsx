@@ -19,14 +19,14 @@ export default function BusinessDetail() {
       .finally(() => setLoading(false));
   }, [slug]);
 
-  if (loading) return <div className="detail-page"><p className="detail-loading">Cargando...</p></div>;
+  if (loading) return <main className="detail-page" id="contenido" tabIndex={-1}><p className="detail-loading">Cargando...</p></main>;
   if (error) return (
-    <div className="detail-page">
+    <main className="detail-page" id="contenido" tabIndex={-1}>
       <div className="detail-error">
         <p>{error}</p>
         <Link to="/" className="detail-back">← Volver al inicio</Link>
       </div>
-    </div>
+    </main>
   );
 
   const loc = biz.location || {};
@@ -37,7 +37,8 @@ export default function BusinessDetail() {
     .filter(Boolean).join(', ');
 
   return (
-    <div className="detail-page">
+    // <main> con id para el "Saltar al contenido" (auditoria D).
+    <main className="detail-page" id="contenido" tabIndex={-1}>
       <div className="detail-left">
         <Link to="/" className="detail-back">← Volver</Link>
 
@@ -129,6 +130,6 @@ export default function BusinessDetail() {
           <div className="detail-no-map">Sin ubicación en mapa</div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

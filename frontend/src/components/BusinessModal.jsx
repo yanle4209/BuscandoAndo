@@ -28,12 +28,26 @@ export default function BusinessModal({ business, onClose }) {
   const contactPerson = business.contact_person || contact.contact_person;
   const address = [business.street || loc.street, business.sector || loc.sector, business.municipality || loc.municipality, business.province || loc.province]
     .filter(Boolean).join(', ');
+  // Mismo alt descriptivo que en la tarjeta (auditoria D).
+  const altBase = [business.name, business.category_name]
+    .filter(Boolean).join(' – ')
+    + ((business.municipality || loc.municipality)
+      ? ` en ${business.municipality || loc.municipality}` : '');
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="20" height="20">
+      <div
+        className="modal-panel"
+        onClick={(e) => e.stopPropagation()}
+        // Accesibilidad (auditoria D): el modal es un dialogo y hay
+        // que decirselo al lector de pantalla (antes era un div
+        // silencioso que se abria sin avisar).
+        role="dialog"
+        aria-modal="true"
+        aria-label={business.name}
+      >
+        <button className="modal-close" onClick={onClose} aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="20" height="20" aria-hidden="true">
             <path d="M18 6L6 18M6 6l12 12"/>
           </svg>
         </button>
@@ -41,7 +55,7 @@ export default function BusinessModal({ business, onClose }) {
         {/* Image carousel */}
         {images.length > 0 && (
           <div className="modal-carousel">
-            <ImageCarousel images={images} />
+            <ImageCarousel images={images} altBase={altBase} />
           </div>
         )}
 

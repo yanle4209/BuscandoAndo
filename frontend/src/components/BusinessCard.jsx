@@ -29,6 +29,13 @@ export default function BusinessCard({ business, highlighted, level, onClick, on
   const destacado = Boolean(business.is_featured || level);
   const hasImages = images.length > 0;
 
+  // Alt descriptivo de las fotos (auditoria D): el campo caption no
+  // existe en la API, asi que se arma con lo que la ficha si tiene —
+  // la formula que pide la auditoria: "Nombre – Categoría en Municipio".
+  const municipio = business.municipality || loc.municipality || '';
+  const altBase = [business.name, category].filter(Boolean).join(' – ')
+    + (municipio ? ` en ${municipio}` : '');
+
   const titulo = <h3 className="biz-card__name">{business.name}</h3>;
   const segundaLinea = (
     <div className="biz-card__meta">
@@ -46,7 +53,7 @@ export default function BusinessCard({ business, highlighted, level, onClick, on
           misma en la bento de la portada y en los resultados. */}
       <div className={`biz-card__cover${hasImages ? '' : ' biz-card__cover--sin-foto'}`}>
         {hasImages ? (
-          <ImageCarousel images={images} cover autoplay={highlighted} />
+          <ImageCarousel images={images} cover autoplay={highlighted} altBase={altBase} />
         ) : (
           <div className="biz-card__cover-ph" role="img" aria-label="BuscandoAndo">
             <span className="biz-card__cover-ph-brand">Buscando<b>Ando</b></span>
