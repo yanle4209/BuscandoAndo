@@ -18,6 +18,15 @@ export default function ImageCarousel({ images, autoplay = false, altBase = '' }
 
   if (total === 0) return null;
 
+  // Flechas del carrusel. BUG PREEXISTENTE (hallado el 20/oct probando
+  // la accesibilidad en prod): los botones REFERENCIABAN prev/next pero
+  // nadie las habia definido, asi que cualquier ficha con 2+ fotos
+  // reventaba la pagina entera — "ReferenceError: prev is not defined"
+  // desmontaba el arbol de React y el usuario se quedaba en blanco.
+  // Nadie lo habia visto porque la mayoria de las fichas tienen 1 foto.
+  const prev = () => setCurrent((c) => (c - 1 + total) % total);
+  const next = () => setCurrent((c) => (c + 1) % total);
+
   return (
     <div className="biz-card__images" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
       <div className="biz-card__images-viewport">

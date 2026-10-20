@@ -108,7 +108,15 @@ export default function SearchBar({
           por nombre: la ciudad ahora son coordenadas + 5 km (R3.5). */}
       <div className="filter-group municipio-group">
         <label>Municipio</label>
-        <select value={municipioClave} onChange={(e) => onMunicipio(e.target.value)}>
+        {/* aria-label (y no label[for]: Home monta esta barra DOS
+            veces, escritorio y movil, y los ids duplicados no valen):
+            sin esto el select no tiene nombre accesible — el label de
+            arriba no esta asociado. */}
+        <select
+          aria-label="Municipio"
+          value={municipioClave}
+          onChange={(e) => onMunicipio(e.target.value)}
+        >
           <option value="">Elige tu municipio</option>
           {porProvincia.map((grupo) => (
             <optgroup key={grupo.provincia} label={grupo.provincia}>
@@ -126,7 +134,13 @@ export default function SearchBar({
         <div className="filters-panel">
           <div className="filter-group">
             <label>Categoría</label>
-            <select value={filters.category} onChange={handleCategoryChange}>
+            {/* Mismo motivo que el de municipio: nombre accesible sin
+                ids duplicados. */}
+            <select
+              aria-label="Categoría"
+              value={filters.category}
+              onChange={handleCategoryChange}
+            >
               <option value="">Todas</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
