@@ -595,7 +595,10 @@ export default function Home() {
   };
 
   return (
-    <div className="home-layout">
+    // <main> (y no un div): da el landmark de contenido principal y
+    // el id que apunta el "Saltar al contenido". La clase manda en el
+    // CSS, asi que el cambio de etiqueta no se nota en el dibujo.
+    <main className="home-layout" id="contenido" tabIndex={-1}>
       {/* Cabecera a todo el ancho del viewport: debajo van la barra
           izquierda (20-25% del ancho) y la rejilla de resultados. */}
       <div className={`right-brand ${estado.haBuscado ? 'right-brand--compact' : ''}`}>
@@ -750,8 +753,8 @@ export default function Home() {
           {/* .modal-panel, NO .modal-content: esa clase no existe en ningún
               CSS y el modal salía transparente con texto negro sobre el
               overlay oscuro. Ver nota en Home.css. */}
-          <div className="modal-panel modal-contact" onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setShowContact(false)}>&#10005;</button>
+          <div className="modal-panel modal-contact" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Contáctanos">
+            <button className="modal-close" onClick={() => setShowContact(false)} aria-label="Cerrar">&#10005;</button>
             <h2 className="modal-contact-title">Contáctanos</h2>
             <p className="modal-contact-desc">Si quieres anunciarte o comunicarte para cualquier otra sugerencia</p>
             <div className="modal-contact-info">
@@ -797,6 +800,6 @@ export default function Home() {
           </button>
         </div>
       )}
-    </div>
+    </main>
   );
 }

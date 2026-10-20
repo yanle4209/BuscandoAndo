@@ -571,7 +571,8 @@ export default function Levantamiento() {
   // pantalla de trabajo, que se abre cuando el servidor acepta el token.
   if (!dentro) {
     return (
-      <div className="lev-page lev-acceso">
+      // <main> con id para el "Saltar al contenido" (auditoria D).
+      <main className="lev-page lev-acceso" id="contenido" tabIndex={-1}>
         <header className="lev-top">
           <div>
             <p className="lev-top-eyebrow">Herramienta interna</p>
@@ -622,13 +623,14 @@ export default function Levantamiento() {
             </button>
           </form>
         </section>
-      </div>
+      </main>
     );
   }
 
   // ------------------------- pantalla de trabajo ----------------------
   return (
-    <div className={`lev-page${hayReporte ? ' lev-page--lado' : ''}`}>
+    // <main> con id para el "Saltar al contenido" (auditoria D).
+    <main className={`lev-page${hayReporte ? ' lev-page--lado' : ''}`} id="contenido" tabIndex={-1}>
       <header className="lev-top">
         <div>
           <p className="lev-top-eyebrow">Herramienta interna</p>
@@ -997,7 +999,7 @@ export default function Levantamiento() {
       </form>
 
       {resultado && <Resultado r={resultado} />}
-    </div>
+    </main>
   );
 }
 
