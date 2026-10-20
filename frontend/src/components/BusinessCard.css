@@ -352,22 +352,37 @@
 .biz-card__images-nav {
   display: flex;
   justify-content: center;
-  gap: 5px;
+  gap: 0;
   margin-top: 4px;
 }
 
+/* Punto del carrusel: el BOTON mide 24x24 (WCAG 2.5.8, objetivo
+   minimo de 24 px — Lighthouse lo marcaba) y el punto de siempre se
+   pinta dentro con ::after. Mismo dibujo, dedo que acierta. */
 .biz-card__images-dot {
+  width: 24px;
+  height: 24px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  position: relative;
+  cursor: pointer;
+}
+
+.biz-card__images-dot::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: #7d7768;
-  border: none;
-  padding: 0;
-  cursor: pointer;
   transition: all 0.2s;
 }
 
-.biz-card__images-dot--active {
+.biz-card__images-dot--active::after {
   background: var(--brown);
   width: 16px;
   border-radius: 3px;
@@ -387,8 +402,8 @@
 }
 
 .biz-card__images-arrow {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.6);
   border: none;
@@ -435,11 +450,11 @@
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
 }
 
-.biz-card__cover .biz-card__images-dot {
+.biz-card__cover .biz-card__images-dot::after {
   background: rgba(255, 255, 255, 0.65);
 }
 
-.biz-card__cover .biz-card__images-dot--active {
+.biz-card__cover .biz-card__images-dot--active::after {
   background: var(--yellow);
 }
 

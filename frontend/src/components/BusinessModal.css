@@ -105,12 +105,12 @@
   background: #513e0c;
 }
 
-.modal-carousel .biz-card__images-dot {
+.modal-carousel .biz-card__images-dot::after {
   width: 8px;
   height: 8px;
 }
 
-.modal-carousel .biz-card__images-dot--active {
+.modal-carousel .biz-card__images-dot--active::after {
   background: #513e0c;
   width: 20px;
 }
