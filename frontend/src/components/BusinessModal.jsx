@@ -4,11 +4,6 @@ import ImageCarousel from './ImageCarousel';
 import { slugDeEstado, nombreDeEstado } from '../estado';
 import './BusinessModal.css';
 
-const DAY_NAMES = {
-  L: 'Lunes', M: 'Martes', X: 'Miercoles',
-  J: 'Jueves', V: 'Viernes', S: 'Sabado', D: 'Domingo',
-};
-
 export default function BusinessModal({ business, onClose }) {
   useEffect(() => {
     const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
@@ -84,8 +79,8 @@ export default function BusinessModal({ business, onClose }) {
                 </svg>
               </div>
               <div className="modal-info-content">
-                <span className="modal-info-label">Ubicacion</span>
-                {address ? <span className="modal-info-value">{address}</span> : <span className="modal-info-empty">Sin direccion</span>}
+                <span className="modal-info-label">Ubicación</span>
+                {address ? <span className="modal-info-value">{address}</span> : <span className="modal-info-empty">Sin dirección</span>}
               </div>
             </div>
 
@@ -136,7 +131,11 @@ export default function BusinessModal({ business, onClose }) {
                   <div className="modal-hours">
                     {hours.map((h) => (
                       <div key={h.day} className="modal-hour-row">
-                        <span className="modal-hour-day">{DAY_NAMES[h.day] || h.day}</span>
+                        {/* h.day viene del serializer completo
+                            ("Miércoles"); el mapa DAY_NAMES que había
+                            aquí tenia claves de una letra y nunca
+                            casaba, asi que se retiro. */}
+                        <span className="modal-hour-day">{h.day}</span>
                         {h.is_closed ? (
                           <span className="modal-hour-closed">Cerrado</span>
                         ) : h.is_holiday ? (

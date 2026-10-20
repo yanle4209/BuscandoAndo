@@ -259,3 +259,45 @@ class FrenoLoginAdminTests(TestCase):
 
         # siguen siendo 5: los3 bloqueados no cuentan como fallo
         self.assertEqual(cache.get('ba-login:ip:127.0.0.1'), 5)
+
+
+class CabecerasCSPTests(TestCase):
+    """La politica de seguridad tras el Bloque A (auditoria externa).
+
+    Dos regresiones concretas que ya ocurrieron:
+
+    * unpkg volvia al ``style-src`` aunque el ``leaflet.css`` ya va
+      empaquetado (lo importa ``MapView.jsx``);
+    * el mapa del admin quedo ROTO en produccion: ``business_admin.js``
+      cargaba Leaflet desde unpkg y hacia ``fetch`` a nominatim, y la
+      CSP se lo impedía — auto-alojado el primero en
+      ``/static/admin/leaflet/`` y declarado el segundo en
+      ``connect-src``.
+    """
+
+    def _csp(self):
+        return self.client.get(URL)['Content-Security-Policy']
+
+    def test_sin_unpkg_en_style_src(self):
+        csp = self._csp()
+        self.assertNotIn('unpkg', csp)
+        self.assertIn("style-src 'self' 'unsafe-inline';", csp)
+
+    def test_geocodificador_del_admin_declarado(self):
+        self.assertIn(
+            'https://nominatim.openstreetmap.org', self._csp())
+
+    def test_scripts_sigue_solo_self(self):
+        self.assertIn("script-src 'self';", self._csp())
+
+    def test_leaflet_del_admin_esta_en_static(self):
+        """Los ficheros que business_admin.js pide tienen que existir:
+        sin ellos el admin se queda sin mapa otra vez."""
+        base = Path(settings.BASE_DIR) / 'static' / 'admin' / 'leaflet'
+        for relativo in ('leaflet.js', 'leaflet.css',
+                         'images/marker-icon.png',
+                         'images/marker-icon-2x.png',
+                         'images/marker-shadow.png',
+                         'images/layers.png', 'images/layers-2x.png'):
+            self.assertTrue(
+                (base / relativo).is_file(), 'falta %s' % relativo)

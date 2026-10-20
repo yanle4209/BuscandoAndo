@@ -47,17 +47,18 @@
             locationInline.parentNode.insertBefore(mapSection, locationInline);
         }
 
-        // Cargar Leaflet CSS y JS
+        // Cargar Leaflet CSS y JS (auto-alojados en /static/admin/leaflet:
+        // la CSP es script-src 'self' y no deja scripts de unpkg)
         if (!document.querySelector('link[href*="leaflet"]')) {
             const leafletCSS = document.createElement('link');
             leafletCSS.rel = 'stylesheet';
-            leafletCSS.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+            leafletCSS.href = '/static/admin/leaflet/leaflet.css';
             document.head.appendChild(leafletCSS);
         }
 
         if (!window.L) {
             const leafletJS = document.createElement('script');
-            leafletJS.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+            leafletJS.src = '/static/admin/leaflet/leaflet.js';
             leafletJS.onload = function() { setupMap(latField, lngField, streetField, searchBtn, mapDiv); };
             document.head.appendChild(leafletJS);
         } else {

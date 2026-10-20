@@ -140,14 +140,24 @@ duplicarlo solo añade riesgo de bucles.
 
 La CSP la pone el middleware nuevo `config.middleware.CabecerasSeguridadMiddleware`:
 
-* `script-src 'self'` — solo bundles propios (Vite y el admin de Django).
-* `style-src 'self' 'unsafe-inline' https://unpkg.com` — React pinta
-  atributos `style` en línea; unpkg es solo por el `leaflet.css` que enlaza
-  el `index.html` (ver §8: conviene auto-alojarlo y cerrar esto a `'self'`).
+* `script-src 'self'` — solo bundles propios (Vite y el admin de Django);
+  Leaflet del admin va auto-alojado en `/static/admin/leaflet/`.
+* `style-src 'self' 'unsafe-inline'` — React pinta atributos `style` en
+  línea; el `leaflet.css` ya va empaquetado (lo importa `MapView.jsx`),
+  así que no queda ningún tercero.
 * `img-src 'self' data: blob: https:` — fotos de Cloudinary y teselas del
   mapa.
-* `connect-src 'self' https://res.cloudinary.com` — la API es del mismo
-  origen.
+* `connect-src 'self' https://res.cloudinary.com https://nominatim.openstreetmap.org`
+  — la API es del mismo origen; nominatim es el geocodificador del mapa
+  del admin.
+
+**Corrección (20/oct, al revisar la auditoría externa):** la política
+puesta el 19/oct rompió el mapa del admin en producción —
+`business_admin.js` inyecta Leaflet desde unpkg y hace `fetch` a
+nominatim, y `script-src`/`connect-src` se lo impedían. Ya está Leaflet
+auto-alojado y nominatim declarado; lo fija `CabecerasCSPTests`
+(config/tests.py), que además exige que existan los ficheros de
+`/static/admin/leaflet/`.
 * `object-src 'none'`, `frame-ancestors 'none'` (refuerza el clickjacking),
   `base-uri 'self'`, `form-action 'self'`.
 

@@ -1,20 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function ImageCarousel({ images, autoplay = false }) {
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
-  if (!images || images.length === 0) return null;
+  const total = images?.length || 0;
 
-  const prev = (e) => { e.stopPropagation(); setCurrent(c => c === 0 ? images.length - 1 : c - 1); };
-  const next = (e) => { e.stopPropagation(); setCurrent(c => c === images.length - 1 ? 0 : c + 1); };
-
+  // Hooks SIEMPRE en el mismo orden: el early-return va DESPUES de
+  // useEffect (si no, pasar de "sin imagenes" a "con imagenes" con el
+  // componente montado cambiaba el numero de hooks y React reventaba).
   useEffect(() => {
-    if (!autoplay || images.length <= 1 || paused) return;
+    if (!autoplay || total <= 1 || paused) return;
     const id = setInterval(() => {
-      setCurrent(c => c === images.length - 1 ? 0 : c + 1);
+      setCurrent(c => c === total - 1 ? 0 : c + 1);
     }, 3000);
     return () => clearInterval(id);
-  }, [autoplay, paused, images.length]);
+  }, [autoplay, paused, total]);
+
+  if (total === 0) return null;
 
   return (
     <div className="biz-card__images" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>

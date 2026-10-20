@@ -20,15 +20,15 @@ Solo calcula: no escribe en la base de datos.
 # es lo que un editor va completando.
 CAMPOS = [
     ('nombre', 'Nombre'),
-    ('telefono', 'Telefono'),
+    ('telefono', 'Teléfono'),
     ('punto', 'Punto (coordenadas)'),
-    ('categoria', 'Categoria'),
-    ('direccion', 'Direccion'),
+    ('categoria', 'Categoría'),
+    ('direccion', 'Dirección'),
     ('horario', 'Horario'),
     ('whatsapp', 'WhatsApp'),
     ('correo', 'Correo'),
     ('web', 'Sitio web'),
-    ('descripcion', 'Descripcion'),
+    ('descripcion', 'Descripción'),
     ('estado', 'Estado operativo'),
 ]
 
