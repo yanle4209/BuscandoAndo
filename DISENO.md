@@ -724,7 +724,7 @@ Censo al entrar en la fase: **740 de 1.839 fichas** (40 %) y **22 de
 cuatro provincias. **Tupla vacía = sin fase**: el país entero vuelve
 en un solo deploy, probado con `override_settings` en los tests. Solo
 lo leen `businesses/geografia.py` (`en_fase`, `cabeceras_en_fase`,
-`punto_en_fase`), `_q_fase()` de `views.py` y los tests.
+`punto_en_fase`, `q_fase`) y los tests.
 
 ### Métricas y aviso
 
@@ -740,4 +740,83 @@ lo leen `businesses/geografia.py` (`en_fase`, `cabeceras_en_fase`,
   activo queda a más de **30 km** de cualquier cabecera de fase —
   mismo criterio que `punto_en_fase()` — con enlace a contacto. Con
   el padrón completo (fase vacía) el aviso se apaga solo.
+
+## 14. SEO on-page y accesibilidad (auditoría externa, C y D)
+
+**Hecho en octubre 2026** a raíz de la auditoría externa: los bloques
+C (SEO) y D (accesibilidad), verificados ambos en producción con
+Lighthouse sobre la web real.
+
+### 14.1 — Metas por ruta, en el servidor
+
+El HTML que llega al navegador lleva `title`, `description`, robots,
+canonical, Open Graph y Twitter Card **pintados por Django** en
+`backend/views.py` (`serve_react`), con los datos reales de la ficha.
+Sin react-helmet y sin esperar al JS: eso es lo que leen Google y
+WhatsApp.
+
+- **`SITIO_URL`** (settings, env; por defecto
+  `https://buscandoando.onrender.com`) fija la URL pública para
+  canonical y OG.
+- **La ficha** titula `«Nombre – Categoría en Municipio, Provincia |
+  BuscandoAndo»` con el `short_description` recortado a 160; la
+  primera foto es el `og:image`, expandida por el storage de
+  Cloudinary con reserva a `/og.png` (una meta nunca tumba la página).
+- `location` es OneToOne inversa: se lee con `getattr`, que las fichas
+  sin ubicación den 404/noindex y no un 500.
+- El `index.html` se sirve con `Cache-Control: no-cache` (antes el
+  navegador lo cacheaba heurísticamente y los deploys no se veían
+  hasta Ctrl+Shift+R); los bundles con hash siguen inmutables.
+
+### 14.2 — Soft-404 cerrado
+
+Antes **cualquier** ruta devolvía 200 con el index: un soft-404
+indexable. Ahora solo sirven las tres rutas reales de `App.jsx` —
+`/`, `/business/<slug>` y `/levantamiento` — y lo demás es 404 de
+verdad. Las fichas no publicadas o inexistentes también (misma regla
+que el `retrieve` de la API). Las de **fuerade fase** abren con
+`noindex,nofollow`: el enlace directo no se rompe (sección 13) pero
+Google no las anuncia por su cuenta.
+
+### 14.3 — `robots.txt` y `sitemap.xml` reales
+
+Los dos devolvían el HTML de la SPA. Ahora `robots.txt` es un fichero
+de `frontend/public/` (Vite lo copia a `dist/`; prohíbe `/admin/` y
+`/api/`) y `/sitemap.xml` se genera desde la base con **el mismo
+filtro que el listado** (`geografia.q_fase`): solo las fichas
+publicadas de fase, con `lastmod` y `<loc>` escapado (los slugs de
+producción pueden llevar tildes). 741 URLs hoy. `/og.png` es una
+imagen de marca generada (600×315, paleta de la casa).
+
+### 14.4 — Accesibilidad
+
+- **Saltar al contenido**: `.skip-link` (primer Tab, visible solo con
+  foco de teclado) + `.sr-only` en `App.css`; las raíces de Home,
+  BusinessDetail y Levantamiento son `<main id="contenido">` — la
+  clase manda en el CSS, el dibujo no cambia.
+- **Fotos**: alt descriptivo automático `«Nombre – Categoría en
+  Municipio»` cuando no hay caption (el campo no existe en la API).
+- **Nombres accesibles**: aria-label en flechas y puntos del
+  carrusel, en cerrar de los modales (que ahora son `role="dialog"`
+  con nombre), en los selects de municipio/categoría (los labels
+  visibles no estaban asociados) y **en cada pin del mapa** con el
+  nombre del negocio — Leaflet los deja como botones mudos.
+- **Objetivos de 24 px** (WCAG 2.5.8): puntos y flechas del carrusel
+  y los pines del mapa (24×24 con el punto de siempre centrado
+  dentro); enlaces `tel:`/`wa.me` de tarjeta y ficha con padding.
+- **Medición**: Lighthouse en producción sobre la web con resultados
+  en pantalla → **SEO 100, Best Practices 100, Accesibilidad 93**.
+  Dos fallos quedan y los dos están **exentos por regla**:
+  1. el contraste del «Ando» amarillo del logotipo (WCAG 1.4.3
+     exime logotipos; la regla de la casa también);
+  2. `target-size` en los pines densos del mapa: ya miden 24×24 pero
+     se solapan entre sí en centros urbanos — separarlos es mover
+     datos, y la función de cada pin la ofrece también la lista.
+- **Bug encontrado por el camino** (y arreglado): el carrusel
+  referenciaba `prev`/`next` sin definirlas — cualquier ficha con 2+
+  fotos reventaba la página entera (`ReferenceError` → React
+  desmontaba el árbol). Preexistente e invisible porque la mayoría de
+  fichas tienen una foto. `.oxlintrc.json` añade `no-undef` con
+  globals de navegador para que el lint lo atrape la próxima vez.
+
 
