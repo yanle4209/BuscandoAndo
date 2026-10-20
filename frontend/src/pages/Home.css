@@ -305,13 +305,15 @@
   font-family: var(--font);
   font-size: 10px;
   letter-spacing: 0.4px;
-  color: var(--ink-soft);
-  opacity: 0.4;
+  /* Gris de 4,5:1 sobre blanco. Estaba --ink-soft con opacity 0.4:
+    1,9:1, ilegible (Lighthouse lo marcaba en color-contrast) — y el
+     :hover no podia rescatarlo porque pointer-events:none lo apaga. */
+  color: #767676;
   pointer-events: none;
 }
 
 .version-badge:hover {
-  opacity: 1;
+  color: var(--brown);
 }
 
 /* Aviso de version nueva. Solo aparece cuando NO se puede recargar
