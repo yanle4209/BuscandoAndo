@@ -3,6 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- PWA minima (auditoria E): el icono de "anadir a inicio" de iOS
+         y el manifest para Android. Los PNG se generan una vez y se
+         commitean, igual que og.png. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#FFFFFF" />
+    <!-- Precalentamiento de los dos origenes externos que toca la web
+         en el primer vistazo: teselas del mapa y fotos de Cloudinary.
+         Nada de scripts: la CSP no deja ninguno de tercero. -->
+    <link rel="preconnect" href="https://server.arcgisonline.com" />
+    <link rel="preconnect" href="https://res.cloudinary.com" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BuscandoAndo - Encuentra negocios en República Dominicana</title>
     <!-- leaflet.css lo empaqueta Vite (MapView.jsx lo importa); no hace

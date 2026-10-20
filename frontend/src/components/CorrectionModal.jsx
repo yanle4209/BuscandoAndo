@@ -51,9 +51,11 @@ export default function CorrectionModal({ business, onClose }) {
       });
       setFase('listo');
     } catch (err) {
-      // DRF responde {campo: [...]} o {mensaje: [...]}.
+      // DRF responde {campo: [...]} o {mensaje: [...]}; el freno de
+      // envios (auditoria E) devuelve {detail: [...]} con 429.
       const datos = err.response?.data;
       setError(
+        datos?.detail ||
         datos?.mensaje?.[0] ||
         datos?.campo?.[0] ||
         datos?.business?.[0] ||
