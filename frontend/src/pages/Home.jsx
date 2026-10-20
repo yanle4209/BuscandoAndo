@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, lazy, useMemo, useReducer, useRef, useState } from 'react';
 import SearchBar from '../components/SearchBar';
-import MapView from '../components/MapView';
 import BusinessCard from '../components/BusinessCard';
 import CorrectionModal from '../components/CorrectionModal';
 import BusinessModal from '../components/BusinessModal';
@@ -8,6 +7,10 @@ import MapOverlay from '../components/MapOverlay';
 import { claveCabecera } from '../municipios';
 import api from '../api/axios';
 import './Home.css';
+
+// Code-splitting (DISENO.md 14.6): Leaflet solo lo baja quien monta el
+// mapa; mientras llega su chunk la pagina ya es usable.
+const MapView = lazy(() => import('../components/MapView'));
 
 // R1.3: el radio es fijo a 5 km en las dos plataformas. El backend ya lo
 // acota por arriba, pero se manda explicito porque la portada tambien
@@ -257,7 +260,7 @@ export default function Home() {
   const [estado, dispatch] = useReducer(reducer, ESTADO_INICIAL);
   const [searchFeatured, setSearchFeatured] = useState([]);
   const [businesses, setBusinesses] = useState([]);
-  const [selected, setSelected] = useState(null);
+  const [selected] = useState(null);
   const [modalBiz, setModalBiz] = useState(null);
   const [showContact, setShowContact] = useState(false);
   // Negocio del que el visitante ha pulsado "Corregir" (null = sin modal).
@@ -613,13 +616,23 @@ export default function Home() {
             centra en el municipio elegido o, si no lo hay, en lo que
             haya captado el GPS. Sin punto aun -> vista del pais. */}
         <div className="sidebar-map">
-          <MapView
-            businesses={mapBusinesses}
-            selected={selected}
-            center={centroMapa}
-            onMarkerClick={(biz) => setModalBiz(biz)}
-            onMapClick={elegirPuntoDelMapa}
-          />
+          {/* Chunk propio del mapa: el fallback ocupa su hueco para
+              que la pagina no salte cuando llega Leaflet. */}
+          <Suspense
+            fallback={
+              <div className="mapa-cargando" role="status">
+                Cargando mapa…
+              </div>
+            }
+          >
+            <MapView
+              businesses={mapBusinesses}
+              selected={selected}
+              center={centroMapa}
+              onMarkerClick={(biz) => setModalBiz(biz)}
+              onMapClick={elegirPuntoDelMapa}
+            />
+          </Suspense>
         </div>
       </div>
 
