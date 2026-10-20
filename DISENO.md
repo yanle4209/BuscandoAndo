@@ -819,4 +819,46 @@ imagen de marca generada (600×315, paleta de la casa).
   fichas tienen una foto. `.oxlintrc.json` añade `no-undef` con
   globals de navegador para que el lint lo atrape la próxima vez.
 
+### 14.5 — Menores (bloque E)
+
+Lo que la auditoría dejó en «🟡 Menores», ya en producción:
+
+- **Permissions-Policy** (`CabecerasSeguridadMiddleware`): la página
+  solo pide geolocalización, y solo para sí misma (el buscador R1/R3);
+  cámara, micrófono, pago y USB apagados por delante.
+- **HSTS con `includeSubDomains`**: el sitio no tiene subdominios hoy
+  y si aparece nace con https. El **preload no**: eso no se deshace y
+  aun no toca pedirlo.
+- **PWA mínima**: `apple-touch-icon.png`, `icon-192/512.png` y
+  `manifest.webmanifest`, generados con Pillow (lupa amarilla sobre
+  marrón, la misma marca que el `og.png`), opacos y *maskable*.
+  `serve_react` declara a mano `application/manifest+json` —
+  `mimetypes` no trae `.webmanifest` en todos los sistemas — y
+  `index.html` enlaza manifest, icono iOS, `theme-color` blanco y
+  `preconnect` a las dos únicas procedencias externas que toca el
+  primer vistazo (teselas de Esri y fotos de Cloudinary).
+- **Techo a `POST /api/corrections/`** (hallazgo propio de la
+  revisión, no de la auditoría): el formulario público no tenía
+  ningún límite server-side — el «Demasiados envíos» del frontend
+  apuntaba a la nada. Ahora `ThrottleCorrecciones` (middleware, la
+  misma receta que el freno del login): 30 envíos/hora por IP, 429
+  JSON con `Retry-After` **antes** de la vista, contando también los
+  400 (el forceo es parte del abuso) y solo al `create`; el modal
+  pinta el `detail`. Verificado end-to-end en producción.
+
+### 14.6 — Pospuesto, y por qué
+
+- **Code-splitting** (ítem 8): 533 KB en un solo bundle. El plan
+  cuando se acometa: `React.lazy` por ruta (Home, BusinessDetail,
+  Levantamiento) y Leaflet bajo demanda — solo el mapa lo monta —
+  para bajar el JS inicial a la mitad. Es el refactor más grande que
+  queda y toca piezas ya verificadas: mejor en su propia tanda que de
+  relleno.
+- **Plan de Render** (menor 4): los arranques fríos tras ~15 min de
+  inactividad son decisión de bolsillo, no de código.
+- **Contenido** (ítem 7): las descripciones de categorías vacías hoy
+  no se muestran en ningún sitio (la web solo lee el
+  `short_description` de la ficha) y las fotos las sube el campo con
+  el levantamiento — trabajo de contenido, no de código.
+
 
