@@ -8,7 +8,7 @@ podra hablar con ningun otro origen ni incrustar nada de fuera.
 """
 from django.conf import settings
 from django.core.cache import cache
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 
 from businesses.levantamiento import _ip
 
@@ -33,6 +33,10 @@ class CabecerasSeguridadMiddleware:
     * ``frame-ancestors 'none'`` — refuerza ``X_FRAME_OPTIONS = 'DENY'``
       contra el clickjacking (el header viejo ya no le hace caso a
       navegadores modernos).
+    * ``Permissions-Policy`` (auditoria E) — la web solo usa
+      geolocalizacion, y solo para si misma (el buscador R3). Camara,
+      microfono, pago y USB quedan apagados: nada de eso se necesita y
+      un script colado no debe poder tocarlo.
     """
 
     CSP = (
@@ -50,6 +54,12 @@ class CabecerasSeguridadMiddleware:
         "form-action 'self'"
     )
 
+    # Lo que la pagina NO pide nunca se le niega por delante. La
+    # geolocalizacion si: sin ella no hay buscador (R1/R3).
+    PERMISOS = (
+        'geolocation=(self), camera=(), microphone=(), payment=(), usb=()'
+    )
+
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -59,6 +69,7 @@ class CabecerasSeguridadMiddleware:
             # setdefault: si una vista ya puso su propia politica, se
             # respeta y no se pisa.
             response.setdefault('Content-Security-Policy', self.CSP)
+            response.setdefault('Permissions-Policy', self.PERMISOS)
         return response
 
 
@@ -157,4 +168,67 @@ class ThrottleLoginAdmin:
             elif respuesta.status_code == 200:
                 for clave, ventana, _ in self._claves(request, usuario):
                     self._subir(self.PREFIJO + clave, ventana)
+        return respuesta
+
+
+class ThrottleCorrecciones:
+    """Freno de envios al formulario publico «Corregir» (auditoria E).
+
+    ``POST /api/corrections/`` es PUBLICO a proposito: cualquier
+    visitante puede avisar de un dato malo sin login. Sin techo, eso
+    tambien significa que un bot puede inundar la bandeja del admin en
+    minutos — el mensaje de «demasiados envios» del frontend existia,
+    pero nada del servidor lo devolvia nunca.
+
+    Cuenta envios **por IP**, en la cache, con la misma receta que
+    ``ThrottleLoginAdmin``: 30 por hora. Un humano normal no se acerca
+    (el formulario pide campo y una frase); el spam sostenido se corta
+    en seco. Cuentan tambien los que la validacion rechaza (400): el
+    tanteo es parte del abuso. Al saltarse, 429 JSON con ``Retry-After``
+    — el modal del frontend lo pinta como «Demasiados envios» — y solo
+    al ``create``: el listado es solo staff y no toca esta cuenta.
+
+    En pruebas la suite entera manda ~18 envios desde 127.0.0.1, por
+    debajo del techo: el limite no se cruza solo. El test del freno
+    pone el contador al techo a mano y lo borra al terminar, asi no
+    depende del orden.
+    """
+
+    RUTA = '/api/corrections/'
+    TECHO = 30
+    VENTANA = 60 * 60
+    PREFIJO = 'ba-correcciones:'
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def _clave(self, request):
+        ip = _ip(request)
+        if not ip:
+            return None
+        return self.PREFIJO + 'ip:' + ip
+
+    def __call__(self, request):
+        es_post = request.method == 'POST' and request.path == self.RUTA
+        clave = self._clave(request) if es_post else None
+
+        # Antes de la vista: el envio ni se valida.
+        if clave and cache.get(clave, 0) >= self.TECHO:
+            respuesta = JsonResponse(
+                {'detail': 'Demasiados envios: espera unos minutos '
+                           'y vuelve a intentarlo.'},
+                status=429)
+            respuesta['Retry-After'] = str(self.VENTANA)
+            return respuesta
+
+        respuesta = self.get_response(request)
+
+        if clave:
+            if not cache.add(clave, 1, timeout=self.VENTANA):
+                try:
+                    cache.incr(clave)
+                except ValueError:
+                    # expiro justo entre el add y el incr: se empieza
+                    # de cero.
+                    cache.set(clave, 1, timeout=self.VENTANA)
         return respuesta
