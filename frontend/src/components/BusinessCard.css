@@ -388,6 +388,14 @@
   border-radius: 3px;
 }
 
+/* Los enlaces de telefono/WhatsApp de la fila median 17 px de alto y
+   no cumplian el objetivo minimo de 24 px (WCAG 2.5.8; Lighthouse los
+   marcaba). Padding y no height, para no tocar la tipografia. */
+.biz-card__row a {
+  display: inline-block;
+  padding: 4px 0;
+}
+
 .biz-card__images-arrows {
   position: absolute;
   top: 50%;

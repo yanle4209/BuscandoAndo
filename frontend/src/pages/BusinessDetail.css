@@ -135,6 +135,10 @@
 .detail-contact-row a {
   color: var(--ink);
   text-decoration: none;
+  /* Objetivo minimo de 24 px (WCAG 2.5.8): el enlace medía 17 px de
+     alto. Padding y no height, para no tocar la tipografia. */
+  display: inline-block;
+  padding: 4px 0;
 }
 
 .detail-contact-row a:hover {
