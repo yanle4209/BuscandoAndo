@@ -20,6 +20,7 @@ import unicodedata
 from functools import lru_cache
 
 from django.conf import settings
+from django.db.models import Q
 
 # Radio de busqueda en km. R1: las busquedas son unica y exclusivamente a
 # 5 km del punto activo (la ubicacion del usuario; la cabecera municipal,
@@ -155,6 +156,30 @@ def _fase_claves():
     return tuple(
         normalizar(p) for p in settings.FASE1_PROVINCIAS if p.strip()
     )
+
+
+def q_fase():
+    """El filtro de fase geografica para los LISTADOS (DISENO.md FASE1).
+
+    Solo recorta lo que se enseña: las fichas fuera de fase siguen en la
+    base y se abren por enlace directo (retrieve no pasa por aqui). El
+    province del location es texto libre, asi que se compara sin
+    distinguir mayusculas — las cuatro provincias actuales no tienen
+    tildes. Una ficha SIN fila de ubicacion no puede decirse de donde
+    es, asi que tampoco sale en el listado (el admin la sigue viendo).
+    Sin ``FASE1_PROVINCIAS`` no se recorta nada (y volver a ponerlo es
+    un solo deploy).
+
+    Vive aqui (y no en ``views``) porque la usan el listado, los
+    destacados Y el sitemap: todos tienen que recortar igual.
+    """
+    nombres = settings.FASE1_PROVINCIAS
+    if not nombres:
+        return Q()
+    q = Q()
+    for nombre in nombres:
+        q |= Q(location__province__iexact=nombre)
+    return q
 
 
 def en_fase(provincia):

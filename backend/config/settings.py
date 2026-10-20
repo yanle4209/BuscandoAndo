@@ -207,6 +207,12 @@ FASE1_PROVINCIAS = tuple(
     if p.strip()
 )
 
+# --- SEO (auditoria C) ---
+# URL publica y canónica del sitio: canonical, og:url y <loc> del
+# sitemap. Se le del entorno para poder apuntar a otro dominio sin
+# tocar codigo.
+SITIO_URL = env('SITIO_URL', 'https://buscandoando.onrender.com').rstrip('/')
+
 # --- Production Security ---
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
