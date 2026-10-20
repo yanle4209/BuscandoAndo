@@ -5,11 +5,6 @@ import MapView from '../components/MapView';
 import { slugDeEstado, nombreDeEstado } from '../estado';
 import './BusinessDetail.css';
 
-const DAY_NAMES = {
-  L: 'Lunes', M: 'Martes', X: 'Miércoles',
-  J: 'Jueves', V: 'Viernes', S: 'Sábado', D: 'Domingo',
-};
-
 export default function BusinessDetail() {
   const { slug } = useParams();
   const [biz, setBiz] = useState(null);
@@ -108,7 +103,8 @@ export default function BusinessDetail() {
             <div className="detail-hours">
               {hours.map((h) => (
                 <div key={h.day} className="detail-hours-row">
-                  <span className="detail-hours-day">{DAY_NAMES[h.day] || h.day}</span>
+                  {/* h.day llega completo del serializer ("Miércoles") */}
+                  <span className="detail-hours-day">{h.day}</span>
                   {h.is_closed ? (
                     <span className="detail-hours-closed">Cerrado</span>
                   ) : (

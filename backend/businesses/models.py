@@ -246,10 +246,10 @@ class Correction(models.Model):
     # anadelo aqui para que se pueda reportar.
     CAMPOS = [
         ('nombre', 'Nombre del negocio'),
-        ('direccion', 'Direccion'),
-        ('telefono', 'Telefono / WhatsApp'),
-        ('categoria', 'Categoria'),
-        ('descripcion', 'Descripcion'),
+        ('direccion', 'Dirección'),
+        ('telefono', 'Teléfono / WhatsApp'),
+        ('categoria', 'Categoría'),
+        ('descripcion', 'Descripción'),
         ('estado', 'Estado (abierto/cerrado)'),
         ('horario', 'Horario'),
         ('otro', 'Otro'),

@@ -11,10 +11,10 @@ import './CorrectionModal.css';
  */
 const CAMPOS = [
   ['nombre', 'Nombre del negocio'],
-  ['direccion', 'Direccion'],
-  ['telefono', 'Telefono / WhatsApp'],
-  ['categoria', 'Categoria'],
-  ['descripcion', 'Descripcion'],
+  ['direccion', 'Dirección'],
+  ['telefono', 'Teléfono / WhatsApp'],
+  ['categoria', 'Categoría'],
+  ['descripcion', 'Descripción'],
   ['estado', 'Estado (abierto/cerrado)'],
   ['horario', 'Horario'],
   ['otro', 'Otro'],
@@ -57,7 +57,7 @@ export default function CorrectionModal({ business, onClose }) {
         datos?.mensaje?.[0] ||
         datos?.campo?.[0] ||
         datos?.business?.[0] ||
-        'No se pudo enviar el aviso. Intentalo de nuevo.'
+        'No se pudo enviar el aviso. Inténtalo de nuevo.'
       );
       setFase('error');
     }
@@ -80,8 +80,8 @@ export default function CorrectionModal({ business, onClose }) {
           <div className="correction__ok">
             <h2 className="correction__title" id="correction-title">Gracias por avisar</h2>
             <p className="correction__desc">
-              Recibimos tu correccion sobre <strong>{business.name}</strong>. El
-              admin la revisara y aplicara el dato correcto.
+              Recibimos tu corrección sobre <strong>{business.name}</strong>. El
+              admin la revisará y aplicará el dato correcto.
             </p>
             <button type="button" className="correction__submit" onClick={onClose}>
               Entendido
@@ -120,7 +120,7 @@ export default function CorrectionModal({ business, onClose }) {
               value={mensaje}
               onChange={e => setMensaje(e.target.value)}
               disabled={enviando}
-              placeholder="Ej.: el telefono es 809-555-0000, no el que aparece en la tarjeta."
+              placeholder="Ej.: el teléfono es 809-555-0000, no el que aparece en la tarjeta."
               required
             />
             {restantes > 0 && (

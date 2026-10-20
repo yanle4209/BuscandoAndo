@@ -554,7 +554,7 @@ export default function Home() {
       <div className={`right-brand ${estado.haBuscado ? 'right-brand--compact' : ''}`}>
         <h1 className="right-brand-title" onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>Buscando<span className="right-brand-accent">Ando</span></h1>
         {/* A la derecha del logo, casi en el borde de la cabecera */}
-        <button className="contact-link" onClick={() => setShowContact(true)}>Contactanos</button>
+        <button className="contact-link" onClick={() => setShowContact(true)}>Contáctanos</button>
       </div>
 
       <div className="left-panel">
@@ -669,7 +669,7 @@ export default function Home() {
               overlay oscuro. Ver nota en Home.css. */}
           <div className="modal-panel modal-contact" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowContact(false)}>&#10005;</button>
-            <h2 className="modal-contact-title">Contactanos</h2>
+            <h2 className="modal-contact-title">Contáctanos</h2>
             <p className="modal-contact-desc">Si quieres anunciarte o comunicarte para cualquier otra sugerencia</p>
             <div className="modal-contact-info">
               <div className="modal-contact-row">

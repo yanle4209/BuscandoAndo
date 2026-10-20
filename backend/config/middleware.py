@@ -20,14 +20,16 @@ class CabecerasSeguridadMiddleware:
 
     * ``script-src 'self'`` — los bundles son propios (Vite) y el admin
       de Django tambien; nada de scripts de terceros ni inline.
-    * ``style-src 'self' 'unsafe-inline' https://unpkg.com`` — React
-      pinta atributos ``style`` en línea, y el index enlaza el
-      leaflet.css de unpkg (el mapa del detalle); a futuro conviene
-      auto-alojarlo y cerrar esto a 'self'.
+    * ``style-src 'self' 'unsafe-inline'`` — React pinta atributos
+      ``style`` en línea; el leaflet.css ya va empaquetado (lo importa
+      MapView.jsx y lo sirve el propio bundle, igual que el del admin),
+      asi que no queda ningun tercero aqui.
     * ``img-src ... https:`` — Cloudinary (fotos) y las teselas del
       mapa (Leaflet/osmdroid) vienen por https.
-    * ``connect-src 'self'`` — toda la API es del mismo origen; Cloudinary
-      queda por si el widget subiera desde el navegador.
+    * ``connect-src 'self' ...`` — la API es del mismo origen y
+      Cloudinary por si el widget subiera desde el navegador;
+      nominatim es el geocodificador del MAPA DEL ADMIN
+      (business_admin.js), que sin esto quedaria bloqueado.
     * ``frame-ancestors 'none'`` — refuerza ``X_FRAME_OPTIONS = 'DENY'``
       contra el clickjacking (el header viejo ya no le hace caso a
       navegadores modernos).
@@ -36,10 +38,11 @@ class CabecerasSeguridadMiddleware:
     CSP = (
         "default-src 'self'; "
         "script-src 'self'; "
-        "style-src 'self' 'unsafe-inline' https://unpkg.com; "
+        "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: blob: https:; "
         "font-src 'self' data:; "
-        "connect-src 'self' https://res.cloudinary.com; "
+        "connect-src 'self' https://res.cloudinary.com "
+        "https://nominatim.openstreetmap.org; "
         "worker-src 'self' blob:; "
         "object-src 'none'; "
         "frame-ancestors 'none'; "

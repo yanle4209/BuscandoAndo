@@ -14,9 +14,9 @@ from categories.models import Category
 
 print("=== Poblando estados de publicacion ===")
 pub_statuses = [
-    {'name': 'En Revision', 'slug': 'en-revision', 'description': 'Pendiente de revision por administrador', 'order': 1},
-    {'name': 'Publicado', 'slug': 'publicado', 'description': 'Visible publicamente en el sitio', 'order': 2},
-    {'name': 'Cancelado', 'slug': 'cancelado', 'description': 'Rechazado, no visible publicamente', 'order': 3},
+    {'name': 'En Revisión', 'slug': 'en-revision', 'description': 'Pendiente de revisión por administrador', 'order': 1},
+    {'name': 'Publicado', 'slug': 'publicado', 'description': 'Visible públicamente en el sitio', 'order': 2},
+    {'name': 'Cancelado', 'slug': 'cancelado', 'description': 'Rechazado, no visible públicamente', 'order': 3},
 ]
 for data in pub_statuses:
     obj, created = PublicationStatus.objects.get_or_create(slug=data['slug'], defaults=data)
@@ -25,8 +25,8 @@ for data in pub_statuses:
 
 print("\n=== Poblando estados operativos ===")
 op_statuses = [
-    {'name': 'Abierto', 'slug': 'abierto', 'description': 'El negocio esta atendiendo', 'color': '#22c55e', 'order': 1},
-    {'name': 'Cerrado', 'slug': 'cerrado', 'description': 'Cerrado por ahora, vuelve despues', 'color': '#ef4444', 'order': 2},
+    {'name': 'Abierto', 'slug': 'abierto', 'description': 'El negocio está atendiendo', 'color': '#22c55e', 'order': 1},
+    {'name': 'Cerrado', 'slug': 'cerrado', 'description': 'Cerrado por ahora, vuelve después', 'color': '#ef4444', 'order': 2},
     {'name': 'Por Cerrar', 'slug': 'por-cerrar', 'description': 'A punto de cerrar', 'color': '#f59e0b', 'order': 3},
     {'name': 'Cerrado Permanentemente', 'slug': 'cerrado-permanente', 'description': 'No vuelve a abrir', 'color': '#6b7280', 'order': 4},
 ]

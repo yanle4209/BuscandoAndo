@@ -71,13 +71,13 @@ OSM_CATEGORY_MAP = {
     'doctors': 'Salud',
     'dentist': 'Salud',
     'veterinary': 'Salud',
-    # Educacion
-    'school': 'Educacion',
-    'university': 'Educacion',
-    'college': 'Educacion',
-    'kindergarten': 'Educacion',
-    'language_school': 'Educacion',
-    'music_school': 'Educacion',
+    # Educación
+    'school': 'Educación',
+    'university': 'Educación',
+    'college': 'Educación',
+    'kindergarten': 'Educación',
+    'language_school': 'Educación',
+    'music_school': 'Educación',
     # Deporte
     'gym': 'Deporte',
     'fitness_centre': 'Deporte',
@@ -124,8 +124,8 @@ def parse_hours(tags):
     
     oh = tags['opening_hours']
     day_map = {
-        'Mo': 'Lunes', 'Tu': 'Martes', 'We': 'Miercoles',
-        'Th': 'Jueves', 'Fr': 'Viernes', 'Sa': 'Sabado', 'Su': 'Domingo'
+        'Mo': 'Lunes', 'Tu': 'Martes', 'We': 'Miércoles',
+        'Th': 'Jueves', 'Fr': 'Viernes', 'Sa': 'Sábado', 'Su': 'Domingo'
     }
     all_days = list(day_map.keys())
     

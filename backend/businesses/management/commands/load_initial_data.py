@@ -53,7 +53,7 @@ class Command(BaseCommand):
         self.stdout.write("\n=== Creating publication statuses ===")
         from publication_status.models import PublicationStatus
         for sid, slug, name in [
-            (1, 'en-revision', 'En Revision'),
+            (1, 'en-revision', 'En Revisión'),
             (2, 'publicado', 'Publicado'),
             (3, 'cancelado', 'Cancelado'),
         ]:
@@ -72,27 +72,47 @@ class Command(BaseCommand):
             OperationalStatus.objects.create(id=sid, slug=slug, name=name, color=color)
             self.stdout.write(f'  Created: {name} (id={sid})')
 
-        # Recreate categories
+        # Recreate categories. Los nombres van CON tilde: es como se
+        # muestran (y la busqueda normaliza tildes, asi que "clinicas"
+        # sigue encontrando "Clínicas").
         self.stdout.write("\n=== Creating categories ===")
         from categories.models import Category
-        for cat_id, slug, name, icon in [
-            (1, 'restaurantes', 'Restaurantes', 'utensils'),
-            (2, 'salones-de-belleza', 'Salones de Belleza', 'scissors'),
-            (3, 'talleres-mecanicos', 'Talleres Mecanicos', 'wrench'),
-            (4, 'clinicas', 'Clinicas', 'stethoscope'),
-            (5, 'tiendas', 'Tiendas', 'store'),
-            (6, 'gimnasios', 'Gimnasios', 'dumbbell'),
-            (7, 'escuelas', 'Escuelas', 'school'),
-            (8, 'hoteles', 'Hoteles', 'hotel'),
-            (9, 'servicios-profesionales', 'Servicios Profesionales', 'briefcase'),
-            (10, 'tecnologia', 'Tecnologia', 'laptop'),
-            (11, 'servicios', 'Servicios', 'tools'),
-            (13, 'salud', 'Salud', 'heart-pulse'),
-            (14, 'otros', 'Otros', 'ellipsis'),
-            (15, 'deporte', 'Deporte', 'football'),
-            (16, 'educacion', 'Educacion', 'graduation-cap'),
+        for cat_id, slug, name, icon, desc in [
+            (1, 'restaurantes', 'Restaurantes', 'utensils',
+             'Restaurantes, comedores y cafés.'),
+            (2, 'salones-de-belleza', 'Salones de Belleza', 'scissors',
+             'Peluquerías, salones de belleza y estética.'),
+            (3, 'talleres-mecanicos', 'Talleres Mecánicos', 'wrench',
+             'Talleres mecánicos y servicios para tu vehículo.'),
+            (4, 'clinicas', 'Clínicas', 'stethoscope',
+             'Clínicas, consultorios médicos y dentistas.'),
+            (5, 'tiendas', 'Tiendas', 'store',
+             'Tiendas y comercios de todo tipo.'),
+            (6, 'gimnasios', 'Gimnasios', 'dumbbell',
+             'Gimnasios y centros de entrenamiento.'),
+            (7, 'escuelas', 'Escuelas', 'school',
+             'Escuelas y centros educativos.'),
+            (8, 'hoteles', 'Hoteles', 'hotel',
+             'Hoteles y otros alojamientos.'),
+            (9, 'servicios-profesionales', 'Servicios Profesionales',
+             'briefcase', 'Contadores, abogados y otros profesionales.'),
+            (10, 'tecnologia', 'Tecnología', 'laptop',
+             'Servicios y productos de tecnología.'),
+            (11, 'servicios', 'Servicios', 'tools',
+             'Bancos, lavanderías, giros y otros servicios.'),
+            (13, 'salud', 'Salud', 'heart-pulse',
+             'Hospitales, farmacias y servicios de salud.'),
+            (14, 'otros', 'Otros', 'ellipsis',
+             'Negocios que no entran en las demás categorías.'),
+            (15, 'deporte', 'Deporte', 'football',
+             'Deportes, recreación y actividades al aire libre.'),
+            (16, 'educacion', 'Educación', 'graduation-cap',
+             'Universidades, academias y formación.'),
         ]:
-            Category.objects.create(id=cat_id, slug=slug, name=name, icon=icon)
+            Category.objects.create(
+                id=cat_id, slug=slug, name=name, icon=icon,
+                description=desc,
+            )
             self.stdout.write(f'  Created: {name} (id={cat_id})')
 
         # Reset sequences

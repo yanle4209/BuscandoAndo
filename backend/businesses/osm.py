@@ -74,10 +74,10 @@ OSM_CATEGORY_MAP = {
     'beauty_salon': 'Salones de Belleza', 'nail_salon': 'Salones de Belleza',
     'tattoo': 'Salones de Belleza',
     # Automocion
-    'car_repair': 'Talleres Mecanicos',
-    'car': 'Talleres Mecanicos', 'motorcycle': 'Talleres Mecanicos',
+    'car_repair': 'Talleres Mecánicos',
+    'car': 'Talleres Mecánicos', 'motorcycle': 'Talleres Mecánicos',
     # Salud
-    'clinic': 'Clinicas', 'doctors': 'Clinicas', 'dentist': 'Clinicas',
+    'clinic': 'Clínicas', 'doctors': 'Clínicas', 'dentist': 'Clínicas',
     'hospital': 'Salud', 'veterinary': 'Salud', 'pharmacy': 'Salud',
     # Educacion
     'school': 'Escuelas', 'university': 'Escuelas', 'college': 'Escuelas',
@@ -140,8 +140,8 @@ def parse_hours(opening_hours):
         return horas
 
     day_map = {
-        'Mo': 'Lunes', 'Tu': 'Martes', 'We': 'Miercoles',
-        'Th': 'Jueves', 'Fr': 'Viernes', 'Sa': 'Sabado', 'Su': 'Domingo',
+        'Mo': 'Lunes', 'Tu': 'Martes', 'We': 'Miércoles',
+        'Th': 'Jueves', 'Fr': 'Viernes', 'Sa': 'Sábado', 'Su': 'Domingo',
     }
     todos = list(day_map.keys())
 
