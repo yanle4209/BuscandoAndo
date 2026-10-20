@@ -691,3 +691,53 @@ importación» lo confirma: en esos pueblos solo aparecen barrios y
 caminos, no negocios. No es el filtro: es la cobertura de OSM en
 municipios pequeños de RD.
 
+## 13. Fase geográfica (FASE1)
+
+**Decidido:** BuscandoAndo solo se enseña en **Espaillat, Santiago, La
+Vega y Hermanas Mirabal** — las provincias con fichas cargadas y
+trabajo de campo. Web, app y levantamiento leen los mismos endpoints,
+así que el recorte es **uno** y llega a los tres.
+
+Censo al entrar en la fase: **740 de 1.839 fichas** (40 %) y **22 de
+158 cabeceras**.
+
+### La regla
+
+- **El listado recorta; la ficha no.** `GET /api/businesses/` y
+  `featured-by-search` filtran por `location.province` contra
+  `FASE1_PROVINCIAS`; `GET /api/businesses/<slug>/` no pasa por el
+  filtro: un enlace directo a una ficha de fuera de fase sigue
+  abriendo. Nada se borra ni se despublica — solo deja de enseñarse.
+- **Las cabeceras también.** `GET /api/cabeceras/` devuelve solo las de
+  fase (22); el padrón completo de 158 sigue en `geografia.cabeceras()`
+  y lo usan admin, importador y reporte de pendientes.
+- **Sin ubicación = fuera del listado.** Una ficha sin fila de
+  ubicación no puede decirse de dónde es: no sale en el listado (el
+  admin la sigue viendo).
+- La comparación es `iexact` contra los nombres tal cual de settings
+  (hoy las cuatro provincias no llevan tilde): si alguna llegara a
+  llevarla, se lista con tilde.
+
+### El interruptor
+
+`FASE1_PROVINCIAS` (settings, leído con `env_csv`): por defecto las
+cuatro provincias. **Tupla vacía = sin fase**: el país entero vuelve
+en un solo deploy, probado con `override_settings` en los tests. Solo
+lo leen `businesses/geografia.py` (`en_fase`, `cabeceras_en_fase`,
+`punto_en_fase`), `_q_fase()` de `views.py` y los tests.
+
+### Métricas y aviso
+
+- Una búsqueda desde fuera no cuenta como `consulta`: cuenta
+  **`fuera_zona`** con su lugar (provincia/municipio del punto) — ese
+  es el mapa de la demanda para decidir dónde abrir después. Sus
+  ceros **no** entran en `TerminoDia`: «lo que falta levantar» es
+  solo de dentro. El término sí se suma: qué buscan los de fuera
+  también interesa.
+- `POST /api/interes/?lat=&lng=` suma **`aviso_interes`** (contador
+  agregado día × evento × lugar × plataforma; sin correos, cookies ni
+  IP). Web y app ofrecen «Quiero que lleguen aquí» cuando el punto
+  activo queda a más de **30 km** de cualquier cabecera de fase —
+  mismo criterio que `punto_en_fase()` — con enlace a contacto. Con
+  el padrón completo (fase vacía) el aviso se apaga solo.
+

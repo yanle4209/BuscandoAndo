@@ -10,10 +10,14 @@ router.register(r'corrections', views.CorrectionViewSet, basename='correction')
 
 urlpatterns = [
     path('', include(router.urls)),
-    # Las 158 cabeceras municipales del pais. Un dato, dos usos (DISENO.md R3):
-    # ancla de los circulos de 5 km cuando no hay GPS, y fuente del selector
-    # manual de municipio.
+    # Las cabeceras municipales de las provincias de fase (el padron
+    # completo vive en geografia). Un dato, dos usos (DISENO.md R3):
+    # ancla de los circulos de 5 km cuando no hay GPS, y fuente del
+    # selector manual de municipio.
     path('cabeceras/', views.cabeceras, name='cabeceras'),
+    # Aviso de lista de espera del banner de fuera de fase (FASE1):
+    # solo suma la metrica aviso_interes, sin datos del usuario.
+    path('interes/', views.interes, name='interes'),
     # Reporte de pendientes por municipio (DISENO.md 11.1): la ficha de
     # trabajo del editor. Solo staff.
     path('pendientes/', views.pendientes, name='pendientes'),

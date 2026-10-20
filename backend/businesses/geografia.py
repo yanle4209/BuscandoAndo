@@ -132,3 +132,72 @@ def cabecera_mas_cercana(lat, lng, radio_km):
         if distancia <= mejor_distancia:
             mejor, mejor_distancia = cab, distancia
     return mejor
+
+
+# ---------------------------------------------------------------------------
+# Fase geografica (DISENO.md FASE1).
+#
+# El proyecto abre por PROVINCIAS — hoy Espaillat, Santiago, La Vega y
+# Hermanas Mirabal — y la lista crece provincia a provincia. La fase NO
+# borra nada: recorta vistas (listado, destacados, cabeceras) y las
+# fichas de fuera siguen abriéndose por enlace directo. Sin provincias
+# configuradas (tupla vacia) no hay fase: entra todo, que es el estado
+# anterior y la forma de volver atras en un deploy.
+# ---------------------------------------------------------------------------
+
+def _fase_claves():
+    """Las provincias de fase normalizadas (minusculas, sin tildes).
+
+    Sin cache: se lee ``settings`` en cada llamada para que
+    ``override_settings`` de los tests (y un deploy que cambie la
+    tupla) mande de verdad. El coste es normalizar cuatro nombres.
+    """
+    return tuple(
+        normalizar(p) for p in settings.FASE1_PROVINCIAS if p.strip()
+    )
+
+
+def en_fase(provincia):
+    """¿La provincia (texto libre de la base) esta en la fase actual?
+
+    Sin fase configurada entra todo; con fase, se compara normalizado
+    porque el campo es texto libre ("Santiago" vs "santiago ").
+    """
+    claves = _fase_claves()
+    if not claves:
+        return True
+    return normalizar(provincia) in claves
+
+
+def cabeceras_en_fase():
+    """Las cabeceras municipales de las provincias de fase.
+
+    El padron COMPLETO (158) sigue en ``cabeceras()``: lo usan el admin,
+    el importador y el reporte de pendientes. Esto es solo lo que se le
+    enseña al publico.
+    """
+    claves = _fase_claves()
+    if not claves:
+        return cabeceras()
+    return [c for c in cabeceras() if normalizar(c['provincia']) in claves]
+
+
+def punto_en_fase(lat, lng, radio_km=None):
+    """¿El punto cae a ``radio_km`` o menos de una cabecera de FASE?
+
+    Sin radio ilimitado: la pregunta es "¿este punto tiene municipio de
+    fase cerca?", no "¿está dentro del circulo de busqueda?". Por eso el
+    default es el doble del radio de lugar de las metricas (15 km): un
+    vecino a 10 km del centro del pueblo sigue siendo del pueblo.
+    """
+    if radio_km is None:
+        radio_km = 2 * 15.0
+    claves = _fase_claves()
+    if not claves:
+        return True
+    for cab in cabeceras():
+        if normalizar(cab['provincia']) not in claves:
+            continue
+        if haversine_distance(lat, lng, cab['lat'], cab['lng']) <= radio_km:
+            return True
+    return False

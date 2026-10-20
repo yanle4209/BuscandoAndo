@@ -362,6 +362,95 @@
   cursor: pointer;
 }
 
+/* ===== FASE1: AVISO DE FUERA DE ZONA ===== */
+/*
+ * El punto activo esta a mas de 30 km de cualquier cabecera de fase:
+ * no hay fichas cerca y NO es un error del buscador — todavia no
+ * llegamos ahi. Franja blanca como el resto del panel, con el filete
+ * amarillo de marca a la izquierda (el mismo que la cabecera). El
+ * boton amarillo es el mismo patron que .version-aviso__btn: relleno
+ * amarillo con tinta oscura (10:1).
+ */
+.fase-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  border-left: 4px solid var(--yellow);
+  font-family: var(--font);
+  flex-shrink: 0;
+}
+
+.fase-banner__textos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 260px;
+}
+
+.fase-banner__titulo {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--brown);
+}
+
+.fase-banner__texto {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.fase-banner__acciones {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.fase-banner__btn {
+  background: var(--yellow);
+  border: none;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.fase-banner__btn:hover:not(:disabled) {
+  background: var(--yellow-light);
+}
+
+.fase-banner__btn:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+/* Enlace secundario: --yellow-ink es el dorado legible sobre blanco
+   (4,9:1, documentado en index.css). */
+.fase-banner__escribir {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--yellow-ink);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.fase-banner__ok {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+}
+
 /* ===== CONTACT MODAL ===== */
 /*
  * IMPORTANTE: el panel necesita .modal-panel —la MISMA clase que usa el

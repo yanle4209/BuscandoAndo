@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from django.conf import settings
 from django.db.models import Case, IntegerField, Q, Value, When
 from django.utils import timezone
 
@@ -72,6 +73,27 @@ def parse_radio(valor):
     if pedido <= 0:
         return RADIO_KM
     return min(pedido, RADIO_KM)
+
+
+def _q_fase():
+    """El filtro de fase geografica para los LISTADOS (DISENO.md FASE1).
+
+    Solo recorta lo que se enseña: las fichas fuera de fase siguen en la
+    base y se abren por enlace directo (retrieve no pasa por aqui). El
+    province del location es texto libre, asi que se compara sin
+    distinguir mayusculas — las cuatro provincias actuales no tienen
+    tildes. Una ficha SIN fila de ubicacion no puede decirse de donde
+    es, asi que tampoco sale en el listado (el admin la sigue viendo).
+    Sin ``FASE1_PROVINCIAS`` no se recorta nada (y volver a ponerlo es
+    un solo deploy).
+    """
+    nombres = settings.FASE1_PROVINCIAS
+    if not nombres:
+        return Q()
+    q = Q()
+    for nombre in nombres:
+        q |= Q(location__province__iexact=nombre)
+    return q
 
 
 def negocios_en_radio(qs, lat, lng, radius_km):
@@ -199,6 +221,13 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
             'category', 'publication_status', 'operational_status'
         ).prefetch_related('location', 'contact', 'hours', 'images')
 
+        # Fase geografica (DISENO.md FASE1): el LISTADO recorta a las
+        # provincias de fase. Solo aqui y en destacados: la ficha
+        # (retrieve) se abre aunque este fuera — el enlace directo no se
+        # rompe y nada se borra.
+        if self.action == 'list':
+            qs = qs.filter(_q_fase())
+
         params = self.request.query_params
 
         # Busqueda por texto: no aqui, al FINAL, una vez aplicados el
@@ -286,8 +315,24 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
             resultados = len(respuesta.data.get('results') or [])
         elif isinstance(respuesta.data, list):
             resultados = len(respuesta.data)
-        registrar('consulta', request,
-                  termino=termino or None, resultados=resultados)
+
+        # Fase geografica: una busqueda SIN municipio de fase cerca se
+        # cuenta como fuera_zona (y con su lugar: ese es el mapa de la
+        # demanda que decide donde abrir despues), no como consulta.
+        # El termino se cuenta igual — que buscan los de fuera tambien
+        # interesa — pero SIN resultados: los 0 de fuera no ensucian la
+        # lista de "lo que falta levantar" (metrica interna).
+        evento = 'consulta'
+        try:
+            lat = float(request.query_params.get('lat'))
+            lng = float(request.query_params.get('lng'))
+        except (TypeError, ValueError):
+            lat = lng = None
+        if lat is not None and not geografia.punto_en_fase(lat, lng):
+            evento = 'fuera_zona'
+        registrar(evento, request,
+                  termino=termino or None,
+                  resultados=None if evento == 'fuera_zona' else resultados)
         return respuesta
 
     def retrieve(self, request, *args, **kwargs):
@@ -316,6 +361,10 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
             Q(featured_permanent=True) |
             Q(featured_end_date__isnull=True) |
             Q(featured_end_date__gt=now)
+        ).filter(
+            # Fase geografica: los destacados del buscador recortan igual
+            # que el listado (estan sobre "0 resultados" si no).
+            _q_fase()
         ).select_related(
             'category', 'publication_status', 'operational_status'
         ).prefetch_related('location', 'contact', 'hours', 'images')
@@ -367,17 +416,42 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
 
 @api_view(['GET'])
 def cabeceras(request):
-    """Las cabeceras municipales de todo el pais (158).
+    """Las cabeceras municipales de las provincias de fase (FASE1).
 
     Un dato, dos usos (DISENO.md R3):
 
     * ancla del circulo de 5 km cuando el usuario no da su ubicacion, y
     * fuente del selector manual de municipio.
 
+    La fase geografica recorta AQUI: el padron completo (158) sigue en
+    ``geografia.cabeceras()`` y lo usan el admin, el importador y el
+    reporte de pendientes. Web, app y levantamiento leen este mismo
+    endpoint, asi que los tres quedan recortados de una sola vez. Sin
+    provincias de fase configuradas se devuelven las 158.
+
     Se devuelve una lista plana agrupable por el cliente: la agrupacion por
     provincia es cosa de la interfaz, no del API.
     """
-    return Response(geografia.cabeceras())
+    return Response(geografia.cabeceras_en_fase())
+
+
+@api_view(['POST'])
+def interes(request):
+    """Aviso de lista de espera de la fase geografica.
+
+    El boton del banner de "todavia no llegamos a tu zona" suma UNA vez
+    el interes del punto (metrica ``aviso_interes``): el admin la ve en
+    el panel de uso, contada por municipio/provincia, y es lo que decide
+    donde abrir despues.
+
+    No se guarda NADA del usuario — ni correo, ni cookies, ni IP: es el
+    mismo contador agregado de siempre (dia x evento x lugar x
+    plataforma), asi que el endpoint no puede ser una fuga de datos ni
+    una lista que haya que limpiar. El lugar sale del ``lat``/``lng`` de
+    la query, como en el resto del API.
+    """
+    registrar('aviso_interes', request)
+    return Response({'ok': True})
 
 
 def _provincia_de(grupo):

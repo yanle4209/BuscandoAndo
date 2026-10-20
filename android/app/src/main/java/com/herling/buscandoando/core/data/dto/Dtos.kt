@@ -134,3 +134,16 @@ data class CorrectionCreada(
     val estado: String = "pendiente",
     val created_at: String? = null,
 )
+
+/**
+ * POST /api/interes/ — el {ok: true} del aviso de lista de espera.
+ *
+ * FASE1: suma UNA vez el interés del punto en el contador agregado
+ * `aviso_interes` (dia x evento x lugar x plataforma). No se guarda
+ * nada del usuario — sin correos, sin cookies, ni IP (ver la vista
+ * `interes` del backend).
+ */
+@Serializable
+data class InteresAviso(
+    val ok: Boolean = false,
+)

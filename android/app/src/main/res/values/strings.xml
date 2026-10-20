@@ -115,4 +115,12 @@
     <string name="correction_ok_close">Entendido</string>
     <string name="correction_error">No se pudo enviar el aviso. Inténtalo de nuevo.</string>
     <string name="correction_close">Cerrar</string>
+
+    <!-- ===== FASE1 · aviso de fuera de zona ===== -->
+    <string name="fase_titulo">Todavía no llegamos a tu zona</string>
+    <string name="fase_texto">BuscandoAndo está empezando en %1$s. Todavía no hay fichas cerca de ti.</string>
+    <string name="fase_btn">Quiero que lleguen aquí</string>
+    <string name="fase_enviando">Enviando…</string>
+    <string name="fase_ok">¡Anotado! Ya sabemos que quieres que lleguemos a tu zona.</string>
+    <string name="fase_escribir">o escríbenos</string>
 </resources>

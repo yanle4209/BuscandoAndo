@@ -6,6 +6,7 @@ import com.herling.buscandoando.core.data.dto.Cabecera
 import com.herling.buscandoando.core.data.dto.Category
 import com.herling.buscandoando.core.data.dto.CorrectionCreada
 import com.herling.buscandoando.core.data.dto.CorrectionPayload
+import com.herling.buscandoando.core.data.dto.InteresAviso
 import com.herling.buscandoando.core.data.dto.PagedResponse
 import retrofit2.Response
 import retrofit2.http.Body
@@ -127,4 +128,18 @@ interface BuscandoAndoApi {
     suspend fun createCorrection(
         @Body payload: CorrectionPayload,
     ): Response<CorrectionCreada>
+
+    /**
+     * POST /api/interes/  ->  {ok: true}
+     *
+     * FASE1 · aviso de lista de espera del banner de fuera de zona:
+     * cuenta el interés por lugar y NO guarda nada del usuario. El
+     * lugar sale del lat/lng de la query, como en el resto del API
+     * (misma ruta que correcciones de uso: dia x evento x lugar).
+     */
+    @POST("interes/")
+    suspend fun avisarInteres(
+        @Query("lat") lat: Double,
+        @Query("lng") lng: Double,
+    ): Response<InteresAviso>
 }
