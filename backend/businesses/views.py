@@ -2,7 +2,6 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from django.conf import settings
 from django.db.models import Case, IntegerField, Q, Value, When
 from django.utils import timezone
 
@@ -73,27 +72,6 @@ def parse_radio(valor):
     if pedido <= 0:
         return RADIO_KM
     return min(pedido, RADIO_KM)
-
-
-def _q_fase():
-    """El filtro de fase geografica para los LISTADOS (DISENO.md FASE1).
-
-    Solo recorta lo que se enseña: las fichas fuera de fase siguen en la
-    base y se abren por enlace directo (retrieve no pasa por aqui). El
-    province del location es texto libre, asi que se compara sin
-    distinguir mayusculas — las cuatro provincias actuales no tienen
-    tildes. Una ficha SIN fila de ubicacion no puede decirse de donde
-    es, asi que tampoco sale en el listado (el admin la sigue viendo).
-    Sin ``FASE1_PROVINCIAS`` no se recorta nada (y volver a ponerlo es
-    un solo deploy).
-    """
-    nombres = settings.FASE1_PROVINCIAS
-    if not nombres:
-        return Q()
-    q = Q()
-    for nombre in nombres:
-        q |= Q(location__province__iexact=nombre)
-    return q
 
 
 def negocios_en_radio(qs, lat, lng, radius_km):
@@ -226,7 +204,7 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
         # (retrieve) se abre aunque este fuera — el enlace directo no se
         # rompe y nada se borra.
         if self.action == 'list':
-            qs = qs.filter(_q_fase())
+            qs = qs.filter(geografia.q_fase())
 
         params = self.request.query_params
 
@@ -364,7 +342,7 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
         ).filter(
             # Fase geografica: los destacados del buscador recortan igual
             # que el listado (estan sobre "0 resultados" si no).
-            _q_fase()
+            geografia.q_fase()
         ).select_related(
             'category', 'publication_status', 'operational_status'
         ).prefetch_related('location', 'contact', 'hours', 'images')

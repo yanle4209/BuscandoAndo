@@ -1,0 +1,10 @@
+# robots.txt de BuscandoAndo (auditoria C).
+#
+# Vite copia este fichero tal cual a dist/ y serve_react lo sirve ANTES
+# del fallback de la SPA (es un fichero real, no una ruta de React).
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+Sitemap: https://buscandoando.onrender.com/sitemap.xml
