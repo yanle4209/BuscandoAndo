@@ -16,26 +16,42 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadowUrl,
 });
 
+// Los iconos miden 24x24 — el objetivo minimo de WCAG 2.5.8 — y el
+// punto de siempre se centra dentro: mismo dibujo, dedo que acierta.
+// Los inline styles son del wrapper, no del punto, y el wrapper no se
+// toca con el hover de Leaflet.
 const YELLOW_ICON = L.divIcon({
   className: 'custom-marker',
-  html: `<div style="width:14px;height:14px;background:#FBBF24;border:2px solid #1f1a1a;border-radius:50%;box-shadow:0 0 6px rgba(251,191,36,0.5);"></div>`,
-  iconSize: [14, 14],
-  iconAnchor: [7, 7],
+  html: '<div style="display:flex;align-items:center;justify-content:center;width:24px;height:24px;">'
+    + '<div style="width:14px;height:14px;background:#FBBF24;border:2px solid #1f1a1a;border-radius:50%;box-shadow:0 0 6px rgba(251,191,36,0.5);"></div></div>',
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
 });
 
 const SELECTED_ICON = L.divIcon({
   className: 'custom-marker',
-  html: `<div style="width:20px;height:20px;background:#FBBF24;border:3px solid #fff;border-radius:50%;box-shadow:0 0 12px rgba(251,191,36,0.7);"></div>`,
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
+  html: '<div style="display:flex;align-items:center;justify-content:center;width:24px;height:24px;">'
+    + '<div style="width:20px;height:20px;background:#FBBF24;border:3px solid #fff;border-radius:50%;box-shadow:0 0 12px rgba(251,191,36,0.7);"></div></div>',
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
 });
 
 const USER_ICON = L.divIcon({
   className: 'custom-marker',
-  html: `<div style="width:12px;height:12px;background:#4285f4;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px rgba(66,133,244,0.6);"></div>`,
-  iconSize: [12, 12],
-  iconAnchor: [6, 6],
+  html: '<div style="display:flex;align-items:center;justify-content:center;width:24px;height:24px;">'
+    + '<div style="width:12px;height:12px;background:#4285f4;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px rgba(66,133,244,0.6);"></div></div>',
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
 });
+
+// Leaflet convierte cada marcador interactivo en un boton de teclado
+// SIN nombre: un lector de pantalla oye "boton" por cada pin y no sabe
+// que negocio hay detras (auditoria D). El nombre se pone despues de
+// addTo, que es cuando el nodo del marcador existe.
+function ponerNombreDeMarker(marker, nombre) {
+  const nodo = marker.getElement();
+  if (nodo) nodo.setAttribute('aria-label', nombre);
+}
 
 // Vista por defecto mientras no hay punto activo (sin municipio y sin
 // GPS): el mapa se abre mirando el pais entero. No es un "punto", asi
@@ -156,6 +172,7 @@ export default function MapView({ businesses, selected, center, onMarkerClick, o
       const userMarker = L.marker(center, { icon: USER_ICON })
         .addTo(mapInstance.current)
         .bindPopup('Tu ubicación');
+      ponerNombreDeMarker(userMarker, 'Tu ubicación');
       markersRef.current.push(userMarker);
     }
 
@@ -171,6 +188,8 @@ export default function MapView({ businesses, selected, center, onMarkerClick, o
       const marker = L.marker([lat, lng], { icon })
         .addTo(mapInstance.current)
         .bindPopup(`<strong>${biz.name}</strong><br/>${biz.category_name || ''}`);
+
+      ponerNombreDeMarker(marker, biz.name);
 
       marker.on('click', () => {
         if (onMarkerClick) onMarkerClick(biz);
