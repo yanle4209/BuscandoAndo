@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icono monocromo (temas de Android 13+): solo la silueta de la lupa,
+     en blanco para que el sistema la tiña. Geometria identica al
+     foreground: aro centrado en (54,47) y mango abajo a la derecha. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M37.6,47 a16.4,16.4 0 1,0 32.8,0 a16.4,16.4 0 1,0 -32.8,0"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4.2"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M67.4,60.4 L75.9,68.9"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>
