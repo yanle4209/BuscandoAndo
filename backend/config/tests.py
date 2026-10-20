@@ -367,6 +367,26 @@ class SeoTests(TestCase):
         self.assertNotIn(self.sin_publicar.slug, xml)
         self.assertIn('<lastmod>', xml)
 
+    # --- PWA minima (auditoria E) ---------------------------------------
+
+    def test_el_manifest_se_sirve_con_su_tipo(self):
+        """Sin application/manifest+json el navegador rechaza el
+        manifest y no instala nada — mimetypes no trae .webmanifest en
+        todos los sistemas, asi que serve_react lo declara a mano."""
+        manifiesto = self.build / 'manifest.webmanifest'
+        manifiesto.write_text('{"name": "BuscandoAndo"}', encoding='utf-8')
+        self.addCleanup(manifiesto.unlink, missing_ok=True)
+
+        respuesta = self._get('/manifest.webmanifest')
+        # Windows no deja borrar un fichero con el handle abierto
+        # (FileResponse lo mantiene): cerrar la respuesta va ANTES de
+        # borrar, que es como se ejecutan las cleanups (LIFO).
+        self.addCleanup(respuesta.close)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(
+            respuesta['Content-Type'], 'application/manifest+json')
+
 
 @override_settings(STORAGES=STATIC_SIN_MANIFEST)
 class FrenoLoginAdminTests(TestCase):
@@ -502,3 +522,27 @@ class CabecerasCSPTests(TestCase):
                          'images/layers.png', 'images/layers-2x.png'):
             self.assertTrue(
                 (base / relativo).is_file(), 'falta %s' % relativo)
+
+
+class CabecerasPermisosTests(TestCase):
+    """Permissions-Policy (auditoria E, menores).
+
+    La web le pide una sola cosa al navegador: geolocalizacion, y solo
+    para si misma (el buscador R1/R3, el mismo motivo que la CSP
+    declare nominatim). Todo lo demas se niega por delante: aunque un
+    script colado llegara a ejecutarse, no podra tocar camara,
+    microfono, pagos ni USB.
+    """
+
+    def _permisos(self):
+        return self.client.get(URL)['Permissions-Policy']
+
+    def test_deja_la_geolocalizacion_para_si_misma(self):
+        self.assertIn('geolocation=(self)', self._permisos())
+
+    def test_apaga_lo_que_la_pagina_no_usa(self):
+        permisos = self._permisos()
+        for apagado in ('camera=()', 'microphone=()', 'payment=()',
+                        'usb=()'):
+            with self.subTest(feature=apagado):
+                self.assertIn(apagado, permisos)

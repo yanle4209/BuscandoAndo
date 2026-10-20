@@ -64,6 +64,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'config.middleware.CabecerasSeguridadMiddleware',
     'config.middleware.ThrottleLoginAdmin',
+    'config.middleware.ThrottleCorrecciones',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -221,6 +222,10 @@ if not DEBUG:
     # HSTS: un ano. Cloudflare ya redirige http:// a https://, esto le
     # dice al navegador que ni lo intente la proxima vez.
     SECURE_HSTS_SECONDS = 31536000
+    # Subdominios tambien (auditoria E): el sitio no tiene ninguno
+    # todavía, y si aparece nace con https. El preload NO: eso no se
+    # deshace y aun no toca pedirlo.
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     # Detras de Cloudflare/Render el https llega declarado en
     # X-Forwarded-Proto; sin esto Django cree que todo llega por http y
     # no manda HSTS ni marca las cookies como seguras con criterio.

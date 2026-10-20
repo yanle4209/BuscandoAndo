@@ -20,6 +20,7 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.management import call_command
 from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
@@ -189,6 +190,52 @@ class CorrectionApiTests(TestCase):
         self.assertEqual(
             response.status_code, 201,
             f'El publico no puede enviar con la sesion del admin abierta: {response.data}',
+        )
+
+    # ---------------------------- freno (E) ------------------------------
+    def test_un_ip_que_empapa_el_formulario_recibe_429(self):
+        """Sin techo server-side el formulario publico era una puerta
+        abierta a inundar la bandeja del admin (auditoria E). El freno
+        corta ANTES de la vista, asi que lo que llega de mas no se
+        crea: el aviso repetido ni siquiera valida.
+
+        El contador se pone a mano al techo (la suite entera manda ~18
+        envios y no debe cruzar el limite sola) y se borra al terminar,
+        para no depender del orden de los tests.
+        """
+        from config.middleware import ThrottleCorrecciones
+
+        clave = ThrottleCorrecciones.PREFIJO + 'ip:127.0.0.1'
+        self.addCleanup(cache.delete, clave)
+        cache.set(clave, ThrottleCorrecciones.TECHO,
+                  timeout=ThrottleCorrecciones.VENTANA)
+
+        response = self.post()
+
+        self.assertEqual(response.status_code, 429)
+        self.assertIn('Retry-After', response)
+        # Es un JsonResponse de Django (el freno va antes de DRF), no
+        # una Response del framework: se lee el cuerpo a mano.
+        cuerpo = json.loads(response.content.decode('utf-8'))
+        self.assertIn('Demasiados', cuerpo['detail'])
+        self.assertEqual(self.business.corrections.count(), 0)
+
+    def test_el_freno_no_toca_a_los_demas(self):
+        """Solo el POST publico cuenta: la lista (staff) no pasa por
+        el freno aunque el techo este lleno."""
+        from config.middleware import ThrottleCorrecciones
+
+        clave = ThrottleCorrecciones.PREFIJO + 'ip:127.0.0.1'
+        self.addCleanup(cache.delete, clave)
+        cache.set(clave, ThrottleCorrecciones.TECHO,
+                  timeout=ThrottleCorrecciones.VENTANA)
+
+        response = self.client.get(CORRECTIONS_URL)
+
+        self.assertIn(
+            response.status_code, (401, 403),
+            'El freno del POST publico se esta colando en la lista '
+            'solo-staff',
         )
 
 

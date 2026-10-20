@@ -204,6 +204,12 @@ def serve_react(request, path=''):
         file_path = (build_dir / path.lstrip('/')).resolve()
         if file_path.is_relative_to(base) and file_path.is_file():
             content_type, _ = mimetypes.guess_type(str(file_path))
+            # .webmanifest no esta en la tabla de mimetypes de todos los
+            # sistemas (Windows no lo trae; en Linux depende de la
+            # version). Con el tipo equivocado el navegador no acepta el
+            # manifest (auditoria E), asi que se declara a mano.
+            if file_path.suffix == '.webmanifest':
+                content_type = 'application/manifest+json'
             response = FileResponse(open(file_path, 'rb'), content_type=content_type)
             # Asset con hash en el nombre (index-97q9MQp8.js): el nombre
             # cambia en cada build, asi que se puede conservar para
