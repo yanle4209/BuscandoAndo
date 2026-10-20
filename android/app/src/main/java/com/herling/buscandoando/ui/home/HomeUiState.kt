@@ -28,6 +28,25 @@ enum class LocationStatus {
 
 
 /**
+ * FASE1 · estados del aviso de lista de espera del banner de fuera
+ * de zona.
+ *
+ * Un enum, igual que [LocationStatus]: "enviando" y "ok" no pueden
+ * darse a la vez, y la UI hace un `when` exhaustivo.
+ */
+enum class AvisoFase {
+    /** Sin avisar (o el intento falló: se puede reintentar). */
+    Idle,
+
+    /** POST /api/interes/ en vuelo. */
+    Enviando,
+
+    /** El backend lo contó: el boton se sustituye por el agradecimiento. */
+    Ok,
+}
+
+
+/**
  * Estado completo de la pantalla Home.
  *
  * Es el "contrato con la pantalla": TODO lo que la UI necesita para
@@ -203,6 +222,9 @@ data class HomeUiState(
      *          10 caracteres que exige validate_mensaje)
      */
     val correccionError: String? = null,
+
+    /** Aviso de lista de espera del banner de fuera de zona (FASE1). */
+    val avisoFase: AvisoFase = AvisoFase.Idle,
 ) {
     /** Total de páginas = ceil(totalCount / PAGE_SIZE), mínimo 1. */
     val totalPages: Int
@@ -232,6 +254,40 @@ data class HomeUiState(
 
     /** "Elige tu municipio o activa tu ubicación para empezar" (R1.1). */
     val sinPunto: Boolean get() = punto == null
+
+    /**
+     * FASE1 · el punto está a más de [UMBRAL_FASE_KM] de cualquier
+     * cabecera de fase: no hay fichas cerca y NO es un fallo del
+     * buscador — todavía no llegamos. Mismo criterio que
+     * `geografia.punto_en_fase` del backend (2 × RADIO_LUGAR_KM = 30).
+     *
+     * Con el padron completo (158, que es lo que devuelve el backend si
+     * se vacia FASE1_PROVINCIAS) el aviso se apaga solo: no vamos a
+     * decirle a nadie que no llegamos cuando llegamos a todo el pais.
+     */
+    val fueraDeZona: Boolean
+        get() {
+            val p = punto ?: return false
+            if (cabeceras.isEmpty() || cabeceras.size >= PADRON_COMPLETO) return false
+            return cabeceras.none {
+                HomeMachine.distKm(p, Punto(it.lat, it.lng)) <= UMBRAL_FASE_KM
+            }
+        }
+
+    /**
+     * "Espaillat, Santiago, La Vega y Hermanas Mirabal" — el texto del
+     * banner sale de los datos: si cambian las provincias de fase, el
+     * mensaje cambia solo.
+     */
+    val provinciasFase: String
+        get() {
+            val nombres = cabeceras.map { it.provincia }.distinct()
+            return when {
+                nombres.isEmpty() -> ""
+                nombres.size == 1 -> nombres.first()
+                else -> nombres.dropLast(1).joinToString(", ") + " y " + nombres.last()
+            }
+        }
 
     /**
      * Etiqueta del municipio elegido, o null si no lo hay.
@@ -276,5 +332,20 @@ data class HomeUiState(
          * te quedarías mirando resultados viejos.
          */
         const val THROTTLE_MS = 30_000L
+
+        /**
+         * FASE1 · a más de 30 km de cualquier cabecera de fase no hay
+         * fichas cerca — el MISMO criterio que `punto_en_fase` del
+         * backend (2 × RADIO_LUGAR_KM). Debe cuadrar con
+         * UMBRAL_FASE_KM de Home.jsx.
+         */
+        const val UMBRAL_FASE_KM = 30.0
+
+        /**
+         * Proxy de "fase activa": con FASE1_PROVINCIAS vacia el backend
+         * devuelve el padron entero (158 municipios; holgado por debajo
+         * de 150) y el aviso de fuera de zona se apaga solo.
+         */
+        const val PADRON_COMPLETO = 150
     }
 }

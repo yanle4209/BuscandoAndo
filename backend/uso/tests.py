@@ -194,3 +194,95 @@ class ResumenDelAdminTests(TestCase):
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(respuesta, 'Ver resumen')
+
+
+class MetricasDeFaseTests(TestCase):
+    """Las metricas de la fase geografica (FASE1).
+
+    Una busqueda desde fuera de fase no es una consulta del catalogo:
+    se cuenta como ``fuera_zona`` CON su lugar — ese es el mapa de la
+    demanda que decide donde abrir despues — y sus ceros NO entran en
+    TerminoDia (la lista de "lo que falta levantar" es solo de dentro).
+    El termino si se suma: que buscan los de fuera tambien interesa.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado')
+        cls.category = Category.objects.create(
+            name='Restaurantes', slug='restaurantes')
+        moca = geografia.cabecera_para('Moca', 'Espaillat')
+        cls.moca = moca
+        cls.negocio = Business.objects.create(
+            name='La Receta',
+            slug='la-receta',
+            description='Comida casera',
+            category=cls.category,
+            publication_status=cls.publicado,
+        )
+        BusinessLocation.objects.create(
+            business=cls.negocio, municipality='Moca', province='Espaillat',
+            latitude=moca['lat'], longitude=moca['lng'],
+        )
+        # Centro de Santo Domingo: a mas de 100 km de cualquier
+        # cabecera de fase.
+        cls.fuera = {'lat': 18.4861, 'lng': -69.9312}
+
+    def _consultar(self, **params):
+        return self.client.get(BUSINESSES_URL, params,
+                               HTTP_USER_AGENT=NAVEGADOR)
+
+    def test_desde_fuera_se_cuenta_fuera_zona_con_su_lugar(self):
+        respuesta = self._consultar(
+            text='receta', lat=self.fuera['lat'], lng=self.fuera['lng'])
+
+        self.assertEqual(respuesta.status_code, 200)
+        fila = UsoDiario.objects.get(evento='fuera_zona')
+        self.assertEqual(fila.total, 1)
+        # El lugar lo dice el padron: ese punto cae en Distrito Nacional
+        # (el mapa de la demanda muestra de QUE provincia llegan).
+        self.assertEqual(fila.provincia, 'Distrito Nacional')
+        self.assertFalse(UsoDiario.objects.filter(evento='consulta').exists())
+
+    def test_los_ceros_de_fuera_no_ensucian_lo_que_falta_levantar(self):
+        """El termino de fuera suma busquedas pero NO suma sin_resultados."""
+        self._consultar(text='receta', lat=self.fuera['lat'],
+                        lng=self.fuera['lng'])
+
+        termino = TerminoDia.objects.get(termino='receta')
+        self.assertEqual((termino.busquedas, termino.sin_resultados),
+                         (1, 0))
+
+    def test_desde_dentro_sigue_contando_como_consulta(self):
+        respuesta = self._consultar(
+            text='receta', lat=self.moca['lat'], lng=self.moca['lng'])
+
+        self.assertEqual(respuesta.status_code, 200)
+        fila = UsoDiario.objects.get(evento='consulta')
+        self.assertEqual((fila.total, fila.provincia, fila.municipio),
+                         (1, 'Espaillat', 'Moca'))
+        termino = TerminoDia.objects.get(termino='receta')
+        self.assertEqual((termino.busquedas, termino.sin_resultados),
+                         (1, 0))
+
+    @override_settings(FASE1_PROVINCIAS=())
+    def test_sin_fase_configurada_todo_se_cuenta_como_consulta(self):
+        """La reversibilidad alcanza tambien a las metricas."""
+        self._consultar(text='receta', lat=self.fuera['lat'],
+                        lng=self.fuera['lng'])
+
+        self.assertEqual(UsoDiario.objects.get(evento='consulta').total, 1)
+
+    def test_el_aviso_de_lista_de_espera_se_cuenta_sin_datos_de_nadie(self):
+        """POST /api/interes/ -> solo el contador aviso_interes."""
+        respuesta = self.client.post(
+            '/api/interes/?lat=%s&lng=%s' % (self.fuera['lat'],
+                                             self.fuera['lng']),
+            HTTP_USER_AGENT=NAVEGADOR)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json(), {'ok': True})
+        fila = UsoDiario.objects.get(evento='aviso_interes')
+        self.assertEqual((fila.total, fila.provincia),
+                         (1, 'Distrito Nacional'))

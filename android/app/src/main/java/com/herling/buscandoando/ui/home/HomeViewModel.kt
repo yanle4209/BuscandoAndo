@@ -303,6 +303,40 @@ class HomeViewModel : ViewModel() {
     }
 
     /**
+     * "Quiero que lleguen aqui" del banner de fuera de fase (FASE1) →
+     * POST /api/interes/ — solo un contador agregado, sin nada del
+     * usuario (sin correos, sin cookies, ni IP).
+     *
+     * Mismo dibujo que las correcciones: Enviando → Ok, y en fallo se
+     * vuelve a Idle para que el boton permita reintentar. Sin
+     * snackbar: el aviso no es bloqueante y no debe interrumpir la
+     * busqueda (la web tampoco lo hace).
+     */
+    fun onAvisarFase() {
+        val punto = _uiState.value.punto ?: return
+        if (_uiState.value.avisoFase != AvisoFase.Idle) return
+
+        _uiState.update { it.copy(avisoFase = AvisoFase.Enviando) }
+
+        viewModelScope.launch {
+            try {
+                val respuesta = ApiClient.api.avisarInteres(punto.lat, punto.lng)
+                Log.d(TAG, "interes → HTTP ${respuesta.code()}")
+                _uiState.update {
+                    it.copy(
+                        avisoFase = if (respuesta.isSuccessful) AvisoFase.Ok else AvisoFase.Idle,
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "interes falló: ${e::class.simpleName}: ${e.message}")
+                _uiState.update { it.copy(avisoFase = AvisoFase.Idle) }
+            }
+        }
+    }
+
+    /**
      * Saca el primer mensaje legible del 4xx de DRF.
      *
      * DRF responde JSON con forma {"campo": ["Dato invalido"]} y el

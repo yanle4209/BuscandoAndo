@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -316,6 +317,7 @@ fun HomeScreen(
             business.slug?.let(viewModel::onBusinessSelected)
         },
         onReport = viewModel::onOpenCorrection,
+        onAvisarFase = viewModel::onAvisarFase,
     )
 
     // ── FASE 4: hoja modal con el detalle ──
@@ -366,6 +368,7 @@ private fun HomeContent(
     onOpenSettings: () -> Unit,
     onBusinessClick: (Business) -> Unit,
     onReport: (Business) -> Unit,
+    onAvisarFase: () -> Unit,
 ) {
     // ── Fase 7 · avisos TRANSIATORIOS ──
     //
@@ -420,6 +423,18 @@ private fun HomeContent(
         // ── Filete de cabecera: 3px de amarillo, igual que el
         //    #header de la web. Separa sobre fondo blanco ──
         HorizontalDivider(color = CanaryYellow, thickness = 3.dp)
+
+        // ── FASE1: fuera de las provincias de fase no hay fichas
+        //    cerca y el buscador no tiene la culpa. Se dice (el texto
+        //    sale de los datos, no esta escrito a mano) y se puede
+        //    contar con POST /api/interes/ — solo un contador. ──
+        if (state.fueraDeZona) {
+            FaseBanner(
+                state = state,
+                onAvisar = onAvisarFase,
+                onEscribir = onOpenContact,
+            )
+        }
 
         // ── Contador de resultados (espejo de .right-section-header) ──
         // Solo EXISTE tras la primera consulta: en portada no hay nada
@@ -2088,6 +2103,100 @@ private fun ErrorState(
             Text(text = stringResource(R.string.home_error_retry), color = GoldInk)
         }
     }
+}
+
+/**
+ * FASE1 · aviso de fuera de zona (espejo de .fase-banner de Home.css).
+ *
+ * El punto esta a mas de 30 km de cualquier cabecera de fase: no hay
+ * fichas cerca y NO es un fallo del buscador — todavia no llegamos.
+ * El texto sale de los datos (provincias del API), el boton suma
+ * POST /api/interes/ (solo un contador agregado, sin nada del
+ * usuario) y "escríbenos" abre el mismo contacto de la cabecera.
+ *
+ * El boton va con OutlinedButton + borde amarillo, el mismo patron
+ * del "Reintentar" de ErrorState: el amarillo relleno sobre blanco
+ * solo lo usa la web (.version-aviso__btn), aqui manda la costumbre
+ * de la app.
+ */
+@Composable
+private fun FaseBanner(
+    state: HomeUiState,
+    onAvisar: () -> Unit,
+    onEscribir: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(SurfaceWhite),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Filete amarillo de marca, el mismo dibujo que la cabecera.
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .fillMaxHeight()
+                .background(CanaryYellow),
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.fase_titulo),
+                color = BrandBrown,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = stringResource(R.string.fase_texto, state.provinciasFase),
+                color = TextSecondary,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(4.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (state.avisoFase == AvisoFase.Ok) {
+                    Text(
+                        text = stringResource(R.string.fase_ok),
+                        color = StatusOpen,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                } else {
+                    OutlinedButton(
+                        onClick = onAvisar,
+                        enabled = state.avisoFase == AvisoFase.Idle,
+                        border = BorderStroke(1.dp, CanaryYellow),
+                    ) {
+                        Text(
+                            text = stringResource(
+                                if (state.avisoFase == AvisoFase.Enviando) {
+                                    R.string.fase_enviando
+                                } else {
+                                    R.string.fase_btn
+                                },
+                            ),
+                            color = GoldInk,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                TextButton(onClick = onEscribir) {
+                    Text(
+                        text = stringResource(R.string.fase_escribir),
+                        color = GoldInk,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
+    }
+    HorizontalDivider(color = Hairline, thickness = 1.dp)
 }
 
 @Composable

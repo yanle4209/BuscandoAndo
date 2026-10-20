@@ -202,7 +202,7 @@ class FeaturedApiTests(TestCase):
 
     def make_business(self, name, tier=None, *, featured=True, publication_status=None):
         """Crea un negocio ya destacado (o no) y lo devuelve."""
-        return Business.objects.create(
+        biz = Business.objects.create(
             name=name,
             description=f'Descripcion de {name}',
             short_description=name,
@@ -213,6 +213,13 @@ class FeaturedApiTests(TestCase):
             featured_tier=tier,
             featured_permanent=featured,
         )
+        # Con ubicacion de Moca (provincia de fase): los listados
+        # recortan por provincia y una ficha sin location no sale.
+        BusinessLocation.objects.create(
+            business=biz, municipality='Moca', province='Espaillat',
+            latitude=MOCA_LAT, longitude=MOCA_LNG,
+        )
+        return biz
 
     # ------------------------------------------------------------------
     # GET /api/businesses/featured-by-search/
@@ -343,7 +350,10 @@ class RadioDeBusquedaTests(TestCase):
             featured_tier=tier,
             featured_permanent=featured,
         )
-        BusinessLocation.objects.create(business=biz, latitude=lat, longitude=lng)
+        BusinessLocation.objects.create(
+            business=biz, municipality='Moca', province='Espaillat',
+            latitude=lat, longitude=lng,
+        )
         return biz
 
     def setUp(self):
@@ -439,7 +449,7 @@ class BusquedaPorTextoTests(TestCase):
 
     def make_business(self, name, *, featured, tier=None):
         """Ni el nombre ni la descripcion contienen 'restaurante': solo la categoria."""
-        return Business.objects.create(
+        biz = Business.objects.create(
             name=name,
             description=f'Descripcion de {name}',
             short_description=name,
@@ -450,6 +460,12 @@ class BusquedaPorTextoTests(TestCase):
             featured_tier=tier,
             featured_permanent=featured,
         )
+        # En fase (Moca): los listados recortan por provincia.
+        BusinessLocation.objects.create(
+            business=biz, municipality='Moca', province='Espaillat',
+            latitude=MOCA_LAT, longitude=MOCA_LNG,
+        )
+        return biz
 
     def abajo(self, **params):
         data = self.client.get(BUSINESSES_URL, params).json()
@@ -735,6 +751,9 @@ class FiltroCityTests(TestCase):
         BusinessLocation.objects.create(
             business=biz,
             municipality=municipio,
+            # Las dos provincias son de fase (FASE1): este test no mira
+            # la fase, mira que `city` no recorte — y asi ambos salen.
+            province='Espaillat' if municipio == 'Moca' else 'Santiago',
             latitude=MOCA_LAT,
             longitude=MOCA_LNG,
         )
@@ -781,11 +800,14 @@ class FiltroCityTests(TestCase):
 
 
 class CabecerasApiTests(TestCase):
-    """GET /api/cabeceras/ -> las cabeceras municipales del pais (R3).
+    """GET /api/cabeceras/ -> las cabeceras municipales de la fase (R3).
 
-    Es el dato que hace que el sistema funcione en los 158 municipios y no
-    solo donde hay fichas cargadas: ancla del circulo de 5 km cuando no hay
-    GPS y fuente del selector manual.
+    Es el dato que hace que el sistema funcione y no solo donde hay
+    fichas cargadas: ancla del circulo de 5 km cuando no hay GPS y
+    fuente del selector manual. Con FASE1 activa la API publica solo
+    las cabeceras de las provincias de fase; el padron COMPLETO (158)
+    vive en ``geografia.cabeceras()`` y lo usan admin, importador y
+    reporte de pendientes, que no pasan por aqui.
     """
 
     def cabeceras(self):
@@ -793,12 +815,22 @@ class CabecerasApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         return response.json()
 
-    def test_es_publico_y_cubre_casi_todo_el_pais(self):
+    def test_es_publico_y_recorta_a_las_provincias_de_fase(self):
         data = self.cabeceras()
+        padron = geografia.cabeceras()
 
-        # 158 municipios en el CSV; el corte se deja holgado para que un
-        # anadido futuro no rompa el test.
-        self.assertGreaterEqual(len(data), 150)
+        # FASE1: el publico ve solo las cabeceras de las provincias de
+        # fase (22 de 158 hoy) y NINGUNA de fuera.
+        fase = {geografia.normalizar(p) for p in settings.FASE1_PROVINCIAS}
+        self.assertTrue(fase, 'los tests corren con la fase de settings')
+        self.assertGreaterEqual(len(data), 1)
+        for cab in data:
+            with self.subTest(municipio=cab['municipio']):
+                self.assertIn(geografia.normalizar(cab['provincia']), fase)
+
+        # El padron de 158 del CSV no se toca: la fase recorta VISTAS.
+        self.assertGreaterEqual(len(padron), 150)
+        self.assertLess(len(data), len(padron))
 
     def test_toda_cabecera_es_un_punto_usable(self):
         """Ninguna fila puede venirse abajo: sin municipio, sin provincia o
@@ -817,6 +849,104 @@ class CabecerasApiTests(TestCase):
 
         self.assertEqual(len(moca), 1)
         self.assertEqual(moca[0]['provincia'], 'Espaillat')
+
+
+class FaseGeograficaTests(TestCase):
+    """FASE1: el listado y el selector recortan, la ficha no.
+
+    Las provincias de fase (Espaillat, Santiago, La Vega y Hermanas
+    Mirabal) es lo unico que se enseña HOY en web, app y levantamiento
+    — los tres leen los mismos endpoints, asi que el recorte llega a
+    todas de una sola vez. Las fichas de fuera siguen en la base (nada
+    se borra), el enlace directo las sigue abriendo y vaciar
+    ``FASE1_PROVINCIAS`` en settings vuelve al pais entero en un solo
+    deploy.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado')
+        cls.category = Category.objects.create(
+            name='Restaurantes', slug='restaurantes')
+        cls.op_status = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto')
+        cls.en_fase = cls.ficha('La Receta', 'Moca', 'Espaillat',
+                                19.3970, -70.5270)
+        cls.fuera = cls.ficha('Dulce Hogar', 'Santo Domingo',
+                              'Santo Domingo', 18.4861, -69.9312)
+
+    @classmethod
+    def ficha(cls, nombre, municipio, provincia, lat, lng):
+        """Publicada y destacada: asi cubre listado Y destacados."""
+        biz = Business.objects.create(
+            name=nombre,
+            description=f'Descripcion de {nombre}',
+            short_description=nombre,
+            category=cls.category,
+            publication_status=cls.publicado,
+            operational_status=cls.op_status,
+            is_featured=True,
+            featured_tier='2',
+            featured_permanent=True,
+        )
+        BusinessLocation.objects.create(
+            business=biz, municipality=municipio, province=provincia,
+            latitude=lat, longitude=lng,
+        )
+        return biz
+
+    def nombres(self, **params):
+        data = self.client.get(BUSINESSES_URL, params).json()
+        return [b['name'] for b in data['results']]
+
+    def test_el_listado_solo_muestra_las_provincias_de_fase(self):
+        """Sin coordenadas el listado mira al pais entero: entra la
+        fase y solo la fase (antes devolvia las 1.839)."""
+        self.assertEqual(self.nombres(), ['La Receta'])
+
+    def test_el_recorte_no_borra_nada_de_la_base(self):
+        """La ficha de fuera sigue ahi, publicada, esperando su dia."""
+        self.assertTrue(
+            Business.objects.filter(
+                slug=self.fuera.slug,
+                publication_status__slug='publicado',
+            ).exists(),
+        )
+
+    def test_la_ficha_fuera_de_fase_abre_por_enlace_directo(self):
+        """El enlace directo no se rompe: retrieve no pasa por el filtro."""
+        response = self.client.get(f'{BUSINESSES_URL}{self.fuera.slug}/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['name'], 'Dulce Hogar')
+
+    def test_los_destacados_tambien_recortan(self):
+        """Si no recortan igual, salen destacados sobre '0 resultados'."""
+        data = self.client.get(BUSINESSES_URL, {'featured': 'true'}).json()
+
+        self.assertEqual([b['name'] for b in data['results']],
+                         ['La Receta'])
+
+    def test_el_selector_de_municipio_solo_ofrece_la_fase(self):
+        """El mismo endpoint leen web, app y levantamiento."""
+        municipios = {
+            c['municipio']
+            for c in self.client.get(CABECERAS_URL).json()
+        }
+
+        self.assertIn('Moca', municipios)
+        self.assertNotIn('Santo Domingo', municipios)
+
+    @override_settings(FASE1_PROVINCIAS=())
+    def test_sin_fase_configurada_entra_el_pais_entero(self):
+        """La reversibilidad es un solo deploy: tupla vacia = antes."""
+        self.assertEqual(sorted(self.nombres()),
+                         ['Dulce Hogar', 'La Receta'])
+        self.assertEqual(
+            len(self.client.get(CABECERAS_URL).json()),
+            len(geografia.cabeceras()),
+        )
 
 
 class ReportePendientesTests(TestCase):
@@ -2880,6 +3010,11 @@ class EstadoEfectivoTests(TestCase):
             category=self.categoria,
             publication_status=self.publicado,
             operational_status=self.abierto,
+        )
+        # Ubicacion de Moca (fase): el listado recorta por provincia.
+        BusinessLocation.objects.create(
+            business=biz, municipality='Moca', province='Espaillat',
+            latitude=MOCA_LAT, longitude=MOCA_LNG,
         )
         if horario:
             BusinessHours.objects.create(business=biz, day=self.hoy, **horario)

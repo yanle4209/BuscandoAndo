@@ -29,6 +29,16 @@ const THROTTLE_MS = 30000;
 // R3.4: la ciudad elegida se recuerda entre sesiones, pero solo como base
 // para cuando no hay GPS (R3.6). El destino no se reanuda.
 const CLAVE_MUNICIPIO = 'buscandoando.municipio';
+// FASE1: a mas de 30 km de cualquier cabecera de fase no hay fichas
+// cerca — el MISMO criterio que geografia.punto_en_fase del backend
+// (2 x RADIO_LUGAR_KM). No es un error del buscador: todavia no
+// llegamos ahi, y el banner de fuera de zona lo dice y lo cuenta.
+const UMBRAL_FASE_KM = 30;
+// Proxy de "fase activa": con FASE1_PROVINCIAS vacia el backend
+// devuelve el padron entero (158 municipios, holgado por debajo de
+// 150) y el banner se apaga solo — no vamos a decirle a nadie que no
+// llegamos cuando llegamos a todo el pais.
+const PADRON_COMPLETO = 150;
 
 // Grid: 3 cols x 4 rows = 12 cards per page; la paginacion aparece
 // cuando la pagina se llena (POR_PAGINA = 12).
@@ -257,6 +267,8 @@ export default function Home() {
   const [totalResults, setTotalResults] = useState(0);
   const [municipioClave, setMunicipioClave] = useState('');
   const [cabeceras, setCabeceras] = useState([]);
+  // Aviso de lista de espera de la fase: 'idle' | 'enviando' | 'ok'.
+  const [avisoFase, setAvisoFase] = useState('idle');
   // Bundle que corre ESTA pestana (index-BP-pSWLW). Se pinta en el
   // badge de la esquina: es la prueba de si la pestana esta al dia.
   const [version] = useState(() => {
@@ -516,6 +528,41 @@ export default function Home() {
     dispatch({ type: 'mapa', pos: { lat, lng } });
   };
 
+  // FASE1: el punto activo esta a mas de UMBRAL_FASE_KM de cualquier
+  // cabecera de fase (la lista ya viene recortada del backend). La
+  // segunda condicion apaga el banner con el padron completo, que es
+  // como se ve la web si se vacia FASE1_PROVINCIAS.
+  const fueraDeZona = Boolean(estado.punto)
+    && cabeceras.length > 0
+    && cabeceras.length < PADRON_COMPLETO
+    && !cabeceras.some(
+      (cab) => distanciaKm(estado.punto, cab) <= UMBRAL_FASE_KM,
+    );
+
+  // "Espaillat, Santiago, La Vega y Hermanas Mirabal" salido de los
+  // datos: si cambian las provincias de fase, el texto cambia solo.
+  const provinciasFase = useMemo(() => {
+    const nombres = [...new Set(cabeceras.map((cab) => cab.provincia))];
+    if (nombres.length <= 1) return nombres.join('');
+    return `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`;
+  }, [cabeceras]);
+
+  const avisarFase = async () => {
+    if (!estado.punto || avisoFase !== 'idle') return;
+    setAvisoFase('enviando');
+    try {
+      // Solo un contador agregado (dia x evento x lugar): sin correos,
+      // sin cookies, sin nada del usuario (ver views.interes).
+      await api.post(
+        `/interes/?lat=${estado.punto.lat}&lng=${estado.punto.lng}`,
+      );
+      setAvisoFase('ok');
+    } catch {
+      // Sin red no se pierde nada: el boton vuelve a estar disponible.
+      setAvisoFase('idle');
+    }
+  };
+
   const sinPunto = !estado.punto;
   const sinResultados = !loading
     && businesses.length === 0
@@ -578,6 +625,42 @@ export default function Home() {
         <div className="mobile-search">
           <SearchBar {...searchProps} />
         </div>
+
+        {/* FASE1: fuera de las provincias de fase no hay fichas cerca y
+            el buscador no tiene la culpa. Se dice (el texto sale de los
+            datos, no esta escrito a mano) y se puede contar con el mismo
+            contador del resto de metricas: POST /api/interes/. */}
+        {fueraDeZona && (
+          <div className="fase-banner">
+            <div className="fase-banner__textos">
+              <strong className="fase-banner__titulo">Todavía no llegamos a tu zona</strong>
+              <span className="fase-banner__texto">
+                BuscandoAndo está empezando en {provinciasFase}. Todavía no hay fichas cerca de ti.
+              </span>
+            </div>
+            <div className="fase-banner__acciones">
+              {avisoFase === 'ok' ? (
+                <span className="fase-banner__ok" role="status">
+                  ¡Anotado! Ya sabemos que quieres que lleguemos a tu zona.
+                </span>
+              ) : (
+                <button
+                  className="fase-banner__btn"
+                  onClick={avisarFase}
+                  disabled={avisoFase === 'enviando'}
+                >
+                  {avisoFase === 'enviando' ? 'Enviando…' : 'Quiero que lleguen aquí'}
+                </button>
+              )}
+              <button
+                className="fase-banner__escribir"
+                onClick={() => setShowContact(true)}
+              >
+                o escríbenos
+              </button>
+            </div>
+          </div>
+        )}
 
         {estado.haBuscado ? (
           <>
