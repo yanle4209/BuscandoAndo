@@ -848,17 +848,39 @@ Lo que la auditoría dejó en «🟡 Menores», ya en producción:
 
 ### 14.6 — Pospuesto, y por qué
 
-- **Code-splitting** (ítem 8): 533 KB en un solo bundle. El plan
-  cuando se acometa: `React.lazy` por ruta (Home, BusinessDetail,
-  Levantamiento) y Leaflet bajo demanda — solo el mapa lo monta —
-  para bajar el JS inicial a la mitad. Es el refactor más grande que
-  queda y toca piezas ya verificadas: mejor en su propia tanda que de
-  relleno.
+- ~~**Code-splitting** (ítem 8)~~ → hecho, ver **14.7**.
 - **Plan de Render** (menor 4): los arranques fríos tras ~15 min de
   inactividad son decisión de bolsillo, no de código.
 - **Contenido** (ítem 7): las descripciones de categorías vacías hoy
   no se muestran en ningún sitio (la web solo lee el
   `short_description` de la ficha) y las fotos las sube el campo con
   el levantamiento — trabajo de contenido, no de código.
+
+### 14.7 — Code-splitting (hecho, 20/oct 2026)
+
+Plan de 14.6 ejecutado: `React.lazy` por ruta (Home, BusinessDetail,
+Levantamiento) y Leaflet bajo demanda — solo lo monta `MapView`, con su
+propio `Suspense` para que el resto de la página siga viva mientras
+baja el chunk. Resultado del `vite build`:
+
+- **Entrada (`index-*.js`): 533 KB → 264,7 KB** (gz 84,2) — la mitad,
+  que era la meta.
+- `MapView` (Leaflet + su CSS): 159,7 KB, y solo lo paga quien monta
+  un mapa.
+- `Home` 31,9 · `Levantamiento` 22,3 (la herramienta de campo: el
+  público nunca la baja) · `BusinessDetail` 3,7 · `axios` 51,5 en
+  chunk compartido.
+- CSS también por ruta: entrada 1,6 · Home 25,9 · MapView 16,5 ·
+  Levantamiento 11,0 · BusinessDetail 2,5.
+- El fallback de ruta conserva `<main id="contenido">` (el skip-link
+  no apunta a la nada durante la carga) y anuncia «Cargando…» con
+  `role="status"`; el del mapa ocupa su hueco exacto para que la
+  página no salte.
+- Verificado en preview local: chunks en el orden previsto, mapa
+  montado, navegación SPA entre las tres rutas y 0 errores JS (solo
+  los 500 esperables del preview sin backend). Producción tras el
+  deploy.
+- De paso, lint limpio: un `setSelected` sin uso preexistente en Home
+  se resolvió quitándole el setter (sin efecto en runtime).
 
 

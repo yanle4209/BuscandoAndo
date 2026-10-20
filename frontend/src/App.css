@@ -34,3 +34,33 @@
   left: 0;
   top: 0;
 }
+
+/* ----- Code-splitting (DISENO.md 14.6) ----- */
+
+/* Fallback de la ruta mientras baja su chunk: mantiene el layout y el
+   color de marca; el role="status" del párrafo dentro avisa al lector. */
+.ruta-cargando {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Fallback del mapa: ocupa exactamente el hueco de MapView (los dos
+   contenedores — .sidebar-map y .detail-right — ya son relative), asi
+   la pagina no salta cuando llega el chunk de Leaflet. */
+.mapa-cargando {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--ink);
+  font-weight: 600;
+}

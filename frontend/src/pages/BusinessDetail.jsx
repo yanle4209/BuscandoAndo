@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { Suspense, lazy, useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
-import MapView from '../components/MapView';
 import { slugDeEstado, nombreDeEstado } from '../estado';
 import './BusinessDetail.css';
+
+// Code-splitting (DISENO.md 14.6): el mapa (Leaflet) en su propio chunk.
+const MapView = lazy(() => import('../components/MapView'));
 
 export default function BusinessDetail() {
   const { slug } = useParams();
@@ -120,12 +122,20 @@ export default function BusinessDetail() {
 
       <div className="detail-right">
         {biz.latitude && biz.longitude ? (
-          <MapView
-            businesses={[biz]}
-            selected={biz}
-            center={[biz.latitude, biz.longitude]}
-            onMarkerClick={() => {}}
-          />
+          <Suspense
+            fallback={
+              <div className="mapa-cargando" role="status">
+                Cargando mapa…
+              </div>
+            }
+          >
+            <MapView
+              businesses={[biz]}
+              selected={biz}
+              center={[biz.latitude, biz.longitude]}
+              onMarkerClick={() => {}}
+            />
+          </Suspense>
         ) : (
           <div className="detail-no-map">Sin ubicación en mapa</div>
         )}
