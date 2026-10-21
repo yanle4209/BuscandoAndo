@@ -15,6 +15,11 @@ staticfiles/
 media/
 *.log
 
+# serv00: secrets de produccion (solo viven en el servidor) y la raiz
+# de estaticos que nginx sirve desde disco
+env.production
+backend/public/
+
 # Node
 node_modules/
 frontend/dist/
