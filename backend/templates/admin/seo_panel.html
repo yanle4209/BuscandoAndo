@@ -1,0 +1,108 @@
+{% extends "admin/base_site.html" %}
+
+{# Panel SEO (DISENO 15): el estado real del sitio, leido con las #}
+{# MISMAS vistas que lo sirven al publico, y con el acceso directo #}
+{# a cambiarlo a mano (SeoRuta / SeoRobots). #}
+
+{% block content %}
+<div class="ba-seo">
+
+  <p class="ba-intro">
+    El estado real del sitio, tal como lo ve un buscador. Las metas por
+    ruta y el robots.txt se cambian desde aquí y rigen al momento, sin
+    desplegar. El sitemap se genera solo: se controla publicando o
+    excluyendo fichas (Gestión) y con las provincias de fase.
+  </p>
+
+  {# ────────────────────── metas por ruta ────────────────────── #}
+  <section class="ba-seo__bloque">
+    <div class="ba-seo__barra">
+      <h2>Metas por ruta</h2>
+      <a class="addlink" href="{% url 'admin:seo_seoruta_add' %}">Añadir ruta</a>
+    </div>
+    <table class="ba-tabla ba-tabla--ancha">
+      <thead>
+        <tr>
+          <th>Ruta</th>
+          <th>Título</th>
+          <th>Descripción</th>
+          <th>Indexación</th>
+          <th>Imagen</th>
+          <th>Edición</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fila in filas %}
+        <tr>
+          <td><code class="ba-ruta">{{ fila.ruta }}</code></td>
+          <td class="ba-tabla__fuerte">{{ fila.metas.titulo }}</td>
+          <td class="ba-recorte">{{ fila.metas.descripcion }}</td>
+          <td>
+            {% if fila.metas.noindex %}
+              <span class="ba-badge ba-badge--alerta">noindex</span>
+            {% else %}
+              <span class="ba-badge ba-badge--ok">index</span>
+            {% endif %}
+          </td>
+          <td class="ba-recorte">{{ fila.metas.imagen }}</td>
+          <td class="ba-seo__celda-edicion">
+            {% if fila.editar_pk %}
+              <a href="{% url 'admin:seo_seoruta_change' fila.editar_pk %}">Editar</a>
+            {% else %}
+              <span class="ba-apagado">auto (del negocio)</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">Sin rutas configuradas.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="ba-seo__nota">
+      La fila con «auto» es una ficha de negocio: sus metas salen de sus
+      propios datos y se editan en el negocio (título, descripción,
+      foto). Para dar metas a otra ruta del sitio basta con «Añadir
+      ruta»: no hace falta tocar código ni desplegar.
+    </p>
+  </section>
+
+  {# ────────────────────── robots.txt ────────────────────── #}
+  <section class="ba-seo__bloque">
+    <div class="ba-seo__barra">
+      <h2>robots.txt</h2>
+      <a href="{% url 'admin:seo_seorobots_changelist' %}">Editar</a>
+    </div>
+    {% if robots_lineas %}
+    <pre class="ba-pre"><code>{% for linea in robots_lineas %}{{ linea }}
+{% endfor %}</code></pre>
+    <p class="ba-seo__nota">
+      Reglas efectivas, tal como las sirve <code>/robots.txt</code>. Si
+      la casilla de configuración se deja vacía, vuelve a mandar el
+      fichero del build.
+      <a href="/robots.txt" target="_blank" rel="noopener">Ver en vivo ↗</a>
+    </p>
+    {% else %}
+    <p class="ba-seo__nota">No se pudo leer el robots.txt del build.</p>
+    {% endif %}
+  </section>
+
+  {# ────────────────────── sitemap.xml ────────────────────── #}
+  <section class="ba-seo__bloque">
+    <h2>sitemap.xml</h2>
+    <p class="ba-seo__datos">
+      <span class="ba-badge ba-badge--ok">{{ fichas_sitemap }} en el sitemap</span>
+      <span class="ba-badge">{{ fichas_publicadas }} publicadas en total</span>
+      <a href="/sitemap.xml" target="_blank" rel="noopener">Ver en vivo ↗</a>
+    </p>
+    <p class="ba-seo__nota">
+      Se genera solo con lo que está publicado Y dentro de la fase: para
+      que una ficha entre o salga se publica o excluye en Gestión, y el
+      filtro de fase decide las provincias.
+      {% if provincias_fase %}
+      Provincias de fase ahora: {{ provincias_fase|join:", " }}.
+      {% endif %}
+    </p>
+  </section>
+
+</div>
+{% endblock %}

@@ -122,6 +122,31 @@ def _metas_para_ruta(rel):
     if match:
         return _metas_ficha(match.group('slug'))
 
+    # Personalizado a mano desde el panel (DISENO 15): las rutas fijas
+    # se configuran en la base de datos, sin tocar codigo y sin
+    # desplegar — el sitio es dinamico y lo de hoy no es lo de manana.
+    # Sin fila para esta clave (o si la base no contesta) mandan los
+    # valores de siempre de mas abajo: un fallo aqui jamas debe tumbar
+    # la pagina.
+    clave = '' if rel == 'index.html' else rel
+    if clave in RUTAS_SPA:
+        try:
+            from seo.models import SeoRuta
+            personalizado = SeoRuta.objects.filter(ruta=clave).first()
+        except Exception:
+            personalizado = None
+        if personalizado:
+            imagen = personalizado.imagen or '/og.png'
+            if imagen.startswith('/'):
+                imagen = _sitio() + imagen
+            return {
+                'titulo': personalizado.titulo,
+                'descripcion': personalizado.descripcion,
+                'imagen': imagen,
+                'url': _sitio() + ('/' if not clave else '/' + clave),
+                'noindex': personalizado.noindex,
+            }
+
     if rel == 'levantamiento':
         # Herramienta de campo sin enlace publico (DISENO.md 11.5):
         # se sirve para quien teclea la ruta, pero no se indexa.
@@ -299,3 +324,104 @@ def sitemap_xml(request):
     # y evita regenerar 740 filas en cada rastreo.
     respuesta['Cache-Control'] = 'public, max-age=3600'
     return respuesta
+
+
+def _robots_efectivo():
+    """El texto del robots.txt que se sirve hoy.
+
+    Manda la fila editable del panel (DISENO 15); si no la hay — o esta
+    en blanco —, manda el fichero del build, que es el comportamiento
+    de siempre. La base solo ANYADE control, nunca lo quita.
+    """
+    try:
+        from seo.models import SeoRobots
+        fila = SeoRobots.cargar()
+        if fila and fila.contenido.strip():
+            return fila.contenido
+    except Exception:
+        pass
+    try:
+        return (settings.REACT_BUILD_DIR / 'robots.txt').read_text(
+            encoding='utf-8')
+    except OSError:
+        return None
+
+
+def robots_txt(request):
+    """``/robots.txt`` editable desde el panel (DISENO 15).
+
+    Antes lo servia el tramoya de ficheros de ``serve_react``; ahora la
+    ruta tiene vista propia para que el panel pueda cambiarlo sin
+    desplegar. text/plain (auditoria C) y no-cache: pesa muy poco y un
+    cambio debe notarse en el primer rastreo.
+    """
+    contenido = _robots_efectivo() or 'User-agent: *\nAllow: /\n'
+    respuesta = HttpResponse(contenido,
+                             content_type='text/plain; charset=utf-8')
+    respuesta['Cache-Control'] = 'no-cache'
+    return respuesta
+
+
+def admin_seo(request):
+    """Panel SEO del admin (DISENO 15): el estado REAL, leido del sitio.
+
+    La tabla de metas se lee desde las MISMAS vistas que las sirven al
+    publico (``_metas_para_ruta``), asi que aqui no puede haber una
+    copia desfasada; guardar lo que se cambia a mano va por el modelo
+    registrado (metas por ruta y robots.txt). Entra por ``admin.site.admin_view``
+    (solo staff, sin cache) y reutiliza la plantilla base del admin:
+    misma cabecera, mismo menu y mismo estilo que el resto del panel.
+    """
+    from django.contrib.admin import site as admin_site
+    from django.shortcuts import render
+
+    from businesses import geografia
+    from businesses.models import Business
+
+    # La ficha de ejemplo es la mas reciente PUBLICADA y en fase: es
+    # tal cual como la ve un buscador que entra por el sitemap.
+    de_fase = (
+        Business.objects
+        .filter(geografia.q_fase(), publication_status__slug='publicado')
+        .order_by('-created_at')
+    )
+    slug_ejemplo = de_fase.values_list('slug', flat=True).first()
+
+    # Las metas configuradas a mano, con su clave: cada fila del panel
+    # lleva su enlace de edicion si esta guardada en la base.
+    from seo.models import SeoRuta
+    editables = {fila.ruta: fila.pk for fila in SeoRuta.objects.all()}
+
+    filas = [
+        {'ruta': '/', 'editar_pk': editables.get(''),
+         'metas': _metas_para_ruta('')},
+        {'ruta': '/levantamiento',
+         'editar_pk': editables.get('levantamiento'),
+         'metas': _metas_para_ruta('levantamiento')},
+    ]
+    if slug_ejemplo:
+        filas.insert(1, {
+            'ruta': '/business/%s' % slug_ejemplo,
+            'editar_pk': None,
+            'metas': _metas_para_ruta('business/%s' % slug_ejemplo),
+        })
+
+    # robots.txt: la configuracion editable del panel (fila de la base)
+    # con el fichero del build como respaldo.
+    robots = _robots_efectivo()
+
+    contexto = admin_site.each_context(request)
+    contexto.update({
+        'title': 'SEO',
+        'filas': filas,
+        'robots_lineas': (
+            [linea for linea in robots.splitlines()
+             if linea.strip() and not linea.startswith('#')]
+            if robots else None
+        ),
+        'fichas_sitemap': de_fase.count(),
+        'fichas_publicadas': Business.objects.filter(
+            publication_status__slug='publicado').count(),
+        'provincias_fase': settings.FASE1_PROVINCIAS,
+    })
+    return render(request, 'admin/seo_panel.html', contexto)

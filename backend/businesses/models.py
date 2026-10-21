@@ -294,8 +294,9 @@ class Correction(models.Model):
     )
 
     class Meta:
-        verbose_name = 'Correccion'
-        verbose_name_plural = 'Correcciones'
+        # "Reporte": el idioma del usuario (DISENO 15), no el tecnico.
+        verbose_name = 'Reporte de usuario'
+        verbose_name_plural = 'Reportes de usuarios'
         ordering = ['-created_at']
 
     def __str__(self):
@@ -432,8 +433,8 @@ class Envio(models.Model):
     )
 
     class Meta:
-        verbose_name = 'Envio'
-        verbose_name_plural = 'Envios'
+        verbose_name = 'Envío de campo'
+        verbose_name_plural = 'Envíos de campo'
         ordering = ['-recibido_el']
 
     def __str__(self):
