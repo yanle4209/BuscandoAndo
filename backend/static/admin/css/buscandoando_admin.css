@@ -994,3 +994,298 @@ a.ba-levantamiento__enlace:focus {
         flex-wrap: wrap;
     }
 }
+
+/* =====================================================================
+   CAPA 15 — Índice en 4 secciones + panel SEO + acabado moderno
+   Superficie blanca, filete amarillo arriba, hover con lift y flecha
+   que avanza. El color vive SOLO en textos, bordes e iconos (regla de
+   auditoría): ningún fondo de color. Tablas legibles, aire en las
+   filas y foco visible.
+   ===================================================================== */
+
+/* --- Introducción del panel --- */
+
+.ba-intro {
+    font-size: 14px;
+    color: var(--body-quiet-color);
+    line-height: 1.6;
+    max-width: 72ch;
+    margin: 0 0 18px;
+}
+
+/* --- Rejilla de las 4 secciones --- */
+
+.ba-secciones {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 18px;
+}
+
+.ba-seccion {
+    background: var(--white-pure);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--yellow);
+    border-radius: 14px;
+    padding: 20px 20px 8px;
+    box-shadow: 0 1px 2px rgba(31, 26, 26, 0.04);
+}
+
+.ba-seccion__cejilla {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--yellow-ink);
+}
+
+.ba-seccion__titulo {
+    margin: 0.25em 0 0.3em;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--ink);
+}
+
+.ba-seccion__desc {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: var(--body-quiet-color);
+    line-height: 1.5;
+}
+
+.ba-seccion__lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.ba-seccion__lista li + li {
+    border-top: 1px dashed var(--border);
+}
+
+.ba-seccion__lista a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 8px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.15s ease;
+}
+
+.ba-seccion__lista a:hover {
+    /* Lavado neutro de tinta, no un fondo de color. */
+    background: rgba(31, 26, 26, 0.035);
+}
+
+.ba-seccion__nombre {
+    min-width: 0;
+}
+
+.ba-seccion__meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.ba-flecha {
+    color: var(--yellow-ink);
+    font-weight: 700;
+    transition: transform 0.15s ease;
+}
+
+.ba-seccion__lista a:hover .ba-flecha {
+    transform: translateX(3px);
+}
+
+/* --- Badges de contador --- */
+
+.ba-badge {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--border-strong);
+    background: var(--white-pure);
+    color: var(--body-medium-color);
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.ba-badge--alerta {
+    color: #b91c1c;
+    border-color: #efb9b9;
+}
+
+.ba-badge--ok {
+    color: #1a512d;
+    border-color: #c2dc9f;
+}
+
+/* --- La vista clásica, plegada debajo --- */
+
+.ba-completa {
+    margin-top: 22px;
+    background: var(--white-pure);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.ba-completa > summary {
+    cursor: pointer;
+    padding: 12px 16px;
+    font-weight: 700;
+    color: var(--brown);
+    border-radius: 12px;
+}
+
+.ba-completa[open] > summary {
+    border-bottom: 1px solid var(--border);
+}
+
+/* --- Panel SEO --- */
+
+.ba-seo {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-width: 980px;
+}
+
+.ba-seo__bloque {
+    background: var(--white-pure);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--yellow);
+    border-radius: 14px;
+    padding: 18px 22px 20px;
+    box-shadow: 0 1px 2px rgba(31, 26, 26, 0.04);
+}
+
+.ba-seo__barra {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.ba-seo__barra h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--ink);
+}
+
+.ba-seo__datos {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 4px 0 0;
+}
+
+.ba-seo__nota {
+    margin: 10px 0 0;
+    font-size: 12.5px;
+    color: var(--body-quiet-color);
+    line-height: 1.55;
+}
+
+.ba-seo__celda-edicion {
+    white-space: nowrap;
+}
+
+.ba-apagado {
+    color: var(--body-quiet-color);
+    font-size: 12px;
+}
+
+.ba-ruta {
+    font-family: Consolas, Menlo, 'Courier New', monospace;
+    font-size: 12.5px;
+    color: var(--brown);
+    background: var(--white-pure);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px 7px;
+    white-space: nowrap;
+}
+
+.ba-recorte {
+    max-width: 340px;
+    font-size: 12.5px;
+    color: var(--body-medium-color);
+    line-height: 1.45;
+}
+
+.ba-pre {
+    margin: 0;
+    padding: 14px 16px;
+    background: #faf9f4;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink);
+    overflow-x: auto;
+}
+
+/* --- Tablas del panel: aire, cabecera quieta y hover neutro --- */
+
+.ba-tabla {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13.5px;
+}
+
+.ba-tabla thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--white-pure);
+    padding: 10px 12px;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--body-medium-color);
+    border-bottom: 2px solid var(--border-strong);
+}
+
+.ba-tabla tbody td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+
+.ba-tabla tbody tr:hover td {
+    background: rgba(31, 26, 26, 0.02);
+}
+
+.ba-tabla__fuerte {
+    font-weight: 700;
+    color: var(--ink);
+}
+
+/* --- Foco visible en todo lo que se navega con teclado --- */
+
+#content :focus-visible,
+#nav-sidebar :focus-visible {
+    outline: 3px solid rgba(251, 191, 36, 0.55);
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+    .ba-recorte {
+        max-width: 180px;
+    }
+}

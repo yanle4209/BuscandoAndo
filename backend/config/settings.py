@@ -55,6 +55,7 @@ LOCAL_APPS = [
     'business_hours',
     'business_images',
     'uso',
+    'seo',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

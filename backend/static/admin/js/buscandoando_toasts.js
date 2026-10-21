@@ -1,13 +1,26 @@
 /**
  * BuscandoAndo Admin — Toast Notifications
  * Shows success/error messages as popup toasts.
+ *
+ * El panel navega con Turbo (DISENO 15): el contenido cambia sin
+ * recargar y DOMContentLoaded no vuelve a dispararse. Por eso todo se
+ * engancha ademas en turbo:load, con una guarda propia: si este fichero
+ * se evaluo en la carga inicial, su primer turbo:load ES la pagina
+ * actual; si Turbo lo inyecto en mitad de una sesion (pagina nueva),
+ * DOMContentLoaded no llego y ese turbo:load SI hay que atender.
  */
 (function() {
-  document.addEventListener('DOMContentLoaded', function() {
+  'use strict';
 
-    // Inject toast CSS
-    const style = document.createElement('style');
-    style.textContent = `
+  var yaCargoElDom = false;
+
+  function arrancarToasts() {
+
+    // Inject toast CSS (la cabecera persiste entre paginas: solo una vez)
+    if (!document.getElementById('ba-estilo-toasts')) {
+      const style = document.createElement('style');
+      style.id = 'ba-estilo-toasts';
+      style.textContent = `
       .ba-toast-container {
         position: fixed;
         top: 20px;
@@ -57,9 +70,10 @@
         to   { transform: translateX(100%); opacity: 0; }
       }
     `;
-    document.head.appendChild(style);
+      document.head.appendChild(style);
+    }
 
-    // Create toast container
+    // Create toast container (el cuerpo es nuevo en cada pagina Turbo)
     const container = document.createElement('div');
     container.className = 'ba-toast-container';
     document.body.appendChild(container);
@@ -154,44 +168,62 @@
       }
     });
 
-  });
-})();
+  }
 
-/**
- * Panel lateral en movil/tablet
- * El CSS superpone #nav-sidebar cuando esta abierto (.shifted) y Django lo
- * deja abierto si el usuario nunca lo ha tocado: en pantalla estrecha eso
- * taparia la pagina entera. Se cierra con el PROPIO boton de Django, para
- * que su estado en memoria y en localStorage queden a tono (si solo se
- * quitase la clase, el primer clic posterior no haria nada).
- */
-document.addEventListener('DOMContentLoaded', function() {
-  if (!window.matchMedia('(max-width: 1024px)').matches) return;
-  var main = document.getElementById('main');
-  var boton = document.getElementById('toggle-nav-sidebar');
-  if (main && boton && main.classList.contains('shifted')) boton.click();
-});
+  /**
+   * Panel lateral en movil/tablet
+   * El CSS superpone #nav-sidebar cuando esta abierto (.shifted) y Django lo
+   * deja abierto si el usuario nunca lo ha tocado: en pantalla estrecha eso
+   * taparia la pagina entera. Se cierra con el PROPIO boton de Django, para
+   * que su estado en memoria y en localStorage queden a tono (si solo se
+   * quitase la clase, el primer clic posterior no haria nada).
+   */
+  function arrancarBarraMovil() {
+    if (!window.matchMedia('(max-width: 1024px)').matches) return;
+    var main = document.getElementById('main');
+    var boton = document.getElementById('toggle-nav-sidebar');
+    if (main && boton && main.classList.contains('shifted')) boton.click();
+  }
 
-/**
- * Etiquetas de los inlines tabulares (Horarios, Imagenes)
- * Django no les pone <label>: un lector de pantalla solo oye "campo" sin mas
- * contexto. La cabecera de la columna SI que trae el nombre (th.column-dia ->
- * td.field-dia), asi que se copia a aria-label en cada fila.
- */
-document.addEventListener('DOMContentLoaded', function() {
-  document.querySelectorAll('.inline-group table').forEach(function(tabla) {
-    var etiquetas = {};
-    tabla.querySelectorAll('thead th[class*="column-"]').forEach(function(th) {
-      var m = th.className.match(/(?:^|\s)column-([\w-]+)/);
-      if (m) etiquetas[m[1]] = th.textContent.trim().replace(/:$/, '');
-    });
-    tabla.querySelectorAll('tbody td[class*="field-"]').forEach(function(td) {
-      var m = td.className.match(/(?:^|\s)field-([\w-]+)/);
-      if (!m || !etiquetas[m[1]]) return;
-      td.querySelectorAll('input, select, textarea').forEach(function(campo) {
-        if (campo.type === 'hidden' || campo.getAttribute('aria-label')) return;
-        campo.setAttribute('aria-label', etiquetas[m[1]]);
+  /**
+   * Etiquetas de los inlines tabulares (Horarios, Imagenes)
+   * Django no les pone <label>: un lector de pantalla solo oye "campo" sin mas
+   * contexto. La cabecera de la columna SI que trae el nombre (th.column-dia ->
+   * td.field-dia), asi que se copia a aria-label en cada fila.
+   */
+  function arrancarEtiquetasInlines() {
+    document.querySelectorAll('.inline-group table').forEach(function(tabla) {
+      var etiquetas = {};
+      tabla.querySelectorAll('thead th[class*="column-"]').forEach(function(th) {
+        var m = th.className.match(/(?:^|\s)column-([\w-]+)/);
+        if (m) etiquetas[m[1]] = th.textContent.trim().replace(/:$/, '');
+      });
+      tabla.querySelectorAll('tbody td[class*="field-"]').forEach(function(td) {
+        var m = td.className.match(/(?:^|\s)field-([\w-]+)/);
+        if (!m || !etiquetas[m[1]]) return;
+        td.querySelectorAll('input, select, textarea').forEach(function(campo) {
+          if (campo.type === 'hidden' || campo.getAttribute('aria-label')) return;
+          campo.setAttribute('aria-label', etiquetas[m[1]]);
+        });
       });
     });
+  }
+
+  function alCargarPagina() {
+    arrancarToasts();
+    arrancarBarraMovil();
+    arrancarEtiquetasInlines();
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    yaCargoElDom = true;
+    alCargarPagina();
   });
-});
+  document.addEventListener('turbo:load', function() {
+    if (yaCargoElDom) {
+      yaCargoElDom = false;
+      return;
+    }
+    alCargarPagina();
+  });
+})();

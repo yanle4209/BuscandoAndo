@@ -1,8 +1,209 @@
 {% extends "admin/index.html" %}
+{% load admin_urls panel_tags %}
 
-{# El enlace al levantamiento, LO PRIMERO del inicio: es lo que se pasa #}
-{# al colaborador y no debe estar detras de la lista de aplicaciones. #}
+{# El indice del panel rehacido en 4 secciones (DISENO 15). #}
+{# El include del levantamiento va PRIMERO: hay tests que exigen su #}
+{# enlace y su boton de compartir en esta pagina. #}
 {% block content %}
+
 {% include "admin/includes/levantamiento.html" %}
-{{ block.super }}
+
+{% panel_contadores as c %}
+
+<p class="ba-intro">
+  Todo el panel, organizado en cuatro secciones. Los números de la
+  derecha son lo que hay ahora mismo: pendientes, totales y lo de hoy.
+</p>
+
+<div class="ba-secciones">
+
+  {# ────────────────────── 01 · ADMINISTRACIÓN ────────────────────── #}
+  <section class="ba-seccion">
+    <p class="ba-seccion__cejilla">Sección 01</p>
+    <h2 class="ba-seccion__titulo">Administración</h2>
+    <p class="ba-seccion__desc">
+      Lo que los usuarios reportan, las métricas de uso y las
+      herramientas del propio panel.
+    </p>
+    <ul class="ba-seccion__lista">
+      <li>
+        <a href="{% url 'admin:businesses_correction_changelist' %}">
+          <span class="ba-seccion__nombre">Reportes de usuarios</span>
+          <span class="ba-seccion__meta">
+            <span class="ba-badge {% if c.reportes_pendientes %}ba-badge--alerta{% endif %}">{{ c.reportes_pendientes }} pend.</span>
+            <span class="ba-flecha" aria-hidden="true">→</span>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'admin:businesses_envio_changelist' %}">
+          <span class="ba-seccion__nombre">Envíos de campo</span>
+          <span class="ba-seccion__meta">
+            <span class="ba-badge {% if c.envios_pendientes %}ba-badge--alerta{% endif %}">{{ c.envios_pendientes }} pend.</span>
+            <span class="ba-flecha" aria-hidden="true">→</span>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'admin:uso_usodiario_changelist' %}">
+          <span class="ba-seccion__nombre">Uso (contadores por día)</span>
+          <span class="ba-seccion__meta">
+            <span class="ba-badge">{{ c.uso_hoy }} hoy</span>
+            <span class="ba-flecha" aria-hidden="true">→</span>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'admin:uso_terminodia_changelist' %}">
+          <span class="ba-seccion__nombre">Términos buscados</span>
+          <span class="ba-seccion__meta">
+            <span class="ba-badge">{{ c.busquedas_hoy }} hoy</span>
+            <span class="ba-flecha" aria-hidden="true">→</span>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'import_json' %}">
+          <span class="ba-seccion__nombre">Importar JSON</span>
+          <span class="ba-seccion__meta">
+            <span class="ba-flecha" aria-hidden="true">→</span>
+          </span>
+        </a>
+      </li>
+    </ul>
+  </section>
+
+  {# ────────────────────────── 02 · SEO ───────────────────────────── #}
+  <section class="ba-seccion">
+    <p class="ba-seccion__cejilla">Sección 02</p>
+    <h2 class="ba-seccion__titulo">SEO</h2>
+    <p class="ba-seccion__desc">
+      Metas por ruta y robots.txt se configuran a mano, sin desplegar;
+      el sitemap se genera solo de lo publicado y en fase.
+    </p>
+    <ul class="ba-seccion__lista">
+      <li>
+        <a href="{% url 'admin_seo' %}">
+          <span class="ba-seccion__nombre">Panel SEO</span>
+          <span class="ba-seccion__meta">
+            <span class="ba-badge">{{ c.sitemap_fichas }} en sitemap</span>
+            <span class="ba-flecha" aria-hidden="true">→</span>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'admin:seo_seoruta_changelist' %}">
+          <span class="ba-seccion__nombre">Metas por ruta</span>
+          <span class="ba-seccion__meta">
+            <span class="ba-badge">{{ c.metas_rutas }}</span>
+            <span class="ba-flecha" aria-hidden="true">→</span>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'admin:seo_seorobots_changelist' %}">
+          <span class="ba-seccion__nombre">robots.txt (editar)</span>
+          <span class="ba-seccion__meta">
+            <span class="ba-flecha" aria-hidden="true">→</span>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a href="/robots.txt" target="_blank" rel="noopener">
+          <span class="ba-seccion__nombre">robots.txt (ver en vivo)</span>
+          <span class="ba-seccion__meta">
+            <span class="ba-flecha" aria-hidden="true">↗</span>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a href="/sitemap.xml" target="_blank" rel="noopener">
+          <span class="ba-seccion__nombre">sitemap.xml</span>
+          <span class="ba-seccion__meta">
+            <span class="ba-flecha" aria-hidden="true">↗</span>
+          </span>
+        </a>
+      </li>
+    </ul>
+  </section>
+
+  {# ────────────────────── 03 · USUARIOS ──────────────────────────── #}
+  <section class="ba-seccion">
+    <p class="ba-seccion__cejilla">Sección 03</p>
+    <h2 class="ba-seccion__titulo">Usuarios</h2>
+    <p class="ba-seccion__desc">
+      Quién entra al panel, con qué permisos, y los tokens con que los
+      colaboradores firman sus envíos.
+    </p>
+    <ul class="ba-seccion__lista">
+      <li>
+        <a href="{% url 'admin:auth_user_changelist' %}">
+          <span class="ba-seccion__nombre">Usuarios</span>
+          <span class="ba-seccion__meta">
+            <span class="ba-badge">{{ c.usuarios }}</span>
+            <span class="ba-flecha" aria-hidden="true">→</span>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'admin:auth_group_changelist' %}">
+          <span class="ba-seccion__nombre">Grupos y permisos</span>
+          <span class="ba-seccion__meta">
+            <span class="ba-badge">{{ c.grupos }}</span>
+            <span class="ba-flecha" aria-hidden="true">→</span>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'admin:businesses_colaborador_changelist' %}">
+          <span class="ba-seccion__nombre">Colaboradores (tokens)</span>
+          <span class="ba-seccion__meta">
+            <span class="ba-badge">{{ c.colaboradores }}</span>
+            <span class="ba-flecha" aria-hidden="true">→</span>
+          </span>
+        </a>
+      </li>
+    </ul>
+  </section>
+
+  {# ────────────────────── 04 · GESTIÓN ───────────────────────────── #}
+  <section class="ba-seccion">
+    <p class="ba-seccion__cejilla">Sección 04</p>
+    <h2 class="ba-seccion__titulo">Gestión</h2>
+    <p class="ba-seccion__desc">
+      Los negocios y su edición: fichas, fotos, horarios y estados se
+      trabajan dentro de cada negocio.
+    </p>
+    <ul class="ba-seccion__lista">
+      <li>
+        <a href="{% url 'admin:businesses_business_changelist' %}">
+          <span class="ba-seccion__nombre">Negocios</span>
+          <span class="ba-seccion__meta">
+            <span class="ba-badge">{{ c.negocios_publicados }} pub.</span>
+            <span class="ba-flecha" aria-hidden="true">→</span>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'admin:categories_category_changelist' %}">
+          <span class="ba-seccion__nombre">Categorías</span>
+          <span class="ba-seccion__meta">
+            <span class="ba-badge">{{ c.categorias }}</span>
+            <span class="ba-flecha" aria-hidden="true">→</span>
+          </span>
+        </a>
+      </li>
+    </ul>
+  </section>
+
+</div>
+
+{# La vista clásica no se borra: queda plegada debajo, por si hace #}
+{# falta llegar a algún modelo a mano o algún día se registra uno #}
+{# nuevo que aún no esté en las tarjetas. #}
+<details class="ba-completa">
+  <summary>Lista completa (vista clásica del panel)</summary>
+  {{ block.super }}
+</details>
+
 {% endblock %}

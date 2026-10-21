@@ -588,12 +588,31 @@
     }
 
     // ========== INICIALIZAR ==========
-    document.addEventListener('DOMContentLoaded', function() {
+    // Con Turbo (DISENO 15) el contenido cambia sin recargar y
+    // DOMContentLoaded no vuelve a dispararse. Guarda propia: si este
+    // fichero se evaluo en la carga inicial, el primer turbo:load ES la
+    // pagina actual; si Turbo lo inyecto en mitad de una sesion,
+    // DOMContentLoaded no llego y ese turbo:load SI hay que atender.
+    var yaCargoElDom = false;
+
+    function arrancar() {
         initMap();
         initPostalCode();
         initOperationalStatus();
         initCopyHours();
         initHolidayDetection();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        yaCargoElDom = true;
+        arrancar();
+    });
+    document.addEventListener('turbo:load', function() {
+        if (yaCargoElDom) {
+            yaCargoElDom = false;
+            return;
+        }
+        arrancar();
     });
 
     if (typeof django !== 'undefined' && django.jQuery) {

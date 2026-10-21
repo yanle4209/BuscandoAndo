@@ -885,4 +885,113 @@ baja el chunk. Resultado del `vite build`:
 - De paso, lint limpio: un `setSelected` sin uso preexistente en Home
   se resolvió quitándole el setter (sin efecto en runtime).
 
+## 15. Panel de administración reorganizado (20/oct 2026)
+
+Tres encargos del usuario en uno: el panel **organizado** (antes era
+confuso), con aspecto **moderno** y **manejable a mano** lo que el sitio
+necesita ahora y necesitará luego. Sin temas de terceros: CSS propio.
+
+### 15.1 — Cuatro secciones en el índice
+
+El índice se rehace con cuatro tarjetas (superficie blanca, filete
+amarillo arriba, hover con lift y flecha que avanza):
+
+| Sección | Contenido |
+| --- | --- |
+| **01 Administración** | Reportes de usuarios, Envíos de campo, Uso por día, Términos buscados, Importar JSON |
+| **02 SEO** | Panel SEO, Metas por ruta, robots.txt (editar y ver), sitemap.xml |
+| **03 Usuarios** | Usuarios, Grupos y permisos, Colaboradores (tokens) |
+| **04 Gestión** | Negocios, Categorías |
+
+- Los numeritos de cada tarjeta salen de
+  `businesses/templatetags/panel_tags.py`: una consulta por número y
+  **respaldo a 0** si algo falla — el admin es la puerta de casa y no
+  puede caer por un contador.
+- La vista clásica no se borra: queda en un `<details>` plegado
+  debajo, por si hace falta llegar a un modelo a mano.
+- El panel de Levantamiento (con su botón de compartir) sigue siendo
+  **lo primero**: hay tests que lo exigen en esta página.
+- Renombrados de etiqueta (el modelo, no el nombre técnico):
+  `Correction` → «Reporte(s) de usuario(s)», `Envio` → «Envío(s) de
+  campo» (migración `AlterModelOptions`).
+
+### 15.2 — SEO editable a mano, sin desplegar (app `seo`)
+
+«Los sitios son dinámicos: ahora una cosa, luego otra» — por eso las
+metas y el robots.txt dejan de estar escritos en el código y pasan a la
+base de datos:
+
+- **`SeoRuta`**: metas (título, descripción, imagen, noindex) de una
+  ruta fija, con su clave sin barra (`''` = portada, `levantamiento`,
+  y la que se añada). Añadir metas a una ruta nueva = añadir una fila
+  en el panel; no se toca código ni se despliega.
+- **`SeoRobots`**: una sola fila con el `robots.txt` como texto. Si la
+  fila está vacía o no existe, manda el fichero del build — la base
+  solo **añade** control, nunca lo quita.
+- `_metas_para_ruta` consulta la base primero y cae a los valores de
+  siempre si no hay fila o si la base no contesta (un fallo aquí jamás
+  tumba la página). La siembra guarda los valores **idénticos** a los
+  de antes: tras el deploy nada cambia visible, solo es editable.
+- `/robots.txt` pasa de fichero servido por el tramoya a **vista
+  propia** (antes del fallback de React, como el sitemap) con
+  `text/plain` y `no-cache`.
+- **Panel SEO** en `/admin/seo/` (solo staff): las metas *efectivas*
+  leídas de las mismas vistas que las sirven, con enlace «Editar» a
+  cada fila guardada; el robots.txt efectivo; el sitemap con sus
+  conteos y las provincias de fase.
+- Las fichas de negocio se quedan **automáticas** a propósito: sus
+  metas salen de sus propios datos y su mando manual ya existe —
+  título, descripción y foto se editan en cada ficha (Gestión); el
+  noindex lo decide la fase. El sitemap se controla publicando o
+  excluyendo fichas.
+
+### 15.3 — Navegación sin recarga (Turbo, alojado en local)
+
+«Que al hacer clic en un enlace del panel izquierdo no se abra una
+pantalla nueva: que se cargue en la misma, como los CRM modernos».
+Turbo 8.0.23 (Hotwired), **alojado en `static/admin/js/turbo.js`** —
+el CSP no permite CDN — intercepta los enlaces internos, trae la
+página nueva y pinta solo el contenido, con `pushState` y la barra de
+progreso. Sin caché de páginas (`Turbo.cache.enable = false`): en un
+panel interesa corrección antes que prisa (formularios a medio editar).
+
+Los puntos delicados eran el JS que se engancha una sola vez en
+`DOMContentLoaded`, que tras cada cambio de página queda desenganchado.
+Cada fichero se reengancha a `turbo:load` con guarda propia (si el
+fichero se evaluó en la carga inicial, su primer `turbo:load` **es** la
+página actual):
+
+- `buscandoando_toasts.js`, `business_admin.js`: sus funciones de
+  enganche se llaman también en `turbo:load`, sin duplicar (el CSS de
+  toasts solo se inyecta una vez).
+- `buscandoando_navegacion.js` (nuevo): reengancha el JS de stock de
+  Django que el panel usa — `window.Actions` (acciones masivas y
+  contadores de los listados) y los formsets de los inlines (botones
+  «añadir/eliminar»), con marca de montado para no duplicar botones.
+- El aviso del navegador por **cambios sin guardar** no salta en
+  navegación sin recarga: `buscandoando_navegacion.js` restaura esa
+  red de seguridad antes de cada visita, sin contar como «edición» el
+  marcar filas de un listado.
+
+### 15.4 — Verificación
+
+- **257 tests en verde** (11 nuevos en `seo/tests.py`: metas por
+  defecto y personalizadas, imagen relativa/absoluta, robots con
+  respaldo al build, panel solo staff y edición desde el admin).
+- En local, navegador en mano: índice con las 4 tarjetas y sus
+  contadores; navegación Turbo sin recarga (marcador de vida intacto y
+  `generation` sin saltos) entre índice, listados y ficha; acciones
+  reenganchadas (contador «25 de 25 seleccionados» vivo); inlines con
+  **exactamente un** botón «añadir» por grupo y añadido real de fila;
+  toasts y aria-labels reenganchados; panel SEO con metas, robots y
+  sitemap; y las dos ramas del guardián de cambios sin guardar
+  (quedarse / salir).
+- Aviso de entorno: en local, la ficha de un negocio **con imágenes**
+  da 500 porque `cloudinary_storage` no tiene `cloud_name` sin las
+  credenciales del entorno — no es una regresión, en producción
+  Cloudinary está configurado.
+- Deliberado: el login entra por Turbo como cualquier enlace y se
+  comportó bien (fallo de clave re-renderiza el formulario con su
+  error); se deja así y se vigila, porque es la puerta de entrada.
+
 
