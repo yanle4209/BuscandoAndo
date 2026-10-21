@@ -148,7 +148,10 @@ USE_TZ = True
 
 # --- Static & Media ---
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+# En serv00 los estaticos tienen que caer dentro de public/ para que
+# nginx los sirva desde disco sin despertar a Python (docs.serv00.com
+# /Django): se le pasa STATIC_ROOT por entorno desde env.production.
+STATIC_ROOT = Path(env('STATIC_ROOT', str(BASE_DIR / 'staticfiles')))
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
 # Cloudinary (media storage)
