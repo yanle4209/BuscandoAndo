@@ -994,4 +994,29 @@ página actual):
   comportó bien (fallo de clave re-renderiza el formulario con su
   error); se deja así y se vigila, porque es la puerta de entrada.
 
+### 15.5 — `cargar_fichas` fuera del build (incidente de deploy)
+
+Al desplegar el rediseño (20/oct 2026) la web pasó a devolver **500 en
+todo lo que consulta la base de datos** — sitemap, fichas de negocio y
+la API de la SPA — mientras la portada, `robots.txt`, el levantamiento y
+el login del admin seguían en 200. El diagnóstico por sondeos: el health
+(que no toca la BD) seguía `ok` y anunciaba el commit **anterior**, o sea
+que el servicio corría bien y el problema era la **ventana del build**: el
+Build Command incluía `cargar_fichas`, que reimporta las 1.839 fichas
+fila a fila **contra la base de datos en vivo** antes de arrancar la
+instancia nueva. La máquina chica de Render no aguantaba lecturas
+concurrentes con eso y toda consulta expiraba.
+
+Cambio: el build deja de importar fichas. `migrate`, `setup_admin` y
+`load_initial_data` se quedan (segundos, y el sitio los necesita);
+`cargar_fichas` pasa a **manual**, desde el Shell de Render cuando haya
+un archivo nuevo o se recreue la base:
+
+    cd backend && python manage.py cargar_fichas data/fichas_nacionales.ndjson.gz
+
+Es idempotente y reanudable por diseño: repetirlo o cortarlo no duplica
+nada. Ojo: el servicio se dio de alta en el **panel** de Render, así que
+el Build Command hay que cambiarlo también en *Settings → Build Command*
+(`render.yaml` es solo referencia — ver su cabecera).
+
 
