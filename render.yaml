@@ -8,15 +8,21 @@ services:
   - type: web
     name: buscandoando
     runtime: python
-    # El ultimo paso es la carga de fichas nacionales: el archivo viaja en
-    # el repo (backend/data/fichas_nacionales.ndjson.gz) y no puede ir al
-    # Shell porque el plan gratis no lo tiene. Es idempotente — recarga la
-    # propia base y da `creados 0, duplicados 16136` — asi que un deploy
-    # mas no duplica nada y ademas repara la base si se recreara.
-    # El `( ... || true)` protege SOLO ese paso: si falla el `migrate` o
-    # el `load_initial_data`, la cadena `&&` se corta antes y el build
-    # sigue fallando como debe.
-    buildCommand: pip install -r backend/requirements.txt && cd frontend && npm install && npm run build && cd ../backend && python manage.py collectstatic --noinput && python manage.py migrate && python manage.py setup_admin && python manage.py load_initial_data && (python manage.py cargar_fichas data/fichas_nacionales.ndjson.gz || true)
+    # La carga de fichas nacionales NO va en el build: corria en cada
+    # deploy contra la base de datos EN VIVO (1.839 fichas, fila a fila)
+    # mientras el sitio seguia sirviendo desde ella, y la maquina chica
+    # de Render no aguantaba: durante la ventana del build, TODO lo que
+    # consulta la BD devolvia 500 (sitemap, fichas, API) — incidente del
+    # 20/oct 2026, ver DISENO.md 15.5.
+    # Se corre a mano desde el Shell de Render, cuando haya un archivo
+    # nuevo que importar o se recreue la base:
+    #     cd backend && python manage.py cargar_fichas data/fichas_nacionales.ndjson.gz
+    # Es idempotente y reanudable: repetirlo o cortarlo no duplica nada y
+    # termina de cargar lo que falte. El archivo viaja en el repo
+    # (backend/data/fichas_nacionales.ndjson.gz).
+    # Los pasos que se quedan miden segundos: migrate (el esquema), el
+    # admin inicial y los datos de arranque.
+    buildCommand: pip install -r backend/requirements.txt && cd frontend && npm install && npm run build && cd ../backend && python manage.py collectstatic --noinput && python manage.py migrate && python manage.py setup_admin && python manage.py load_initial_data
     startCommand: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: SECRET_KEY
