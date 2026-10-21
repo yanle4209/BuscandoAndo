@@ -876,10 +876,12 @@ baja el chunk. Resultado del `vite build`:
   no apunta a la nada durante la carga) y anuncia «Cargando…» con
   `role="status"`; el del mapa ocupa su hueco exacto para que la
   página no salte.
-- Verificado en preview local: chunks en el orden previsto, mapa
-  montado, navegación SPA entre las tres rutas y 0 errores JS (solo
-  los 500 esperables del preview sin backend). Producción tras el
-  deploy.
+- Verificado en preview local (chunks en el orden previsto, mapa
+  montado, navegación SPA entre las tres rutas y 0 errores JS; solo
+  los 500 esperables del preview sin backend) y en producción tras el
+  deploy `dd8bbd2`: home con 117 resultados y 13 pines en Moca, ficha
+  abierta desde su modal con chunk y mapa propios, `/levantamiento` con
+  su pantalla de acceso y **0 errores de consola en toda la cadena**.
 - De paso, lint limpio: un `setSelected` sin uso preexistente en Home
   se resolvió quitándole el setter (sin efecto en runtime).
 
