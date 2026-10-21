@@ -80,9 +80,24 @@ tarjeta y sin reloj de caducidad para la BD.
 clave SSH pública que da el agente (panel o `Login with key`), y decir
 login + número de servidor (sX).
 
-**1. Entorno**: virtualenv con python3.12 (panel DevilWEB → virtualenvs, o
-CLI `devil`; confirmar sintaxis viva en docs.serv00.com/Python) y
-`~/venvs/ba/bin/pip install -r backend/requirements.txt`.
+**1. Entorno** (documentado en docs.serv00.com/Python):
+- Paso previo OBLIGATORIO: activar **Binexec** en el panel (The basics →
+  Binexec) — sin eso no deja usar software propio ni virtualenv.
+- Crear el virtualenv y compilar las dependencias (en FreeBSD `psycopg2`
+  y `Pillow` compilan desde fuente; los flags de la doc evitan sorpresas):
+
+```
+mkdir -p ~/.virtualenvs && cd ~/.virtualenvs
+virtualenv ba -p /usr/local/bin/python3.12
+export CFLAGS="-I/usr/local/include" CXXFLAGS="-I/usr/local/include"
+export MAX_CONCURRENCY=1 CPUCOUNT=1 MAKEFLAGS="-j1"
+~/.virtualenvs/ba/bin/pip install -r ~/BuscandoAndo/backend/requirements.txt
+```
+
+- Si un paño se queja de gcc: `export CC=gcc CXX=g++` y reintentar.
+- Nota: Passenger solo lee variables de `~/.bash_profile` (no de
+  `.bashrc`); nuestro `passenger_wsgi.py` carga `env.production` a mano,
+  así que no dependemos de eso, pero queda anotado.
 
 **2. Base de datos**: `devil pgsql db add buscandoando` + contraseña
 (`devil pgsql passwd buscandoando`). Anotar host `pgsqlN.serv00.com`.
@@ -125,9 +140,12 @@ data/fichas_nacionales.ndjson.gz > logs/import.log 2>&1 &` (horas; sin
 riesgo para el sitio aunque esté sirviendo: es la BD nueva, no una ajena).
 
 **9. Dominio y SSL**: `devil www add DOMINIO -t python` apuntando al
-binario del virtualenv (entorno `production`), forzar SSL (Let's Encrypt,
-gratis, automático). Confirmar en vivo si DOMINIO acepta el subdominio
-propio `LOGIN.serv00.net` (debe ser así: es el que te delegan).
+binario `~/.virtualenvs/ba/bin/python` (entorno `production`), forzar SSL
+(Let's Encrypt, gratis, automático). Confirmar en vivo si DOMINIO acepta
+el subdominio propio `LOGIN.serv00.net` (debe ser así: es el que te
+delegan). Si la app no arranca: `~/domains/DOMAIN/logs/error.log` es el
+log de errores de Passenger. Procesos: `devil www options DOMINIO
+processes 2` (con 2-4 basta; el tope es 80% de los del sistema).
 
 **10. Batería de verificación** (igual que la de Render): `/`,
 `/admin` (login Turbo), `/robots.txt`, `/sitemap.xml`, una ficha, la API,
