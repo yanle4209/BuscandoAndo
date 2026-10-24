@@ -1,0 +1,31 @@
+# Mantien viva la instancia gratis de Render (y despierta la BD de Neon).
+#
+# Render se duerma a los 15 minutos sin llamadas y al despertar tarda
+# ~50-70 s; una llamada cada 10 minutos mantiene el servicio caliente.
+# La portada consulta la BD (metas SEO), asi que tambien le da un uso a
+# Neon — que despierta en milisegundos y su scale-to-zero es gratis.
+#
+# El cron de GitHub puede atrasarse unos minutos en horas de trafico;
+# con 10 minutos de margen sobre los 15 de Render sigue sin dormirse.
+# GitHub desactiva cronograms de repos sin actividad cada 60 dias: un
+# commit (aunque sea de documentacion) lo reactiva.
+name: Mantener despierto
+
+on:
+  schedule:
+    - cron: '3,13,23,33,43,53 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  despertar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar a la web y a la base
+        run: |
+          curl -sS -o /dev/null -w 'health  %{http_code} en %{time_total}s\n' \
+            --max-time 90 https://buscandoando.onrender.com/api/health/
+          curl -sS -o /dev/null -w 'portada %{http_code} en %{time_total}s\n' \
+            --max-time 90 https://buscandoando.onrender.com/
