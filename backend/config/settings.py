@@ -103,6 +103,11 @@ if USE_POSTGRES:
     if DATABASE_URL:
         import urllib.parse
         url = urllib.parse.urlparse(DATABASE_URL)
+        # BDs externas (Neon y similares) exigen sslmode=require viajando
+        # en la query del URL; Django no lee esa query salvo que se pase
+        # como OPTIONS. Sin esto la conexion a Neon muere en la primera
+        # consulta con un error criptico de handshake.
+        opciones = dict(urllib.parse.parse_qsl(url.query))
         DATABASES = {
             'default': {
                 'ENGINE': 'django.db.backends.postgresql',
@@ -111,6 +116,7 @@ if USE_POSTGRES:
                 'PASSWORD': url.password,
                 'HOST': url.hostname,
                 'PORT': url.port or 5432,
+                'OPTIONS': opciones,
             }
         }
     else:
