@@ -18,6 +18,7 @@ mismo. Ninguno de los dos comandos importa al otro, solo a este modulo.
 """
 from collections import Counter
 
+from django.db import IntegrityError
 from django.utils.text import slugify
 
 from categories.models import Category
@@ -37,14 +38,29 @@ def categoria_de(datos):
     Sin nombre no hay categoria que crear: devuelve ``None``, que es lo
     que ``ingreso.crear`` entiende como "esta ficha no tiene categoria"
     (y por eso aparece como pendiente en el reporte de §11.1).
+
+    El slug de la tabla es unico y dos nombres distintos pueden dar al
+    mismo —el sembrador inicial guardo "Talleres Mecánicos" con slug
+    ascii, y el archivo exportado trae "Talleres Mecanicos"—: si ya hay
+    una con ese slug, esa es la categoria y no se crea otra (crearla
+    reventaria el import con un IntegrityError sobre el slug).
     """
     nombre = (datos.get('categoria') or '').strip()
     if not nombre:
         return None
-    return Category.objects.get_or_create(
-        name=nombre,
-        defaults={'slug': slugify(nombre, allow_unicode=True)},
-    )[0]
+    slug = slugify(nombre, allow_unicode=True)
+    categoria = (
+        Category.objects.filter(name=nombre).first()
+        or Category.objects.filter(slug=slug).first()
+    )
+    if categoria is not None:
+        return categoria
+    try:
+        return Category.objects.create(name=nombre, slug=slug)
+    except IntegrityError:
+        # Otra proceso la creo entre la consulta y el insert: la que
+        # acaba de nacer manda.
+        return Category.objects.get(slug=slug)
 
 
 class Lote:
