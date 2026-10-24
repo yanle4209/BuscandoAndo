@@ -1019,4 +1019,73 @@ nada. Ojo: el servicio se dio de alta en el **panel** de Render, así que
 el Build Command hay que cambiarlo también en *Settings → Build Command*
 (`render.yaml` es solo referencia — ver su cabecera).
 
+## 16. Producción: puente Render + Neon e import nacional (24/oct 2026)
+
+### 16.1 — El puente
+
+serv00 seguía (sigue) en revisión de registro y la web no podía
+esperar: hosting **gratis, sin tarjeta y sin límite de tiempo**. Puente
+montado el 24/oct y dejado como sistema principal:
+
+- **Render** (web gratis) + **Neon** (PostgreSQL gratis, *expires
+  never*, rama `production`, Ohio) — las imágenes ya vivían en
+  Cloudinary.
+- `DATABASE_URL` del servicio apunta al **pooler** de Neon (sin
+  `channel_binding`, `sslmode=require`). Truco del editor de Render:
+  solo envía los valores que se han revelado/enfocado, así que un campo
+  vacío en el formulario significa *conservar* el valor guardado — se
+  escribe el nuevo valor, «Save only» y a otra cosa.
+- Deploy `d2fe514` en verde: health, robots, metas, sitemap y API
+  contestaban (la ficha devolvía 404 — base aún sin importar).
+- El auto-deploy está en **«On Commit»**: todo push despliega en ~1
+  min. serv00, cuando llegue la aprobación, queda como migración
+  opcional según `MIGRACION_SERV00.md`.
+
+### 16.2 — Importación nacional sin Shell de Render
+
+El Shell de Render (SSH y jobs one-off) es de pago en el plan gratis,
+así que `cargar_fichas` se corrió **desde la máquina local contra
+Neon** con un envoltorio (`importa_prod.py`) que ejecuta el mismo
+código y el mismo comando idempotente que en producción.
+
+- **Fix del choque de slug en `categoria_de`**
+  (`businesses/masivo.py`, commit `e0be765`): el primer intento murió
+  en Baní — la categoría sembrada por `load_initial_data` tenía slug
+  ASCII y la del dump chocaba. Ahora busca **por nombre**, luego **por
+  slug** (mismo slug = misma categoría) y el `INSERT` va protegido con
+  `IntegrityError`, con lo que da igual el orden en que aparezcan.
+- Resultado: **16.136 leídos → 14.927 creados** (1.209 duplicados
+  saltados, 0 rechazados), **1.391 publicados** por la regla de fases y
+  13.536 esperando en revisión. Total en la base: **16.462
+  negocios** (se partió de 380).
+- Limpieza de Baní (regla §10-f): 2 promovidas, 152 siguen en revisión.
+
+### 16.3 — La web no se duerme (keep-alive)
+
+Render free se dormía a los 15 minutos y al despertar tardaba ~50-70
+segundos.
+
+- **`.github/workflows/despierto.yml`** (commit `f4309f4`): cron
+  `3,13,23,33,43,53 * * * *` **UTC** que llama a `/api/health/` y a la
+  portada (que consulta las metas SEO en la base, así que Neon también
+  recibe uso). Sin servicios externos ni cuentas nuevas: corre en el
+  propio repo.
+- **Aviso (estado del día 24)**: el `schedule` de GitHub **no dispara**
+  — bug generalizado de su scheduler desde agosto de 2026 (threads en
+  la comunidad: `workflow_dispatch` perfecto, cron mudo en todas las
+  cuentas). Se comprobó con el run manual #1 (verde, ambos `curl` OK)
+  y con disable→enable del workflow (re-registro: `state: active`), que
+  **no** abrió ninguna de las dos franjas siguientes. El workflow
+  queda puesto por si GitHub se recupera.
+- **Respaldo activo: UptimeRobot** (gratis, hasta 50 monitores, cada 5
+  min): mantiene Render despierto y, de paso, avisa por correo si la
+  web cae — el monitoreo que el directorio necesitaba igualmente.
+
+### 16.4 — Verificación de cierre
+
+`verifica_prod.py`: **TODO OK** — health 200, commit `f4309f4`
+(el esperado), robots válido, portada con sus metas, sitemap con **739
+URLs** (326 antes del import), **ficha en 200** (antes 404) y API 200.
+257 tests locales en verde.
+
 
