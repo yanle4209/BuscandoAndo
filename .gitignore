@@ -20,6 +20,12 @@ media/
 env.production
 backend/public/
 
+# scripts de un solo uso (fix_*, seed_*, check_*, ...): se quedan en la
+# maquina local y NUNCA se suben ni se despliegan — el README si viaja,
+# para documentar por que la carpeta existe
+backend/scripts_antiguos/*
+!backend/scripts_antiguos/README.md
+
 # Node
 node_modules/
 frontend/dist/

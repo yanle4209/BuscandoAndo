@@ -11,7 +11,6 @@ backend/
 ├── accounts/        # App de usuarios (registro, login, perfil)
 ├── businesses/      # App de negocios, categorías, reseñas, favoritos
 ├── manage.py
-├── seed_data.py
 └── requirements.txt
 ```
 
