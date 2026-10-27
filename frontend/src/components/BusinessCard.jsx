@@ -48,6 +48,21 @@ export default function BusinessCard({ business, highlighted, level, onClick, on
     <div
       className={`biz-card ${highlighted ? 'biz-card--highlighted' : ''}`}
       onClick={onClick}
+      // La tarjeta es la unica puerta al modal de la ficha: sin esto, un
+      // usuario de teclado o lector de pantalla no puede abrir ninguna
+      // ficha. role/tabIndex la anuncian como boton y la hacen alcanzable;
+      // onKeyDown la activa con Enter/barra como un boton de verdad.
+      // El guard de target evita que Enter pulsado DENTRO de los enlaces
+      // internos (tel, mapa) burbujee y abra el modal encima.
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
     >
       {/* Portada: siempre. La foto (o el placeholder de marca) es la
           misma en la bento de la portada y en los resultados. */}

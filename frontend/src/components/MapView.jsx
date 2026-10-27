@@ -53,6 +53,20 @@ function ponerNombreDeMarker(marker, nombre) {
   if (nodo) nodo.setAttribute('aria-label', nombre);
 }
 
+// Leaflet renderiza el popup con innerHTML: cualquier texto que entre ahi
+// se interpreta como HTML, no como texto. Los nombres de negocio los
+// escriben colaboradores externos via POST /api/levantamiento/, asi que un
+// nombre tipo <img src=x onerror=...> se ejecutaria en el navegador de
+// quien abra el popup (XSS almacenado). Escapar antes de armar el string
+// lo muestra literalmente sin desactivar el resto del popup.
+function escaparHTML(texto) {
+  return String(texto ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
+
 // Vista por defecto mientras no hay punto activo (sin municipio y sin
 // GPS): el mapa se abre mirando el pais entero. No es un "punto", asi
 // que no lleva marcador de usuario.
@@ -187,7 +201,7 @@ export default function MapView({ businesses, selected, center, onMarkerClick, o
 
       const marker = L.marker([lat, lng], { icon })
         .addTo(mapInstance.current)
-        .bindPopup(`<strong>${biz.name}</strong><br/>${biz.category_name || ''}`);
+        .bindPopup(`<strong>${escaparHTML(biz.name)}</strong><br/>${escaparHTML(biz.category_name || '')}`);
 
       ponerNombreDeMarker(marker, biz.name);
 
