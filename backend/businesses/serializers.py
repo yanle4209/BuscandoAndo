@@ -29,7 +29,16 @@ def compute_operational_status(business):
     day_names = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
     today_name = day_names[day_index]
 
-    hours = business.hours.filter(day=today_name).first()
+    # OJO: ``business.hours.filter(...)`` NO sirve aunque el queryset venga
+    # con ``prefetch_related('hours')``: ``.filter()`` descarta el caché de
+    # prefetch y lanza una query POR negocio. Medido en el listado: 24
+    # queries para 12 negocios (2 por negocio, porque compute_operational_status
+    # corre dos veces, en effective_status y en effective_status_name). Los
+    # demas campos no lo hacen: ``.all()`` sí respeta el caché, y ``[:5]``
+    # sobre un queryset ya cacheado corta en memoria.
+    # Cada negocio tiene como mucho 7 filas de horario, asi que el filtro en
+    # Python no cuesta nada.
+    hours = next((h for h in business.hours.all() if h.day == today_name), None)
     if not hours:
         return business.operational_status.slug if business.operational_status else 'cerrado'
 

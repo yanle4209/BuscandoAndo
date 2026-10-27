@@ -22,7 +22,9 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.management import call_command
+from django.db import connection
 from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from categories.models import Category
@@ -35,7 +37,7 @@ from business_hours.models import BusinessHours
 from . import geografia, osm, portar, validacion
 from .levantamiento import LIMITE_ENVIOS_POR_MINUTO, _ip
 from .models import Business, Correction, Colaborador, Envio
-from .serializers import compute_operational_status
+from .serializers import BusinessListSerializer, compute_operational_status
 
 BUSINESSES_URL = '/api/businesses/'
 FEATURED_BY_SEARCH_URL = '/api/businesses/featured-by-search/'
@@ -3206,6 +3208,86 @@ class EstadoUsaElRelojDelProyectoTests(TestCase):
 
         with patch('django.utils.timezone.now', return_value=self.INSTANTE):
             self.assertEqual(compute_operational_status(biz), 'cerrado')
+
+
+class ElListadoNoConsultaPorNegocioTests(TestCase):
+    """El listado no debe hacer queries proporcionales a los negocios.
+
+    Medido antes de arreglarlo: la pagina de 12 hacia 24 queries, todas de
+    ``hours``. El queryset YA venia con ``prefetch_related('hours')``, pero
+    ``compute_operational_status`` llamaba a ``business.hours.filter(day=...)``:
+    ``.filter()`` descarta el caché de prefetch y consulta por cada objeto. Y
+    lo hacía DOS veces, porque ``effective_status`` y ``effective_status_name``
+    llaman ambas a la misma función.
+
+    La garantía que se pone aqui es que el coste sea CONSTANTE: una pagina de
+    8 debe costar lo mismo que una de 4. Un N+1 que se reintroduzca rompe esa
+    igualdad, y el mensaje del test trae los dos numeros.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado')
+        cls.categoria = Category.objects.create(
+            name='Restaurantes', slug='restaurantes')
+        cls.cerrado = OperationalStatus.objects.create(
+            name='Cerrado', slug='cerrado')
+
+    def negocio(self, i):
+        biz = Business.objects.create(
+            name=f'Negocio {i}',
+            description=f'Descripcion del negocio {i}',
+            short_description=f'Desc {i}',
+            category=self.categoria,
+            publication_status=self.publicado,
+            operational_status=self.cerrado,
+        )
+        # Moca, Espaillat: provincia de FASE1. Sin ubicacion en fase el
+        # listado recorta el negocio y el test mediria una pagina vacia.
+        BusinessLocation.objects.create(
+            business=biz, municipality='Moca', province='Espaillat',
+            latitude=19.3970, longitude=-70.5270,
+        )
+        BusinessHours.objects.create(
+            business=biz, day='Lunes',
+            open_time=datetime.time(8, 0), close_time=datetime.time(18, 0))
+        return biz
+
+    def queries_de_la_pagina(self, cantidad):
+        """Crea ``cantidad`` negocios y devuelve cuantas queries hizo el
+        ENDPOINT real al servir esa pagina (no el serializer suelto)."""
+        for i in range(cantidad):
+            self.negocio(i)
+
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(
+                BUSINESSES_URL + f'?page_size={cantidad}')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()['results']), cantidad)
+        return len(queries.captured_queries)
+
+    def test_el_coste_no_crece_con_el_tamano_de_la_pagina(self):
+        # Calentamiento: la PRIMERA peticion del proceso crea la fila del
+        # contador de uso (INSERT en uso_usodiario) y cachea content types,
+        # asi que trae una query mas que no tiene nada que ver con el
+        # listado. Sin esta llamada previa la comparacion media el analitico.
+        self.client.get(BUSINESSES_URL + '?page_size=1')
+
+        cuatro = self.queries_de_la_pagina(4)
+        ocho = self.queries_de_la_pagina(8)
+
+        self.assertEqual(
+            cuatro, ocho,
+            f'La pagina de 4 hizo {cuatro} queries y la de 8 {ocho}: el '
+            'coste crece con el numero de negocios (N+1).')
+
+    def test_no_necesita_mas_queries_que_relaciones_por_negocio(self):
+        """Cota absoluta, por si las dos paginas coincidieran por casualidad:
+        8 negocios con location, contact, hours e images no pueden pedir ni
+        una query por negocio."""
+        self.assertLessEqual(self.queries_de_la_pagina(8), 10)
 
 
 @override_settings(STORAGES=STATIC_SIN_MANIFEST)
