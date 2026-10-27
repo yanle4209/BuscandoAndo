@@ -22,9 +22,10 @@
 #   (::error): en un repo publico las anotaciones se leen SIN iniciar
 #   sesion, los logs no ("Sign in to view logs"). Ademas no se corta en
 #   el primer test roto, que era como se ocultaron 7 fallos tras 1.
-# - Android: sin acciones de terceros para el SDK (setup-android@v3, vieja
-#   y forzada a Node 24, cayo en el run #1 tras la migracion de
-#   ubuntu-latest a Ubuntu 26). Se usa el SDK preinstalado del runner.
+# - Android: sin acciones de terceros. El SDK ya viene en el runner
+#   (acciones/runner-images), asi que no se instala nada: en el run #2
+#   instalar "platforms;android-37" fallo porque esa cadena EXACTA no
+#   existe (la del repositorio es android-37.0) y era ademas innecesaria.
 # - ApiSmokeTest esta EXCLUIDO en CI (va contra el backend real): ver
 #   android/app/build.gradle.kts.
 name: CI
@@ -90,6 +91,9 @@ jobs:
 
       - name: Tests (SQLite)
         working-directory: backend
+        # Se vuelca TODO el fallo (no solo el primer test roto, que era
+        # como 7 fallos se escondian detras de 1) y se listan todos los
+        # tests rotos en la anotacion.
         run: |
           if ! OUT=$(python manage.py test 2>&1); then
             echo "$OUT" | tail -60
@@ -131,27 +135,27 @@ jobs:
 
       # El SDK preinstalado es de root: para que AGP pueda leerlo y
       # auto-descargar lo que falte, se pone en manos del usuario.
-      - name: Android SDK preinstalado -> plataforma 37 (compileSdk)
+      # El SDK YA viene en el runner (acciones/runner-images: Android SDK
+      # Platforms trae android-37.0/.1/.2, y ANDROID_HOME apunta a el).
+      # No hay que instalar nada: en el run #2 instale
+      # "platforms;android-37" (esa cadena EXACTA no existe: la del
+      # repositorio es android-37.0) y sdkmanager se quejo justo ahi.
+      # Lo que si hace falta es que el usuario pueda escribir en el SDK,
+      # que en la imagen es de root.
+      - name: Android SDK preinstalado, comprobado y en manos del usuario
         run: |
           set -euo pipefail
           SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           if [ ! -d "$SDK" ]; then
-            echo "::error::No hay Android SDK en $SDK: ¿cambio la imagen ubuntu-latest? (ver ANDROID_HOME)"
+            echo "::error::No hay Android SDK en $SDK. ANDROID_HOME=${ANDROID_HOME:-<vacia>} ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-<vacia>}"
             exit 1
           fi
           sudo chown -R "$USER" "$SDK"
-          SM="$(find "$SDK/cmdline-tools" -name sdkmanager -type f 2>/dev/null | sort | tail -1 || true)"
-          [ -n "$SM" ] || SM="$(command -v sdkmanager || true)"
-          if [ -n "$SM" ]; then
-            yes | "$SM" --licenses >/dev/null 2>&1 || true
-            if ! OUT=$("$SM" "platforms;android-37" 2>&1); then
-              echo "$OUT" | tail -10
-              echo "::error::sdkmanager instalando platforms;android-37: $(echo "$OUT" | tr '\n' ' ' | cut -c1-600)"
-              exit 1
-            fi
-            echo "plataforma android-37 lista"
-          else
-            echo "::warning::sdkmanager no encontrado: AGP auto-descargara la plataforma (SDK ya escribible)"
+          echo "SDK en $SDK"
+          PLATAFORMAS="$(ls "$SDK/platforms" 2>/dev/null | tr '\n' ' ' || true)"
+          echo "Plataformas instaladas: ${PLATAFORMAS:-<ninguna>}"
+          if ! ls "$SDK/platforms" 2>/dev/null | grep -q '^android-37'; then
+            echo "::warning::No hay plataforma android-37* preinstalada: AGP la auto-descargara (el SDK ya es escribible)."
           fi
 
       - uses: actions/setup-java@v5
@@ -162,10 +166,13 @@ jobs:
       # CI=true (lo pone GitHub) excluye ApiSmokeTest: la suite aqui es
       # hermetica, sin red a produccion (ver app/build.gradle.kts).
       - name: Tests unitarios
+        # `tail -80`: el FINAL de la salida es donde gradle explica el
+        # "What went wrong". Antes se recortaba por el principio (cut),
+        # que descartaba justo lo util.
         run: |
           if ! OUT=$(./gradlew testDebugUnitTest --no-daemon 2>&1); then
-            echo "$OUT" | tail -60
-            echo "::error::Tests Android fallaron: $(echo "$OUT" | grep -E 'FAILED|error:|What went wrong' -A 3 | tail -30 | tr '\n' ' ' | cut -c1-1200)"
+            echo "$OUT" | tail -80
+            echo "::error::Tests Android fallaron. Ultimas lineas: $(echo "$OUT" | grep -E 'FAILED|^e: |What went wrong|Could not|error:' -A 2 | tail -20 | tr '\n' ' ' | cut -c1-1400)"
             exit 1
           fi
           echo "$OUT" | tail -4
