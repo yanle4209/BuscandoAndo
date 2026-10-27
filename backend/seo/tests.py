@@ -6,13 +6,28 @@ base con el fichero del build de respaldo). El panel del admin se
 prueba en lo que exige su razon de ser: que solo el staff entra y que
 lo guardado a mano se sirve tal cual.
 """
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from seo.models import SeoRuta, SeoRobots
 
+# El admin maquilla las hojas con el storage con manifest, que solo
+# resuelve despues de `collectstatic`: en los tests no hay manifest y la
+# pagina de admin ni llegaria a pintarse. Mismo tramite que en
+# businesses/tests.py (STATIC_SIN_MANIFEST). Aquí cuela porque el CI hace
+# un clon limpio y allí tampoco existen ni el manifest ni el dist/ de
+# React (los dos en .gitignore): las 3 clases de este fichero pintan el
+# admin y sin esto revientan con "Missing staticfiles manifest entry".
+STATIC_SIN_MANIFEST = {
+    **settings.STORAGES,
+    'staticfiles': {'BACKEND':
+                    'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}
 
+
+@override_settings(STORAGES=STATIC_SIN_MANIFEST)
 class MetasPorRutaTest(TestCase):
     """La portada y la herramienta de campo, con y sin fila propia."""
 
@@ -108,6 +123,13 @@ class PanelSeoTest(TestCase):
             'seo_admin', 'seo@example.com', 'clave-seo-123')
         self.client.force_login(usuario)
 
+    # La corrección va NIVEL MÉTODO, no nivel de clase. A diferencia de
+    # businesses/tests.py (donde pinta el admin en el setUp y basta
+    # con la clase), aquí hay tests que no pintan ningún template y el
+    # decorador de clase no llega a los atributos que se crean después
+    # de la decoración: test_cambiar_las_metas_desde_el_admin pinta la
+    # portada y se quedaría sin la corrección.
+    @override_settings(STORAGES=STATIC_SIN_MANIFEST)
     def test_panel_ensena_metas_robots_y_sitemap(self):
         respuesta = self.client.get(reverse('admin_seo'))
         self.assertEqual(respuesta.status_code, 200)
@@ -127,6 +149,7 @@ class PanelSeoTest(TestCase):
         self.assertEqual(respuesta.status_code, 302)
         self.assertIn('/admin/login/', respuesta['Location'])
 
+    @override_settings(STORAGES=STATIC_SIN_MANIFEST)
     def test_cambiar_las_metas_desde_el_admin(self):
         fila = SeoRuta.objects.get(ruta='')
         respuesta = self.client.post(

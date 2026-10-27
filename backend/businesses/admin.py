@@ -320,7 +320,6 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
         super().save_related(request, form, formsets, change)
 
         from business_hours.holidays import is_holiday
-        from datetime import date
 
         # Fecha local del proyecto, no la del host (en Render: UTC).
         today = timezone.localdate()
