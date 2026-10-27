@@ -6,12 +6,27 @@
 # (despierto.yml) no cuenta: sólo hace curl.
 #
 # Notas de configuración:
-# - Backend sin variables de entorno: USE_POSTGRES apagado -> SQLite en
-#   memoria, igual que en local. Si algún día se necesita Postgres de
-#   verdad en CI, añadir un servicio y DATABASE_URL.
-# - Android: ApiSmokeTest está EXCLUIDO aquí (va contra el backend real de
-#   producción y asume datos concretos: un backend dormido o un dato
-#   cambiado pondría rojo el CI sin tocar código). Ver app/build.gradle.kts.
+# - Backend SIN variables de entorno: USE_POSTGRES apagado -> SQLite en
+#   memoria, igual que en local.
+# - Backend construye el FRONTEND ANTES de los tests, igual que Render
+#   (render.yaml: buildCommand = npm install && npm run build && cd backend
+#   && collectstatic...). Lo necesita seo/tests.py: serve_react devuelve
+#   Http404 si no existe frontend/dist/index.html (views.py), que es
+#   intencional (la auditoria C mato el "200 universal" que era un
+#   soft-404), y 7 tests pintan la portada o el robots.txt del build.
+# - collectstatic tambien va antes: genera staticfiles.json (en
+#   .gitignore, ausente en un clon limpio) que exige STORAGES de
+#   produccion; sin el, seo.tests.PanelSeoTest estalla con "Missing
+#   staticfiles manifest entry".
+# - Los pasos que pueden fallar vuelcan TODOS los fallos a anotaciones
+#   (::error): en un repo publico las anotaciones se leen SIN iniciar
+#   sesion, los logs no ("Sign in to view logs"). Ademas no se corta en
+#   el primer test roto, que era como se ocultaron 7 fallos tras 1.
+# - Android: sin acciones de terceros para el SDK (setup-android@v3, vieja
+#   y forzada a Node 24, cayo en el run #1 tras la migracion de
+#   ubuntu-latest a Ubuntu 26). Se usa el SDK preinstalado del runner.
+# - ApiSmokeTest esta EXCLUIDO en CI (va contra el backend real): ver
+#   android/app/build.gradle.kts.
 name: CI
 
 on:
@@ -23,7 +38,7 @@ on:
 permissions:
   contents: read
 
-# Un push rápido detrás de otro no debe dejar tres CIs corriendo.
+# Un push rapido detras de otro no debe dejar tres CIs corriendo.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -41,11 +56,21 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
-      - name: Instalar dependencias
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias de Python
         run: pip install -r requirements.txt
         working-directory: backend
 
-      - name: Comprobación estática de Django
+      - name: Instalar dependencias de Node
+        run: npm ci
+        working-directory: frontend
+
+      - name: Comprobacion estatica de Django
         run: python manage.py check
         working-directory: backend
 
@@ -53,9 +78,26 @@ jobs:
         run: python manage.py makemigrations --check --dry-run
         working-directory: backend
 
-      - name: Tests (SQLite)
-        run: python manage.py test --verbosity 1
+      # Igual que en Render: el build del SPA es parte del build del
+      # backend. Sin el, serve_react responde 404 y seo/tests.py miente.
+      - name: Build del frontend (lo que sirve serve_react)
+        run: npm run build
+        working-directory: frontend
+
+      - name: collectstatic (genera el manifest que exige STORAGES)
+        run: python manage.py collectstatic --noinput
         working-directory: backend
+
+      - name: Tests (SQLite)
+        working-directory: backend
+        run: |
+          if ! OUT=$(python manage.py test 2>&1); then
+            echo "$OUT" | tail -60
+            DETAIL=$(echo "$OUT" | grep -E '^(FAIL|ERROR):' | head -20 | tr '\n' ';')
+            echo "::error::Tests de backend fallaron -> ${DETAIL:-ver salida del paso}"
+            exit 1
+          fi
+          echo "$OUT" | tail -4
 
   frontend:
     name: Frontend (React)
@@ -78,7 +120,7 @@ jobs:
       - name: Lint (oxlint)
         run: npm run lint
 
-      - name: Build de producción
+      - name: Build de produccion
         run: npm run build
 
   android:
@@ -87,19 +129,43 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # El SDK preinstalado es de root: para que AGP pueda leerlo y
+      # auto-descargar lo que falte, se pone en manos del usuario.
+      - name: Android SDK preinstalado -> plataforma 37 (compileSdk)
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          if [ ! -d "$SDK" ]; then
+            echo "::error::No hay Android SDK en $SDK: ¿cambio la imagen ubuntu-latest? (ver ANDROID_HOME)"
+            exit 1
+          fi
+          sudo chown -R "$USER" "$SDK"
+          SM="$(find "$SDK/cmdline-tools" -name sdkmanager -type f 2>/dev/null | sort | tail -1 || true)"
+          [ -n "$SM" ] || SM="$(command -v sdkmanager || true)"
+          if [ -n "$SM" ]; then
+            yes | "$SM" --licenses >/dev/null 2>&1 || true
+            if ! OUT=$("$SM" "platforms;android-37" 2>&1); then
+              echo "$OUT" | tail -10
+              echo "::error::sdkmanager instalando platforms;android-37: $(echo "$OUT" | tr '\n' ' ' | cut -c1-600)"
+              exit 1
+            fi
+            echo "plataforma android-37 lista"
+          else
+            echo "::warning::sdkmanager no encontrado: AGP auto-descargara la plataforma (SDK ya escribible)"
+          fi
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '25'
 
-      - uses: android-actions/setup-android@v3
-
-      - name: Plataforma Android 37 (compileSdk)
-        run: sdkmanager "platforms;android-37"
-
-      - uses: gradle/actions/setup-gradle@v4
-
-      # CI=true (lo pone GitHub) excluye ApiSmokeTest de la suite:
-      # los tests unitarios aquí son herméticos, sin red a producción.
+      # CI=true (lo pone GitHub) excluye ApiSmokeTest: la suite aqui es
+      # hermetica, sin red a produccion (ver app/build.gradle.kts).
       - name: Tests unitarios
-        run: ./gradlew testDebugUnitTest --no-daemon
+        run: |
+          if ! OUT=$(./gradlew testDebugUnitTest --no-daemon 2>&1); then
+            echo "$OUT" | tail -60
+            echo "::error::Tests Android fallaron: $(echo "$OUT" | grep -E 'FAILED|error:|What went wrong' -A 3 | tail -30 | tr '\n' ' ' | cut -c1-1200)"
+            exit 1
+          fi
+          echo "$OUT" | tail -4
