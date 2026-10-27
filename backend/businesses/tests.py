@@ -35,6 +35,7 @@ from business_hours.models import BusinessHours
 from . import geografia, osm, portar, validacion
 from .levantamiento import LIMITE_ENVIOS_POR_MINUTO, _ip
 from .models import Business, Correction, Colaborador, Envio
+from .serializers import compute_operational_status
 
 BUSINESSES_URL = '/api/businesses/'
 FEATURED_BY_SEARCH_URL = '/api/businesses/featured-by-search/'
@@ -3036,8 +3037,13 @@ class EstadoEfectivoTests(TestCase):
     Android.
     """
 
-    hoy = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes',
-           'Sábado', 'Domingo'][datetime.date.today().weekday()]
+    @property
+    def hoy(self):
+        """Día de HOY según la zona del proyecto (America/Santo_Domingo),
+        no la del host: en Render el servidor vive en UTC y el día local
+        puede ser todavía el anterior."""
+        return ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes',
+                'Sábado', 'Domingo'][timezone.localdate().weekday()]
 
     @classmethod
     def setUpTestData(cls):
@@ -3078,8 +3084,10 @@ class EstadoEfectivoTests(TestCase):
         asi que esta atras en cualquier hora del dia y el test no se
         puede caer por la hora en que se ejecute.
         """
-        desde = (datetime.datetime.now() - datetime.timedelta(hours=3)).time()
-        hasta = (datetime.datetime.now() - datetime.timedelta(hours=2)).time()
+        desde = timezone.localtime(
+            timezone.now() - datetime.timedelta(hours=3)).time()
+        hasta = timezone.localtime(
+            timezone.now() - datetime.timedelta(hours=2)).time()
         biz = self.negocio('Panaderia De La Manana',
                            open_time=desde, close_time=hasta)
 
@@ -3108,8 +3116,10 @@ class EstadoEfectivoTests(TestCase):
     def test_el_listado_y_la_ficha_dicen_lo_mismo(self):
         """Lo que pinta la tarjeta y lo que pinta la ficha es la MISMA
         pareja de campos: no pueden contradecirse."""
-        desde = (datetime.datetime.now() - datetime.timedelta(hours=3)).time()
-        hasta = (datetime.datetime.now() - datetime.timedelta(hours=2)).time()
+        desde = timezone.localtime(
+            timezone.now() - datetime.timedelta(hours=3)).time()
+        hasta = timezone.localtime(
+            timezone.now() - datetime.timedelta(hours=2)).time()
         biz = self.negocio('Panaderia Sin Luz',
                            open_time=desde, close_time=hasta)
 
@@ -3120,6 +3130,82 @@ class EstadoEfectivoTests(TestCase):
             (lista[0]['effective_status'], lista[0]['effective_status_name']),
             (ficha['effective_status'], ficha['effective_status_name']),
         )
+
+
+class EstadoUsaElRelojDelProyectoTests(TestCase):
+    """El estado abierto/cerrado debe salir de la hora de República
+    Dominicana, no de la del servidor.
+
+    En Render el host vive en UTC: con ``date.today()``/``datetime.now()``
+    el estado salía desfasado 4-5 horas (un negocio abierto a las 10 p. m.
+    salía "cerrado" y uno cerrado a las 10 a. m. salía "abierto") y entre
+    medianoche y las 4 a. m. hasta el día de la semana salía mal. Los tests
+    anteriores no lo pillaban porque construían la ventana con el MISMO
+    reloj equivocado que usaba el código: pasaban en cualquier host.
+
+    Aquí el instante se congela con mock sobre ``timezone.now()``, del que
+    derivan ``localtime()``/``localdate()`` — justo los que ahora usa el
+    código. El negocio se declara 'cerrado' para que el resultado sólo
+    pueda venir del cálculo con horario.
+    """
+
+    # Miércoles 28 de octubre de 2026, 02:00 UTC = MARTES 27, 10:00 p. m.
+    # en República Dominicana (UTC-4). Con America/Bogota saldría 9:00 p. m.
+    # y con el reloj del host (UTC) el día 28.
+    INSTANTE = datetime.datetime(
+        2026, 10, 28, 2, 0, tzinfo=datetime.timezone.utc)
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado')
+        cls.categoria = Category.objects.create(
+            name='Restaurantes', slug='restaurantes')
+        cls.cerrado = OperationalStatus.objects.create(
+            name='Cerrado', slug='cerrado')
+
+    def negocio(self, dia, **horas):
+        biz = Business.objects.create(
+            name=f'Negocio De {dia}',
+            description=f'Descripcion de {dia}',
+            short_description=dia,
+            category=self.categoria,
+            publication_status=self.publicado,
+            operational_status=self.cerrado,
+        )
+        BusinessHours.objects.create(business=biz, day=dia, **horas)
+        return biz
+
+    def test_la_fecha_y_la_hora_son_las_de_republica_dominicana(self):
+        with patch('django.utils.timezone.now', return_value=self.INSTANTE):
+            # En UTC todavía es el 28; en RD ya es el 27.
+            self.assertEqual(timezone.localdate(),
+                             datetime.date(2026, 10, 27))
+            # 10:00 p. m. en RD — America/Bogota daría 9:00 p. m.
+            self.assertEqual(timezone.localtime().time(),
+                             datetime.time(22, 0))
+
+    def test_abierto_a_las_diez_de_la_noche_aunque_en_utc_ya_amochezca(self):
+        """Horario de martes 8:00-23:00: a las 10 p. m. del martes (la
+        hora real del país) está ABIERTO. Con el reloj UTC el código miraba
+        el miércoles, no encontraba horario y devolvía el declarado."""
+        biz = self.negocio(
+            'Martes',
+            open_time=datetime.time(8, 0), close_time=datetime.time(23, 0))
+
+        with patch('django.utils.timezone.now', return_value=self.INSTANTE):
+            self.assertEqual(compute_operational_status(biz), 'abierto')
+
+    def test_no_mira_el_horario_del_dia_siguiente(self):
+        """Horario sólo del miércoles (el día UTC): el país todavía es
+        martes y el negocio no tiene horario de hoy, así que manda el
+        declarado. Antes salía 'abierto' a las 10 p. m. del martes."""
+        biz = self.negocio(
+            'Miércoles',
+            open_time=datetime.time(0, 0), close_time=datetime.time(23, 59))
+
+        with patch('django.utils.timezone.now', return_value=self.INSTANTE):
+            self.assertEqual(compute_operational_status(biz), 'cerrado')
 
 
 @override_settings(STORAGES=STATIC_SIN_MANIFEST)

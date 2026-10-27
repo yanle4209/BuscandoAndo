@@ -322,7 +322,8 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
         from business_hours.holidays import is_holiday
         from datetime import date
 
-        today = date.today()
+        # Fecha local del proyecto, no la del host (en Render: UTC).
+        today = timezone.localdate()
         today_idx = today.weekday()  # 0=Lunes
         day_name_to_idx = {'Lunes': 0, 'Martes': 1, 'Miércoles': 2,
                            'Jueves': 3, 'Viernes': 4, 'Sábado': 5, 'Domingo': 6}

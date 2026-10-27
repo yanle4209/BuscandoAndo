@@ -148,7 +148,10 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # --- i18n ---
 LANGUAGE_CODE = 'es'
-TIME_ZONE = 'America/Bogota'
+# Zona del proyecto: Republica Dominicana (UTC-4). Estaba en America/Bogota
+# (UTC-5): una hora de mas, y el estado "abierto/cerrado" que ve el usuario
+# depende de esta zona (businesses/serializers.py).
+TIME_ZONE = 'America/Santo_Domingo'
 USE_I18N = True
 USE_TZ = True
 

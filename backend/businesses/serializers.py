@@ -4,7 +4,8 @@ from business_locations.models import BusinessLocation
 from business_contacts.models import BusinessContact
 from business_hours.models import BusinessHours
 from business_images.models import BusinessImage
-from datetime import date, time as dt_time
+from datetime import time as dt_time
+from django.utils import timezone
 
 
 STATUS_NAMES = {
@@ -19,7 +20,11 @@ def compute_operational_status(business):
     Calcula el estado operativo real basado en horarios y feriados.
     Retorna: 'abierto', 'cerrado', 'por-horario'
     """
-    today = date.today()
+    # Reloj del PROYECTO (America/Santo_Domingo), no el del host: en
+    # Render el servidor vive en UTC, asi que date.today()/datetime.now()
+    # desfasaban el estado 4-5 horas y entre medianoche y las 4 a.m. hasta
+    # el dia de la semana salia mal.
+    today = timezone.localdate()
     day_index = today.weekday()  # 0=Lunes
     day_names = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
     today_name = day_names[day_index]
@@ -40,9 +45,9 @@ def compute_operational_status(business):
     if not hours.open_time or not hours.close_time:
         return 'cerrado'
 
-    # Verificar horario actual
-    import datetime as _dt
-    now = _dt.datetime.now().time()
+    # Verificar horario actual — hora local del proyecto (.time() deja el
+    # valor naive, comparable con los TimeField del horario).
+    now = timezone.localtime().time()
 
     if hours.open_time <= now < hours.close_time:
         return 'abierto'

@@ -4,6 +4,8 @@ Se usa para auto-detectar días de fiesta en los horarios.
 """
 from datetime import date
 
+from django.utils import timezone
+
 
 # Feriados fijos (día y mes固定的)
 FIXED_HOLIDAYS = [
@@ -33,7 +35,7 @@ DAY_NAME_TO_INDEX = {
 def is_holiday(dt=None):
     """Verifica si una fecha es feriado en República Dominicana."""
     if dt is None:
-        dt = date.today()
+        dt = timezone.localdate()
 
     for month, day, name in FIXED_HOLIDAYS:
         if dt.month == month and dt.day == day:
@@ -47,7 +49,7 @@ def get_holiday_for_day(day_name, dt=None):
     en la fecha dada (o hoy por defecto).
     """
     if dt is None:
-        dt = date.today()
+        dt = timezone.localdate()
 
     today_index = dt.weekday()  # 0=Lunes
     target_index = DAY_NAME_TO_INDEX.get(day_name)
@@ -67,7 +69,7 @@ def get_all_holidays_for_current_week(dt=None):
     {day_name: holiday_name, ...}
     """
     if dt is None:
-        dt = date.today()
+        dt = timezone.localdate()
 
     result = {}
     for day_name in DAY_NAME_TO_INDEX:
@@ -80,7 +82,7 @@ def get_all_holidays_for_current_week(dt=None):
 def get_holidays_for_year(year=None):
     """Retorna todos los feriados de un año."""
     if year is None:
-        year = date.today().year
+        year = timezone.localdate().year
 
     holidays = []
     for month, day, name in FIXED_HOLIDAYS:
