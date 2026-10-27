@@ -165,16 +165,24 @@ jobs:
 
       # CI=true (lo pone GitHub) excluye ApiSmokeTest: la suite aqui es
       # hermetica, sin red a produccion (ver app/build.gradle.kts).
+      #
+      # working-directory: android es OBLIGATORIO: gradlew vive en
+      # android/, no en la raiz. Sin el, "./gradlew" daba "No such file
+      # or directory" y el job nunca llego a gradle (seis rondas de rojo).
       - name: Tests unitarios
-        # El guard de arriba existe porque el fallo del run #3 fue ese:
-        # android/gradlew estaba en git como 100644 (sin bit de
-        # ejecucion) y "./gradlew" daba "Permission denied". La anotacion
-        # salio VACIA porque "Permission denied" no es un error de gradle
-        # y no coincide con ningun patron de grep. Por eso la anotacion
-        # de abajo vuelca la cola de la salida TAL CUAL, sin filtrar.
+        working-directory: android
+        # El guard distingue los dos casos que ya me han enganado: que
+        # el fichero no exista en esta ruta (working-directory mal) y que
+        # exista sin bit de ejecucion (git lo guarda como 100644 si el
+        # repo se creo en Windows). Los dos dan exit 1 sin pasar por
+        # gradle, y los dos se comia el grep de la anotacion.
         run: |
+          if [ ! -f ./gradlew ]; then
+            echo "::error::No hay ./gradlew en $(pwd). Falta 'working-directory: android' en este paso."
+            exit 1
+          fi
           if [ ! -x ./gradlew ]; then
-            echo "::error::android/gradlew no es ejecutable en git (100644, hace falta 100755). Arreglar: git update-index --chmod=+x android/gradlew"
+            echo "::error::$(pwd)/gradlew existe pero no es ejecutable (git: 100644, hace falta 100755). Arreglar: git update-index --chmod=+x android/gradlew"
             exit 1
           fi
           if ! OUT=$(./gradlew testDebugUnitTest --no-daemon 2>&1); then
