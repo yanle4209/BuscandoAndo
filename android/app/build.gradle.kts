@@ -95,6 +95,19 @@ android {
     }
 }
 
+// ── Tests de humo fuera del CI ──
+//
+// ApiSmokeTest golpea el backend REAL de producción y asume datos
+// concretos (un hospital que responde, hours.size >= 7, ...): un backend
+// dormido o un dato cambiado pondría rojo el CI sin que nadie haya
+// tocado código. En CI (GitHub Actions pone CI=true) se excluye de la
+// suite; en local sigue corriendo como siempre.
+tasks.withType<Test>().configureEach {
+    if (System.getenv("CI") == "true") {
+        exclude("**/ApiSmokeTest.class")
+    }
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

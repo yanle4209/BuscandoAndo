@@ -1,0 +1,105 @@
+# CI: los 260 tests de backend, los tests de Android y el lint/build del
+# frontend en CADA push y PR.
+#
+# Contexto: hasta este workflow los 297 tests del proyecto no los ejecutaba
+# nadie automáticamente (solo en local, a mano). El de keep-alive
+# (despierto.yml) no cuenta: sólo hace curl.
+#
+# Notas de configuración:
+# - Backend sin variables de entorno: USE_POSTGRES apagado -> SQLite en
+#   memoria, igual que en local. Si algún día se necesita Postgres de
+#   verdad en CI, añadir un servicio y DATABASE_URL.
+# - Android: ApiSmokeTest está EXCLUIDO aquí (va contra el backend real de
+#   producción y asume datos concretos: un backend dormido o un dato
+#   cambiado pondría rojo el CI sin tocar código). Ver app/build.gradle.kts.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un push rápido detrás de otro no debe dejar tres CIs corriendo.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Django)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+        working-directory: backend
+
+      - name: Comprobación estática de Django
+        run: python manage.py check
+        working-directory: backend
+
+      - name: Sin migraciones pendientes
+        run: python manage.py makemigrations --check --dry-run
+        working-directory: backend
+
+      - name: Tests (SQLite)
+        run: python manage.py test --verbosity 1
+        working-directory: backend
+
+  frontend:
+    name: Frontend (React)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint (oxlint)
+        run: npm run lint
+
+      - name: Build de producción
+        run: npm run build
+
+  android:
+    name: Android (Kotlin)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Plataforma Android 37 (compileSdk)
+        run: sdkmanager "platforms;android-37"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # CI=true (lo pone GitHub) excluye ApiSmokeTest de la suite:
+      # los tests unitarios aquí son herméticos, sin red a producción.
+      - name: Tests unitarios
+        run: ./gradlew testDebugUnitTest --no-daemon
