@@ -166,13 +166,20 @@ jobs:
       # CI=true (lo pone GitHub) excluye ApiSmokeTest: la suite aqui es
       # hermetica, sin red a produccion (ver app/build.gradle.kts).
       - name: Tests unitarios
-        # `tail -80`: el FINAL de la salida es donde gradle explica el
-        # "What went wrong". Antes se recortaba por el principio (cut),
-        # que descartaba justo lo util.
+        # El guard de arriba existe porque el fallo del run #3 fue ese:
+        # android/gradlew estaba en git como 100644 (sin bit de
+        # ejecucion) y "./gradlew" daba "Permission denied". La anotacion
+        # salio VACIA porque "Permission denied" no es un error de gradle
+        # y no coincide con ningun patron de grep. Por eso la anotacion
+        # de abajo vuelca la cola de la salida TAL CUAL, sin filtrar.
         run: |
+          if [ ! -x ./gradlew ]; then
+            echo "::error::android/gradlew no es ejecutable en git (100644, hace falta 100755). Arreglar: git update-index --chmod=+x android/gradlew"
+            exit 1
+          fi
           if ! OUT=$(./gradlew testDebugUnitTest --no-daemon 2>&1); then
             echo "$OUT" | tail -80
-            echo "::error::Tests Android fallaron. Ultimas lineas: $(echo "$OUT" | grep -E 'FAILED|^e: |What went wrong|Could not|error:' -A 2 | tail -20 | tr '\n' ' ' | cut -c1-1400)"
+            echo "::error::Tests Android fallaron. Cola de la salida: $(echo "$OUT" | tail -15 | tr '\n' ' ' | cut -c1-1400)"
             exit 1
           fi
           echo "$OUT" | tail -4
