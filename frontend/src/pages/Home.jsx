@@ -266,6 +266,15 @@ export default function Home() {
   // Negocio del que el visitante ha pulsado "Corregir" (null = sin modal).
   const [correctionBiz, setCorrectionBiz] = useState(null);
   const [loading, setLoading] = useState(false);
+  // La API no contestó (sin red, 500, timeout). Se guarda aparte de
+  // "sin resultados" porque los dos pintan la misma lista vacia y el
+  // visitante no puede distinguirlos: antes un corte de red se mostraba
+  // como "no hay negocios aqui" (o peor, con el overlay mandando a
+  // elegir municipio otra vez). Con error hay mensaje propio y reintento.
+  const [errorRed, setErrorRed] = useState(false);
+  // Contador para reintentar sin que cambie nada mas: se mete en las
+  // dependencias del efecto que consulta, y subirlo vuelve a consultar.
+  const [revision, setRevision] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const [municipioClave, setMunicipioClave] = useState('');
@@ -405,6 +414,7 @@ export default function Home() {
     peticionRef.current = peticion;
     const vigente = () => peticionRef.current === peticion;
     setLoading(true);
+    setErrorRed(false);
     try {
       const params = {
         page: pageNum, lat: punto.lat, lng: punto.lng, radius: RADIO_KM,
@@ -437,6 +447,10 @@ export default function Home() {
       setTotalResults(0);
       setTotalPages(1);
       setSearchFeatured([]);
+      // Sin esto el visitante veia la lista vacia y creia que la zona no
+      // tenia negocios: un corte de red y un sitio sin resultados se
+      // pintaban IDENTICOS.
+      setErrorRed(true);
     } finally {
       if (vigente()) setLoading(false);
     }
@@ -444,7 +458,7 @@ export default function Home() {
 
   useEffect(() => {
     if (estado.haBuscado) fetchBusinesses(estado.pagina);
-  }, [fetchBusinesses, estado.haBuscado, estado.pagina]);
+  }, [fetchBusinesses, estado.haBuscado, estado.pagina, revision]);
 
   // ------------------------------------------------------------------
   // Portada: ya no se piden destacados sin buscar (R4.1 retirado); los
@@ -458,6 +472,10 @@ export default function Home() {
     setSearchFeatured([]);
     setTotalResults(0);
     setTotalPages(1);
+    // Cambiar de punto es una consulta NUEVA: el aviso de la anterior no
+    // pinta nada aqui (si fallo la de Moca, el de Santiago no arranca
+    // arrastrandolo).
+    setErrorRed(false);
     return undefined;
   }, [estado.punto]);
 
@@ -494,6 +512,12 @@ export default function Home() {
   }, [estado.haBuscado, modalBiz, correctionBiz, showContact]);
 
   const handleSearch = (parcial) => dispatch({ type: 'buscar', parcial });
+
+  // Reintenta la consulta que fallo. Sube el contador de revision, que
+  // esta en las dependencias del efecto que consulta: no hay que repetir
+  // la logica ni refrescar nada mas (punto, pagina y filtros se quedan
+  // como estaban).
+  const reintentar = () => setRevision((n) => n + 1);
 
   const handlePageChange = (newPage) => {
     dispatch({ type: 'pagina', n: newPage });
@@ -568,6 +592,7 @@ export default function Home() {
 
   const sinPunto = !estado.punto;
   const sinResultados = !loading
+    && !errorRed
     && businesses.length === 0
     && searchFeatured.length === 0;
   // Sin punto activo no hay circulo de 5 km que trazar. El overlay es toda
@@ -715,6 +740,22 @@ export default function Home() {
                       <div className="skeleton-card__footer" />
                     </div>
                   ))
+                ) : errorRed ? (
+                  // La API no contesto. NO es "no hay negocios aqui" y el
+                  // overlay de portada tampoco vale: ese overlay mandaba a
+                  // elegir municipio o activar GPS a alguien que ya lo
+                  // habia hecho y al que simplemente se le cayo la red.
+                  <div className="error-red" role="alert">
+                    <p className="error-red__titulo">
+                      No se pudieron cargar los resultados.
+                    </p>
+                    <p className="error-red__detalle">
+                      Revisa tu conexión a internet y vuelve a intentarlo.
+                    </p>
+                    <button className="error-red__btn" onClick={reintentar}>
+                      Reintentar
+                    </button>
+                  </div>
                 ) : sinResultados ? (
                   // 0 destacadas + 0 normales -> overlay en vez de
                   // "No se encontraron negocios" (DISENO.md a1 / m2).

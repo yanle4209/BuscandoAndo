@@ -197,6 +197,34 @@
   margin-bottom: 12px;
 }
 
+/* Solo aparece cuando el fallo SE PUEDE reintentar (la API no contesto):
+   ante un 404 de verdad no se muestra, porque volver a pulsar no cambia
+   nada y solo invitaria a darle otra vez. */
+.detail-retry {
+  display: block;
+  margin: 0 auto 14px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border-strong);
+  padding: 8px 22px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.detail-retry:hover {
+  background: var(--yellow);
+  color: var(--ink);
+  border-color: var(--yellow);
+}
+
+.detail-retry:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
 .detail-no-map {
   display: flex;
   align-items: center;

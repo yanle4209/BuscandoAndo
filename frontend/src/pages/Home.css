@@ -190,6 +190,63 @@
   overflow: hidden;
 }
 
+/* ===== ERROR DE RED =====
+   La API no contesto (sin red, 500, timeout). Se separa de
+   .sin-resultados a proposito: los dos mostraban la misma lista vacia y
+   el visitante no podia decir si la zona no tenia negocios o si se le
+   habia caido la conexion. El boton reintentar sube el contador de
+   revision y vuelve a consultar con el mismo punto, pagina y filtros. */
+.error-red {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 420px;
+  padding: 32px 24px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.error-red__titulo {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.error-red__detalle {
+  color: var(--ink-soft);
+  font-size: 14px;
+  margin: 0 0 10px;
+}
+
+.error-red__btn {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border-strong);
+  padding: 8px 22px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.error-red__btn:hover {
+  background: var(--yellow);
+  color: var(--ink);
+  border-color: var(--yellow);
+}
+
+.error-red__btn:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
 /* ===== PORTADA: el overlay ocupa el hueco de la rejilla =====
    Antes de la primera busqueda no hay tarjetas (los destacados ya no
    se piden sin buscar): el overlay va en el sitio del grid, a la

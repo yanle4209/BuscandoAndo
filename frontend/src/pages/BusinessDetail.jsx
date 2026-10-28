@@ -12,20 +12,43 @@ export default function BusinessDetail() {
   const [biz, setBiz] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // true = la API no contesto (sin red, timeout, 500) y reintentar sirve;
+  // false = 404, el negocio no existe y volver a pulsar no cambia nada.
+  const [reintentable, setReintentable] = useState(false);
+  // Subirlo vuelve a hacer la peticion: no hay que repetir la logica.
+  const [revision, setRevision] = useState(0);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     api.get(`/businesses/${slug}/`)
       .then(({ data }) => setBiz(data))
-      .catch(() => setError('No se encontró el negocio.'))
+      .catch((err) => {
+        // Antes TODOS los fallos se informaban como "No se encontro el
+        // negocio": un corte de red, un 500 o un timeout enseñaban un 404
+        // inventado, y encima sin manera de reintentarlo.
+        const es404 = err.response?.status === 404;
+        setError(es404
+          ? 'No se encontró el negocio.'
+          : 'No se pudo cargar el negocio. Revisa tu conexión.');
+        setReintentable(!es404);
+      })
       .finally(() => setLoading(false));
-  }, [slug]);
+  }, [slug, revision]);
 
   if (loading) return <main className="detail-page" id="contenido" tabIndex={-1}><p className="detail-loading">Cargando...</p></main>;
   if (error) return (
     <main className="detail-page" id="contenido" tabIndex={-1}>
-      <div className="detail-error">
+      <div className="detail-error" role="alert">
         <p>{error}</p>
+        {reintentable && (
+          <button
+            className="detail-retry"
+            onClick={() => setRevision((n) => n + 1)}
+          >
+            Reintentar
+          </button>
+        )}
         <Link to="/" className="detail-back">← Volver al inicio</Link>
       </div>
     </main>
