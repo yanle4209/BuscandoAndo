@@ -1,6 +1,7 @@
 package com.herling.buscandoando.ui.map
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -87,6 +88,18 @@ fun MapScreen(
     onBack: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // El botón atrás del sistema (y el gesto) debe volver al Home, igual
+    // que la flecha de la barra. Sin esto, desde el mapa el back SALIA DE
+    // LA APP: `screen` vive en AppRoot y nada lo cambiaba, porque en
+    // Compose no hay backstack que Android pueda desapilar.
+    //
+    // Va AQUI y no en AppRoot para que el orden de las capas se respete:
+    // si la hoja de ficha (ModalBottomSheet) esta abierta, ELLA consume el
+    // back primero y se cierra ella sola; este handler solo corre cuando no
+    // hay capa encima. Es el mismo contrato que tiene la flecha de la
+    // barra (onBack), asi que las dos vias hacen exactamente lo mismo.
+    BackHandler(onBack = onBack)
 
     Box(
         modifier = Modifier

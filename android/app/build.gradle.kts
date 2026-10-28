@@ -71,9 +71,30 @@ android {
 
     buildTypes {
         release {
+            // R8 + minificacion de recursos (AGP 9: `optimization` es la
+            // DSL que sustituye a isMinifyEnabled/isShrinkResources).
+            //
+            // Antes estaba en `false`, o sea el APK de release salia SIN
+            // podar: cargaba TODAS las librerias (play-services, osmdroid,
+            // coil, retrofit...) aunque gran parte solo se usa en pantallas
+            // concretas. Medido antes del cambio: 13.8 MB de APK / 45.9 MB
+            // de dex. R8 quita el codigo no alcanzable desde tus pantallas
+            // y el shrink de recursos lo mismo con drawables/strings.
+            //
+            // Si R8 tira algo que SI se necesita (reflection de
+            // kotlinx.serialization, Retrofit o Coil), la app revienta en
+            // release. Por eso el .pro de abajo conserva las firmas de
+            // @Serializable y las anotaciones de Retrofit a proposito.
             optimization {
-                enable = false
+                enable = true
             }
+            isShrinkResources = true
+            // Reglas propias: lo que R8 NO puede deducir por si solo
+            // (reflexion de kotlinx.serialization, Retrofit y Coil).
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             // Sin keystore (clon limpio / otra máquina) queda sin
             // firmar y el empaquetado fallará; ver el comentario de
             // `firmaRelease`.

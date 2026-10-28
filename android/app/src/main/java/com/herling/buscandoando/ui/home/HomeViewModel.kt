@@ -9,8 +9,13 @@ import com.herling.buscandoando.core.data.dto.Cabecera
 import com.herling.buscandoando.core.data.dto.Category
 import com.herling.buscandoando.core.data.dto.CorrectionPayload
 import com.herling.buscandoando.core.network.ApiClient
+import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.serialization.SerializationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +28,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import retrofit2.HttpException
 import retrofit2.Response
 
 /**
@@ -208,7 +214,9 @@ class HomeViewModel : ViewModel() {
                     _uiState.update {
                         it.copy(
                             detailLoading = false,
-                            detailError = e.message ?: e::class.simpleName ?: "Error desconocido",
+                            // Mensaje amigable, no e.message crudo (ver
+                            // mensajeDeErrorRed).
+                            detailError = mensajeDeErrorRed(e),
                         )
                     }
                 }
@@ -553,7 +561,10 @@ class HomeViewModel : ViewModel() {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = e.message ?: e::class.simpleName ?: "Error desconocido",
+                        // Mensaje amigable, no e.message crudo (ver
+                        // mensajeDeErrorRed): antes el banner enseñaba
+                        // "Unable to resolve host ..." de forma literal.
+                        errorMessage = mensajeDeErrorRed(e),
                     )
                 }
             }
@@ -743,4 +754,61 @@ class HomeViewModel : ViewModel() {
     private companion object {
         const val TAG = "HomeViewModel"
     }
+}
+
+/**
+ * Traduce un fallo de red a un mensaje que un usuario entienda.
+ *
+ * Antes la UI enseñaba `e.message` CRUDO, o sea el visitante veia cosas
+ * como:
+ *
+ *     Unable to resolve host "buscandoando.onrender.com": No address
+ *     associated with hostname
+ *     java.net.SocketTimeoutException: timeout
+ *     HTTP 404 Response.error()
+ *
+ * Eso no es un mensaje de producto: es un log de desarrollador. Aqui se
+ * mapea cada tipo de fallo a una frase corta y accionable. El detalle
+ * crudo NO se pierde: sigue yendo a Log.w/e en cada catch, que es donde
+ * se mira al diagnosticar.
+ *
+ * Se usa en los dos puntos que exponen el error al usuario:
+ * `errorMessage` (banner de busqueda) y `detailError` (hoja de ficha).
+ *
+ * La orden de intentos es de MAS especifica a MAS generica: hay que
+ * mirar primero los subtipos (por ejemplo SocketTimeoutException es tambien
+ * IOException) o la primera rama se traga todos.
+ */
+internal fun mensajeDeErrorRed(e: Exception): String = when (e) {
+    // El servidor contesto, pero con error. 404 = el negocio ya no existe
+    // (o el slug esta mal); 5xx = el backend fallo por su cuenta.
+    is HttpException -> {
+        when (e.code()) {
+            404 -> "No encontramos ese negocio. Puede que ya no este activo."
+            in 500..599 -> "El servidor tuvo un problema. Intenta de nuevo en unos segundos."
+            else -> "No se pudo completar la peticion (${e.code()}). Intenta de nuevo."
+        }
+    }
+
+    // Sin llegada al host o DNS: el movil esta sin datos/wifi o el
+    // servidor no resuelve. Es el caso mas comun en la calle.
+    is UnknownHostException -> "Sin conexion a internet. Revisa tus datos o el wifi."
+
+    // Conexion cortada en mitad de la transferencia (señal mala, tunel...).
+    is ConnectException -> "No se pudo conectar al servidor. Revisa tu conexion."
+
+    // El servidor (Render) tarda mas de lo que deja la app: el primer
+    // arranque en frio tarda 30-50 s y aun asi puede no alcanzar.
+    is SocketTimeoutException -> "El servidor tardo demasiado en responder. Intenta de nuevo."
+
+    // Cualquier otro fallo de E/S de red, agrupado.
+    is IOException -> "Problema de conexion. Revisa tu internet e intenta de nuevo."
+
+    // Fallo al parsear el JSON: el backend mando algo que la app no
+    // entiende (normalmente un cambio de API sin actualizar la app).
+    is SerializationException -> "No se pudo leer la respuesta del servidor."
+
+    // Lo demas (bug, estado raro...): generico a proposito, porque un
+    // texto tecnico aqui solo confunde a quien usa la app.
+    else -> "Algo salio mal. Intenta de nuevo."
 }
