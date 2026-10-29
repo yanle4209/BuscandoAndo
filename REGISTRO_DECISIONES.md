@@ -52,7 +52,9 @@
 - **Sigue abierto** (fuera de los cinco acordados): el reset de scroll de
   `Home` apunta a `.right-panel` pero el contenedor que scrollea de
   verdad es `.right-results-scroll` — observado en la prueba (sigue en
-  734 px al cambiar de página).
+  734 px al cambiar de página). → **Cerrado después** en `b47086e`
+  (cubre los tres caminos: `.right-results-scroll`, `.right-panel` y el
+  documento en móvil).
 
 ---
 
@@ -237,3 +239,60 @@
   `.onrender.com` en ALLOWED_HOSTS (render.yaml), sin techo en
   `GET /api/pendientes/` ni `POST /api/interes/`, throttling solo en
   proceso (sin CACHES). Bajos, documentados.
+
+---
+
+## Empaquetado Android + cierre de sesión (D-2026-10-29/12)
+
+- **Decisión del dueño**: "termina los trabajos, toma tú las decisiones,
+  registra todo, y al final empaqueta la app Android y exportala al
+  escritorio."
+- **APK de release entregado**: `C:\Users\herli\Desktop\BuscandoAndo-v2026-10-29.apk`
+  (2,29 MB). Firma **verificada** con `apksigner verify`: certificado
+  propio `CN=BuscandoAndo, O=Herling Rodriguez, C=DO` (SHA-256
+  `1bea8be6…908ac`), el mismo `.jks` de `android/keystore/` — quien ya
+  tenga la app instalada podrá actualizarla sin cambiar de certificado.
+  API por defecto: `https://buscandoando.onrender.com/api/` (producción).
+- **Instalación de herramientas (winget, aprobada por el dueño)**:
+  JDK **Temurin 21.0.12.1** + Android **SDK cmdline-tools** en
+  `%LOCALAPPDATA%\Android\Sdk` (donde apunta `local.properties`),
+  licencias aceptadas con `sdkmanager --licenses`, instalados
+  `platform-tools`, `build-tools;37.0.0` y `platforms;android-37.0`.
+- **Decisión sobre `compileSdk 37`**: el paquete del repositorio se
+  llama `platforms;android-37.0` (no `android-37`); el SDK 37.1/37.2
+  también existen pero no hacen falta para compilar contra 37.
+  `gradlew assembleRelease` → **BUILD SUCCESSFUL** en 3m52s, R8+shrink
+  activo, único aviso: deprecación de `Locale(String)` en
+  `HomeScreen.kt:2731` (cosmético, sin acción).
+- **Verde final**: oxlint limpio, `vite build` OK, `manage.py check`
+  + `makemigrations --check` sin cambios y **262 tests de backend en
+  verde** (corridos tras el último cambio de código).
+- **7 commits locales** (`ahead 7` de `origin/main`): `ecffe5a`,
+  `90baff3`, `19e4f0e`, `3326a3e`, `02ebfd6` (5 bugs), `7b86f6e`
+  (registro D-11), `b47086e` (reset de scroll).
+- **NO se hizo `push`** — bloqueado por permisos, ver más abajo.
+
+### Lo que queda y DEPENDE DEL DUEÑO (no decidible por mí)
+
+1. **Push a `origin/main` bloqueado (403)**: los dos tokens que pasaron
+   por el chat NO tienen *Contents: Read and write*. Diagnóstico con
+   certeza: `PUT /contents/` con contenido idéntico →
+   403 *"Resource not accessible by personal access token"* (no es la
+   rama ni el repo: es el permiso). **Arreglo**: github.com → Settings →
+   Developer settings → Personal access tokens → el token →
+   *Repository permissions* → **Contents: Read and write** → Save.
+   El token 2º está guardado en el Gestor de credenciales de Windows.
+   ⚠️ **Mientras tanto el autoDeploy no verá estos 7 commits** (prod
+   sigue en `c4f9019`, verificado sano).
+2. **Revocar los DOS tokens que pasaron por el chat** (quedaron en el
+   historial de la conversación): github.com → Settings → Developer
+   settings → Personal access tokens → Delete los dos. Después crear
+   uno nuevo si hace falta, guardarlo solo en el gestor de credenciales.
+3. **§7.2 es dato, no código** (medido: el mecanismo está completo —
+   403/401/200 verificado en vivo): teléfono en FASE1 (14.733 fichas
+   sin teléfono, 100 % de las en revisión),
+   `importar_municipio --todos` para los 16 municipios del padrón sin
+   fichas, definir destacados y reparto de correctores (§11.4-k).
+4. **Keystore de Android**: `keystore.properties` guarda la contraseña
+   en texto claro (gitignorado, solo local). Si algún día se pierde el
+   `.jks`, no se podrán firmar actualizaciones compatibles.
