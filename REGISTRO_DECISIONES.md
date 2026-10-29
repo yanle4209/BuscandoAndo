@@ -264,30 +264,28 @@
   `gradlew assembleRelease` → **BUILD SUCCESSFUL** en 3m52s, R8+shrink
   activo, único aviso: deprecación de `Locale(String)` en
   `HomeScreen.kt:2731` (cosmético, sin acción).
+- **Commits de la sesión (9 en total, todos en `origin/main`)**:
+  `ecffe5a`, `90baff3`, `19e4f0e`, `3326a3e`, `02ebfd6` (5 bugs),
+  `7b86f6e` (registro D-11), `b47086e` (reset de scroll), `5db7678`
+  (registro D-12) y el commit que cierra este propio apartado.
 - **Verde final**: oxlint limpio, `vite build` OK, `manage.py check`
   + `makemigrations --check` sin cambios y **262 tests de backend en
   verde** (corridos tras el último cambio de código).
-- **7 commits locales** (`ahead 7` de `origin/main`): `ecffe5a`,
-  `90baff3`, `19e4f0e`, `3326a3e`, `02ebfd6` (5 bugs), `7b86f6e`
-  (registro D-11), `b47086e` (reset de scroll).
-- **NO se hizo `push`** — bloqueado por permisos, ver más abajo.
 
 ### Lo que queda y DEPENDE DEL DUEÑO (no decidible por mí)
 
-1. **Push a `origin/main` bloqueado (403)**: los dos tokens que pasaron
-   por el chat NO tienen *Contents: Read and write*. Diagnóstico con
-   certeza: `PUT /contents/` con contenido idéntico →
-   403 *"Resource not accessible by personal access token"* (no es la
-   rama ni el repo: es el permiso). **Arreglo**: github.com → Settings →
-   Developer settings → Personal access tokens → el token →
-   *Repository permissions* → **Contents: Read and write** → Save.
-   El token 2º está guardado en el Gestor de credenciales de Windows.
-   ⚠️ **Mientras tanto el autoDeploy no verá estos 7 commits** (prod
-   sigue en `c4f9019`, verificado sano).
-2. **Revocar los DOS tokens que pasaron por el chat** (quedaron en el
-   historial de la conversación): github.com → Settings → Developer
-   settings → Personal access tokens → Delete los dos. Después crear
-   uno nuevo si hace falta, guardarlo solo en el gestor de credenciales.
+1. ~~**Push a `origin/main` bloqueado (403)**~~ → **RESUELTO
+   (mismo día)**: el dueño revocó los dos tokens que pasaron por el chat
+   y creó uno nuevo *fine-grained* con **Contents: Read and write**
+   (guardado en el Gestor de credenciales, sin pasar por el chat). Push
+   hecho: `c4f9019..5db7678` (8 commits) y **Render desplegó solo**
+   (`autoDeploy`): producción en `5db7678`, sirviendo el mismo bundle que
+   el build local (`index-CCUJUoyB.js`) y `/api/health/` en verde.
+   Diagnóstico original por si vuelve a pasar: `PUT /contents/` con
+   contenido idéntico → 403 *"Resource not accessible by personal access
+   token"* (no era la rama ni el repo: era el permiso).
+2. ~~**Revocar los DOS tokens que pasaron por el chat**~~ → **HECHO**
+   (el dueño los revocó al crear el nuevo, paso 1 de las instrucciones).
 3. **§7.2 es dato, no código** (medido: el mecanismo está completo —
    403/401/200 verificado en vivo): teléfono en FASE1 (14.733 fichas
    sin teléfono, 100 % de las en revisión),
