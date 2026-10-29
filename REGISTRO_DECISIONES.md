@@ -333,3 +333,50 @@
   Sin emulador local, el ajuste fino fino (p.ej. el tope de 160dp del
   selector en pantallas muy estrechas) queda para la revisión del
   dueño en su teléfono.
+
+---
+
+## Android: categorías desplegables + barra y paginación en amarillo (D-2026-10-29/14)
+
+- **Peticiones del dueño**: (a) «las categorías en una lista
+  desplegable, como las de municipios» y (b) «pintar la barra superior
+  y el área de paginación del mismo color, usa el amarillo, y adapta
+  las tipografías para que sean legibles».
+- **Categorías**: `CategoriaSelector` (mismo dibujo que el selector de
+  municipio) + `CategoriaPickerDialog` (buscador sin tildes con la
+  misma `normalizar`, "Todas" la primera, check en la actual). Los dos
+  desplegables caben en la fila de ~48dp. Se borraron
+  `CategoryChips`/`CategoryChip` y el import de `LazyRow` (sin uso).
+  **La web no se tocó**: sigue con su `<select>`.
+- **Amarillo en las dos zonas fijas** (cabecera y paginación), con la
+  regla de contraste del proyecto aplicada al revés: sobre amarillo,
+  el gris (`TextMuted`) y el dorado (`GoldInk`) se apagan, así que
+  TODO lo que se pinta encima pasa a **`TextOnYellow`** (#1F1A1A, el
+  color diseñado para eso, ~9:1):
+  - subtítulo: tinta + peso `Medium`;
+  - "Contáctanos": filete y texto de tinta (antes era amarillo sobre
+    amarillo → **invisible**);
+  - iconos de ubicación/mapa: tinta (activo pleno, inactivo al 60%);
+  - paginación: textos a tinta (la jerarquía se sostiene con el peso
+    de la letra, no con el gris) y flechas de tinta (deshabilitadas
+    al 35% de opacidad);
+  - **logotipo: marrón + blanco**. El acento "Ando" en amarillo de la
+    web sobre fondo amarillo desaparecía; blanco es lo que más se lee
+    (los logotipos están exentos del contraste de WCAG 1.4.3, pero
+    invisible no sirve). Es el cambio más visible y el más fácil de
+    discutir: la alternativa es marrón+marrón o marrón+tinta.
+  - El **buscador y los dos selectores se quedaron BLANCOS**: sobre
+    amarillo son los que hacen el trabajo de legibilidad.
+- **Cómo deshacer** (si al verlo no convence): son tres sitios —
+  `.background(CanaryYellow)` del header, `.background(CanaryYellow)`
+  de `PaginationBar` y los `tint`/`color` de sus textos. Revertir el
+  commit `eab3006` los devuelve al estado anterior completo.
+- **Auditoría rápida colateral** (al empezar esta ronda): Android
+  **ya tenía** las protecciones que se añadieron a la web en el
+  commit `02ebfd6` — timeouts en OkHttp (`ApiClient.kt`) y descarte de
+  respuestas obsoletas (`HomeViewModel.kt`). No hizo falta portar nada.
+- **Verificación**: `gradlew assembleRelease` → BUILD SUCCESSFUL,
+  `lintVitalRelease` en verde, firma verificada (`CN=BuscandoAndo`) y
+  APK reexportado al escritorio (se instala como actualización).
+  **Ojo**: sin emulador no he podido VER el amarillo; es una decisión
+  del dueño "a ver qué tal se ve", reversible con un revert.
