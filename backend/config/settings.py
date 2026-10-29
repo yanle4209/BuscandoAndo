@@ -170,7 +170,8 @@ CLOUDINARY_STORAGE = {
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', ''),
 }
 MEDIA_URL = '/media/'
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+# El storage de media vive en STORAGES['default'] mas abajo (Django >=4.2);
+# la vieja DEFAULT_FILE_STORAGE quedaria muerta e ignorada.
 
 # React build files (production)
 REACT_BUILD_DIR = BASE_DIR.parent / 'frontend' / 'dist'

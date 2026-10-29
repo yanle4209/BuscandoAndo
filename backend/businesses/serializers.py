@@ -12,6 +12,11 @@ STATUS_NAMES = {
     'abierto': 'Abierto',
     'cerrado': 'Cerrado',
     'por-horario': 'Por horario',
+    # Sin esta entrada, una ficha marcada "Cerrado Permanente" en el admin
+    # se mostraba como "Sin estado" en listado y ficha: el slug existia en
+    # OperationalStatus (load_initial_data) y en ESTADOS_VALIDOS
+    # (levantamiento), pero no aqui.
+    'cerrado-permanente': 'Cerrado Permanente',
 }
 
 

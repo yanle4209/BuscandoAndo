@@ -14,7 +14,7 @@ class BusinessContact(models.Model):
     whatsapp = models.CharField(
         max_length=20, blank=True, default='',
         verbose_name='WhatsApp',
-        help_text='Número con código de país, ej: +573001234567',
+        help_text='Número con código de país, ej: +18095551234',
     )
     email = models.EmailField(blank=True, default='', verbose_name='Correo')
     website = models.URLField(blank=True, default='', verbose_name='Sitio web')

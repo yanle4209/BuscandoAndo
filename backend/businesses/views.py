@@ -167,7 +167,7 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
     """
     API publica de negocios.
     Solo muestra negocios PUBLICADOS.
-    Soporta busqueda por radio (10km).
+    Soporta busqueda por radio (5km).
     """
     permission_classes = [permissions.AllowAny]
     lookup_field = 'slug'

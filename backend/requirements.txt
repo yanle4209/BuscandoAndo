@@ -1,8 +1,12 @@
-django>=5.2,<5.3
-djangorestframework>=3.15
-django-cors-headers>=4.3
-psycopg2-binary>=2.9
-gunicorn>=21.2
-whitenoise>=6.5
-Pillow>=10.0
-django-cloudinary-storage>=0.3
+# Fijado a las versiones verificadas en verde (262 tests, 28/oct/2026,
+# Python 3.14). Rangos abiertos = builds no reproducibles (AUDITORIA §8):
+# con ==, este backend suena igual en local, en CI y en Render.
+# Para actualizar: cambiar la versión, correr la suite y hacer commit.
+django==5.2.18
+djangorestframework==3.18.3
+django-cors-headers==4.9.0
+psycopg2-binary==2.9.13
+gunicorn==26.2.0
+whitenoise==6.12.0
+Pillow==13.0.0
+django-cloudinary-storage==0.3.0
