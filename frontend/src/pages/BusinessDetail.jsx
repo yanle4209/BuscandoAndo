@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState, useEffect } from 'react';
+import { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { slugDeEstado, nombreDeEstado } from '../estado';
@@ -18,22 +18,38 @@ export default function BusinessDetail() {
   // Subirlo vuelve a hacer la peticion: no hay que repetir la logica.
   const [revision, setRevision] = useState(0);
 
+  // Cada peticion se numera, igual que en Home: si cambia el slug (o se
+  // pide un reintento) mientras la anterior vuela, la respuesta VIEJA se
+  // tira en vez de pisar la buena. Sin esto, dos navegaciones rapidas de
+  // /business/a a /business/b podian acabar mostrando la ficha de "a".
+  const peticionRef = useRef(0);
+
   useEffect(() => {
+    const peticion = peticionRef.current + 1;
+    peticionRef.current = peticion;
+    const vigente = () => peticionRef.current === peticion;
     setLoading(true);
     setError(null);
     api.get(`/businesses/${slug}/`)
-      .then(({ data }) => setBiz(data))
+      .then(({ data }) => {
+        if (vigente()) setBiz(data);
+      })
       .catch((err) => {
         // Antes TODOS los fallos se informaban como "No se encontro el
         // negocio": un corte de red, un 500 o un timeout enseñaban un 404
         // inventado, y encima sin manera de reintentarlo.
+        if (!vigente()) return;
         const es404 = err.response?.status === 404;
         setError(es404
           ? 'No se encontró el negocio.'
           : 'No se pudo cargar el negocio. Revisa tu conexión.');
         setReintentable(!es404);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        // El "cargando" solo se apaga si esta peticion sigue mandando: si
+        // no, la vieja lo apagaria mientras la nueva aun vuela.
+        if (vigente()) setLoading(false);
+      });
   }, [slug, revision]);
 
   if (loading) return <main className="detail-page" id="contenido" tabIndex={-1}><p className="detail-loading">Cargando...</p></main>;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { claveCabecera } from '../municipios';
 import api from '../api/axios';
 import './Levantamiento.css';
@@ -114,6 +114,13 @@ export default function Levantamiento() {
   const [cargandoFicha, setCargandoFicha] = useState(false);
   const [avisoFicha, setAvisoFicha] = useState(null);
 
+  // Cada apertura de ficha se numera, igual que en Home y en la ficha
+  // completa: elegir dos seguido (o cambiar de ficha mientras la otra
+  // vuela) podia resolverse AL REVES y el formulario quedarse poblado
+  // con la ficha equivocada, diciendo ademas "falta" lo que en realidad
+  // sobra.
+  const fichaRef = useRef(0);
+
   // El reporte de su municipio: lo que le dice al colaborador que hacer.
   // Se pide con el MISMO token del envio — el backend solo devuelve el
   // renglon de su municipio (§11-i, "ni reportes ajenos").
@@ -225,12 +232,18 @@ export default function Levantamiento() {
       setFichaMunicipio('');
       return;
     }
+    const peticion = fichaRef.current + 1;
+    fichaRef.current = peticion;
+    const vigente = () => fichaRef.current === peticion;
     setCargandoFicha(true);
     try {
       const { data } = await api.get('/pendientes/', {
         params: { ficha: id },
         headers: { 'X-Colaborador-Token': token.trim() },
       });
+      // Otra persona ya abrio otra ficha mientras esta volaba: lo que
+      // llega ahora pertenece a una seleccion que ya no esta en pantalla.
+      if (!vigente()) return;
       setDatos({
         nombre: data.nombre || '',
         telefono: data.telefono || '',
@@ -258,12 +271,17 @@ export default function Levantamiento() {
       setMasDatos((data.faltan || []).some((x) => CONTACTO.includes(x)));
       setFichaId(Number(id));
     } catch (err) {
+      // El aviso de la peticion vieja tampoco debe salir: si la ultima
+      // eleccion fue correcta, nadie tiene que leer un error de la anterior.
+      if (!vigente()) return;
       setFichaId(null);
       setFaltanFicha([]);
       setFichaMunicipio('');
       setAvisoFicha(err.response?.data?.detail || 'No se pudo abrir esa ficha.');
     } finally {
-      setCargandoFicha(false);
+      // El "cargando" solo lo apaga quien sigue mandando; si no, la ficha
+      // vieja lo apagaria mientras la nueva aun vuela.
+      if (vigente()) setCargandoFicha(false);
     }
   };
 

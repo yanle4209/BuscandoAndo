@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 import { claveCabecera } from '../municipios';
-import api from '../api/axios';
 import './SearchBar.css';
 
 export default function SearchBar({
@@ -11,16 +10,18 @@ export default function SearchBar({
   cabeceras,
   municipioClave,
   onMunicipio,
+  // Las categorias las pide Home y llegan por aqui: esta barra se monta
+  // DOS veces (escritorio y movil, una la esconde el CSS) y con estado
+  // propio cada instancia hacia SU peticion a /categories/ — dos idas y
+  // vuelta por el mismo listado en cada carga de la portada.
+  categories = [],
+  // Solo la barra de escritorio la pide. Las dos montan a la vez y el
+  // ultimo montado se llevaba el foco: era la MOVIL, que en telefono
+  // abria el teclado al cargar.
+  autoFocus = false,
 }) {
   const [text, setText] = useState(filters.text || '');
-  const [categories, setCategories] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
-
-  useEffect(() => {
-    api.get('/categories/')
-      .then(({ data }) => setCategories(data.results || data))
-      .catch(() => {});
-  }, []);
 
   // El texto se borra desde fuera cuando R3.2 resetea la busqueda: sin
   // esto el input se quedaria con la busqueda que el sistema acaba de borrar.
@@ -74,7 +75,7 @@ export default function SearchBar({
             placeholder="Buscar negocio, categoría o dirección..."
             value={text}
             onChange={(e) => setText(e.target.value)}
-            autoFocus
+            autoFocus={autoFocus}
           />
           <button type="submit" className="search-btn">Buscar</button>
         </div>

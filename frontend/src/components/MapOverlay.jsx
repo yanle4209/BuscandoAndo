@@ -17,15 +17,23 @@ export default function MapOverlay({ visible, hint }) {
   const [fadeOut, setFadeOut] = useState(false);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) return undefined;
+    let cambio = null;
     const interval = setInterval(() => {
       setFadeOut(true);
-      setTimeout(() => {
+      // El fade de 400 ms vuela POR FUERA del intervalo: si el overlay
+      // se desmonta (o se apaga `visible`) justo en esa ventana, este
+      // temporizador seguia vivo y ejecutaba dos setState tras la
+      // desmontaje. Se guarda su id para poder cancelarlo.
+      cambio = setTimeout(() => {
         setMsgIndex(prev => (prev + 1) % MESSAGES.length);
         setFadeOut(false);
       }, 400);
     }, 3500);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (cambio) clearTimeout(cambio);
+    };
   }, [visible]);
 
   if (!visible) return null;

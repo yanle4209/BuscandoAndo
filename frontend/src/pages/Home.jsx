@@ -19,7 +19,8 @@ const RADIO_KM = 5;
 
 // Debe coincidir con SearchPagination.page_size del backend. Si no, el
 // total de páginas sale inflado y "Siguiente" deja llegar a una página
-// vacía que solo muestra el overlay.
+// vacía que solo muestra el overlay. (El recorte de la página que se
+// queda sin resultados —porque la cuenta bajó— vive en fetchBusinesses.)
 const POR_PAGINA = 12;
 // R1.a disparo 3: refrescar cuando el usuario se aleja >= 500 m del ultimo
 // punto consultado.
@@ -278,6 +279,11 @@ export default function Home() {
   const [totalResults, setTotalResults] = useState(0);
   const [municipioClave, setMunicipioClave] = useState('');
   const [cabeceras, setCabeceras] = useState([]);
+  // Las categorias se piden AQUI y no en SearchBar: esa barra esta
+  // montada DOS veces (escritorio y movil, una oculta por CSS) y cada
+  // instancia hacia su propia peticion a /categories/ — dos idas y
+  // vuelta en cada carga para el MISMO listado.
+  const [categories, setCategories] = useState([]);
   // Aviso de lista de espera de la fase: 'idle' | 'enviando' | 'ok'.
   const [avisoFase, setAvisoFase] = useState('idle');
   // Bundle que corre ESTA pestana (index-BP-pSWLW). Se pinta en el
@@ -302,6 +308,14 @@ export default function Home() {
     api.get('/cabeceras/')
       .then(({ data }) => setCabeceras(Array.isArray(data) ? data : []))
       .catch(() => setCabeceras([]));
+  }, []);
+
+  // Mismo trato que las cabeceras: si falla, el selector de categoria
+  // queda en "Todas" — se pierde el filtro, no la pagina.
+  useEffect(() => {
+    api.get('/categories/')
+      .then(({ data }) => setCategories(data.results || data || []))
+      .catch(() => setCategories([]));
   }, []);
 
   const restaurarMunicipio = useCallback(() => {
@@ -422,9 +436,25 @@ export default function Home() {
       if (estado.filters.category) params.category = estado.filters.category;
       const { data } = await api.get('/businesses/', { params });
       if (!vigente()) return;
-      setBusinesses(data.results || []);
-      setTotalResults(data.count || 0);
-      setTotalPages(Math.ceil((data.count || 0) / POR_PAGINA));
+      const recibidas = data.results || [];
+      const cuenta = data.count || 0;
+      const paginas = Math.max(1, Math.ceil(cuenta / POR_PAGINA));
+      setBusinesses(recibidas);
+      setTotalResults(cuenta);
+      setTotalPages(paginas);
+
+      // La cuenta puede BAJAR entre visitas: una ficha sale de la zona,
+      // se borra o cambia de estado, y el total de paginas se encoge. Sin
+      // este recorte te quedabas clavado en una pagina vacia que solo
+      // pintaba el overlay de "sin resultados" — que ademas es mentira
+      // (si hay resultados, en la ultima pagina) y del que no se sale
+      // pulsando "Siguiente", porque no hay siguiente. Se vuelve a la
+      // ultima pagina buena; si la lista quedo vacia del todo, a portada
+      // (paginas = 1), donde "sin resultados" si es cierto.
+      if (pageNum > paginas) {
+        dispatch({ type: 'pagina', n: paginas });
+        return;
+      }
 
       // Destacados del buscador: R1.2 entran en el MISMO filtro de 5 km.
       const searchParams = {
@@ -619,6 +649,7 @@ export default function Home() {
     cabeceras,
     municipioClave,
     onMunicipio: elegirMunicipio,
+    categories,
   };
 
   return (
@@ -635,7 +666,11 @@ export default function Home() {
       </div>
 
       <div className="left-panel">
-        <SearchBar {...searchProps} />
+        {/* autoFocus SOLO en escritorio: las dos barras montan a la vez
+            (una la esconde el CSS) y el ultimo montado se lleva el foco,
+            que era la barra MOVIL — en telefono abria el teclado sin
+            querer y en escritorio robaba el cursor al recargar. */}
+        <SearchBar {...searchProps} autoFocus />
         {/* El mapa esta SIEMPRE, debajo del selector de municipio: se
             centra en el municipio elegido o, si no lo hay, en lo que
             haya captado el GPS. Sin punto aun -> vista del pais. */}
