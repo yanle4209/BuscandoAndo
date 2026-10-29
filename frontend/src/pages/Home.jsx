@@ -550,7 +550,15 @@ export default function Home() {
 
   const handlePageChange = (newPage) => {
     dispatch({ type: 'pagina', n: newPage });
+    // El scroll lo hace .right-results-scroll (flex:1 con overflow dentro
+    // del panel): apuntar solo a .right-panel no subia de sitio porque
+    // ese contenedor no es el que se desplaza. En movil, en cambio,
+    // .home-layout pasa a height:auto y el scroll es del documento, asi
+    // que se cubren los tres caminos posibles; los que no scrolleen son
+    // un no-op.
+    document.querySelector('.right-results-scroll')?.scrollTo(0, 0);
     document.querySelector('.right-panel')?.scrollTo(0, 0);
+    window.scrollTo(0, 0);
   };
 
   const elegirMunicipio = (clave) => {
