@@ -7,6 +7,55 @@
 
 ---
 
+## Bugs menores del frontend — CERRADOS (D-2026-10-29/11)
+
+- **Decisión**: el dueño pidió atacarlos. Commit `02ebfd6` (6 ficheros,
+  +108/−22). Los cinco estaban en el informe de la auditoría de frontend
+  y se habían dejado fuera de la limpieza a propósito (D-04).
+- **1. `MapOverlay` — `setTimeout` sin limpiar**: el fade de 400 ms volaba
+  por fuera del `setInterval` y no se cancelaba al desmontar → dos
+  `setState` posteriores a la desmontaje. Arreglado guardando el id.
+- **2. `axios` sin `timeout`**: una petición colgada dejaba el esqueleto de
+  carga **para siempre** (no hay timeout natural que lo saque). Techo de
+  **15 s**. No rompe nada lento: todo el frontend manda JSON, **sin
+  subidas multipart** (verificado con grep en los 28 ficheros de `src/`).
+- **3. `Home` — paginación sin recorte**: la cuenta del servidor puede
+  **bajar** entre visitas (una ficha sale de zona, se borra o cambia de
+  estado) → te quedabas en una página vacía que pintaba "sin resultados"
+  **falso**, del que no se sale con "Siguiente" porque no hay siguiente.
+  Ahora `pageNum > paginas` → se vuelve a la última página buena.
+  **Premisa verificada contra el servidor**: `page=99` de Moca devuelve
+  0 resultados con `count: 38` (4 páginas reales).
+- **4. Guards de obsolescencia** en `BusinessDetail` y en
+  `elegirFicha` de `Levantamiento`: mismo patrón **numerado** que ya
+  usaba `Home` (`peticionRef`), no se inventó uno nuevo. Cubre el `.then`,
+  el `.catch` (el aviso viejo) y el `.finally` (el "cargando" lo apagaba
+  la petición vieja mientras la nueva volaba).
+- **5. `SearchBar` montada DOS veces** (escritorio y móvil, una la esconde
+  el CSS): cada instancia hacía **su** petición a `/categories/` en cada
+  carga. Las categorías suben a `Home` y llegan por prop. Además el
+  `autoFocus` era de las dos: el último montado se llevaba el foco, que
+  era la **móvil** — en teléfono abría el teclado al cargar.
+- **Verificación** (no solo lint): build real servido por Django
+  (`runserver` + `frontend/dist`) y probado en navegador: carga **sin
+  errores de consola**, **1 sola** petición a `/categories/` (antes 2),
+  búsqueda a 5 km de Moca → **38 resultados / 12 tarjetas**,
+  `featured-by-search` disparado y paginación a página 2 correcta. Además
+  oxlint limpio, `vite build` OK y **262 tests de backend en verde**.
+- **Ojo — hallazgo colateral, NO tocado**: el 500 local de
+  `/api/businesses/` con fichas que tienen imagen es
+  `ValueError: Must supply cloud_name` — la limitación ya documentada en
+  `.env.example` (sin credenciales de Cloudinary en local). **No es una
+  regresión**; en producción no ocurre. Para probar en local levanté el
+  servidor con `CLOUDINARY_CLOUD_NAME=buscandoando-local` (solo construye
+  la URL, no llama a la red).
+- **Sigue abierto** (fuera de los cinco acordados): el reset de scroll de
+  `Home` apunta a `.right-panel` pero el contenedor que scrollea de
+  verdad es `.right-results-scroll` — observado en la prueba (sigue en
+  734 px al cambiar de página).
+
+---
+
 ## Fase 3 — Producto (DISENO §7) — EN CURSO
 
 ### D-2026-10-29/10 — §7.4 cerrado: el destino NO se reanuda con GPS
@@ -106,7 +155,8 @@
 - **NO se tocaron** los bugs menores del informe (MapOverlay
   setTimeout, timeout de axios, clamp de paginación, guards de
   obsolescencia, SearchBar doble) — decisión del dueño; siguen
-  abiertos como posible tarea futura.
+  abiertos como posible tarea futura. → **Cerrados después**: ver
+  D-2026-10-29/11.
 - **Por qué**: alcance elegido por el dueño: "archivos + código
   muerto".
 - **Commit**: `19e4f0e`.
