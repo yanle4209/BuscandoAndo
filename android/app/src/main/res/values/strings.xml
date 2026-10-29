@@ -87,6 +87,12 @@
     <string name="home_municipio_error">No se pudieron cargar los municipios</string>
     <string name="home_municipio_empty_list">Ningún municipio coincide con tu búsqueda</string>
 
+    <string name="home_categoria_label">Categoría</string>
+    <string name="home_categoria_clear">Quitar categoría</string>
+    <string name="home_categoria_hint">Buscar categoría…</string>
+    <string name="home_categoria_close">Cerrar el selector de categoría</string>
+    <string name="home_categoria_empty_list">Ninguna categoría coincide con tu búsqueda</string>
+
     <string name="home_portada_hint">Elige tu municipio o activa tu ubicación para empezar</string>
     <string name="home_portada_msg_1">Encuentra los mejores negocios cerca de ti</string>
     <string name="home_portada_msg_2">Restaurantes, tiendas, servicios y más</string>

@@ -40,7 +40,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -53,7 +52,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.LocationSearching
@@ -542,7 +543,19 @@ private fun HomeHeader(
     onOpenContact: () -> Unit,
     onMyLocation: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp)) {
+    // Amarillo canario en TODA la barra (petición del dueño: «pintar
+    // la barra superior y el área de paginación, usa el amarillo»). El
+    // fondo va ANTES del padding: el color cubre de borde a borde y el
+    // padding deja el contenido dentro. Lo que se pinta encima del
+    // amarillo cambia de color abajo (título, subtítulo, iconos,
+    // "Contáctanos"); el buscador y los dos selectores se quedan en
+    // BLANCO, que es justo lo que los hace legibles sobre el amarillo.
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CanaryYellow)
+            .padding(horizontal = 14.dp),
+    ) {
         // 10dp (eran 14): la cabecera es el bloque más alto de la
         // pantalla de móvil (~290dp medidos) y todo lo que se le quita
         // es una fila más de resultados.
@@ -556,6 +569,12 @@ private fun HomeHeader(
                 // (el .right-brand-accent de Home.jsx). El amarillo
                 // casi no contrasta con el blanco, pero es marca:
                 // WCAG exime a los logotipos del contraste (1.4.3).
+                // Sobre amarillo el acento AMARILLO de la web (el
+                // .right-brand-accent) se volvería invisible — amarillo
+                // sobre amarillo—, así que aquí el logo pasa a marrón +
+                // blanco. Los logotipos están exentos del contraste de
+                // WCAG (1.4.3), pero "invisible" tampoco sirve: blanco
+                // es lo que más se lee sobre #FBBF24.
                 Row {
                     Text(
                         text = "Buscando",
@@ -565,7 +584,7 @@ private fun HomeHeader(
                     )
                     Text(
                         text = "Ando",
-                        color = CanaryYellow,
+                        color = CanvasWhite,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Black,
                     )
@@ -584,8 +603,12 @@ private fun HomeHeader(
                             state.municipioEtiqueta != null -> state.municipioEtiqueta.orEmpty()
                             else -> stringResource(R.string.home_subtitle_map_point)
                         },
-                        color = TextMuted,
+                        // Sobre amarillo el gris apagado (TextMuted, que
+                        // es para BLANCO) se cae: tinta (TextOnYellow) y
+                        // un punto más de peso para que aguante el fondo.
+                        color = TextOnYellow,
                         style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
@@ -599,12 +622,15 @@ private fun HomeHeader(
             }
 
             // ── Fase 6: ubicación ──
-            // Icono AMARILLO cuando el filtro por cercanía está activo
-            // (misma regla que los chips: amarillo = "está aplicado").
+            // Icono COMPLETO cuando el filtro por cercanía está activo
+            // y al 60% cuando no (misma regla que antes: amarillo =
+            // "está aplicado"), pero con tinta sobre el amarillo de la
+            // barra: el dorado GoldInk está pensado para BLANCO y aquí
+            // se apagaba.
             IconButton(onClick = onMyLocation) {
                 if (state.locationStatus == LocationStatus.Locating) {
                     CircularProgressIndicator(
-                        color = GoldInk,
+                        color = TextOnYellow,
                         strokeWidth = 2.dp,
                         modifier = Modifier.size(20.dp),
                     )
@@ -616,7 +642,11 @@ private fun HomeHeader(
                             Icons.Default.LocationSearching
                         },
                         contentDescription = stringResource(R.string.home_my_location),
-                        tint = if (state.mode == SearchMode.Gps) GoldInk else TextSecondary,
+                        tint = if (state.mode == SearchMode.Gps) {
+                            TextOnYellow
+                        } else {
+                            TextOnYellow.copy(alpha = 0.6f)
+                        },
                     )
                 }
             }
@@ -625,7 +655,7 @@ private fun HomeHeader(
                 Icon(
                     imageVector = Icons.Default.Map,
                     contentDescription = stringResource(R.string.home_open_map),
-                    tint = GoldInk,
+                    tint = TextOnYellow,
                 )
             }
         }
@@ -648,9 +678,10 @@ private fun HomeHeader(
         // antes iban apilados —el selector con su etiqueta (~72dp) más
         // 12dp de margen más los chips (~40dp)≈ 124dp— y esa tira se
         // comía más de una fila de tarjetas en una pantalla de móvil.
-        // Ahora la fila mide lo que mide el selector (~48dp): los chips
-        // corren a su derecha con weight(1f) y siguen haciendo scroll
-        // horizontal igual que antes. Se ahorran ~76dp de alto.
+        // Ahora la fila mide lo que mide UN selector (~48dp) y a su
+        // derecha va el desplegable de categorías (antes chips con
+        // scroll horizontal, que en pantallas estrechas se cortaban).
+        // Se ahorran ~76dp de alto.
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -662,8 +693,8 @@ private fun HomeHeader(
                 compacto = true,
             )
             Spacer(Modifier.width(8.dp))
-            CategoryChips(
-                modifier = Modifier.weight(1f),
+            CategoriaSelector(
+                modifier = Modifier.weight(1f, fill = false),
                 categories = state.categories,
                 selected = state.selectedCategory,
                 onSelect = onCategorySelected,
@@ -679,11 +710,11 @@ private fun HomeHeader(
 /**
  * Botón "Contactanos" de la cabecera (espejo de `.contact-link`).
  *
- * Mismo dibujo que en la web: filete amarillo y texto dorado sobre
- * fondo transparente — NUNCA relleno, como todo el resto de la app.
- * En la web vive pegado a la esquina derecha del header; aquí va en la
- * línea del subtítulo, que es el único hueco donde cabe sin apretar
- * el título "BuscandoAndo".
+ * En la web es filete amarillo y texto dorado sobre fondo blanco —
+ * NUNCA relleno, como todo el resto de la app—, pero aquí vive sobre
+ * la barra AMARILLA: el filete y el texto dorado se habrían comido,
+ * así que van de tinta (TextOnYellow), que es el color diseñado para
+ * encima de amarillo.
  */
 @Composable
 private fun ContactLink(onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -692,13 +723,13 @@ private fun ContactLink(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .clip(shape)
-            .border(1.dp, CanaryYellow, shape)
+            .border(1.dp, TextOnYellow, shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 6.dp),
     ) {
         Text(
             text = stringResource(R.string.home_contact),
-            color = GoldInk,
+            color = TextOnYellow,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
@@ -1078,65 +1109,254 @@ private fun SearchField(
     }
 }
 
-/** Fila horizontal de categorías. "Todas" siempre es la primera. */
+/**
+ * Selector de CATEGORÍA en forma de desplegable, con el mismo dibujo
+ * que el selector de municipio (petición del dueño: «las categorías en
+ * una lista desplegable, como los municipios»).
+ *
+ * Sustituye a la fila de chips horizontal: los dos desplegables caben
+ * en la misma línea (~48dp en total) y no se cortan en pantallas
+ * estrechas. En la web sigue siendo un `<select>`; aquí se abre
+ * [CategoriaPickerDialog], con buscador y "Todas" la primera.
+ */
 @Composable
-private fun CategoryChips(
-    // En la cabecera compacta llega weight(1f): los chips ocupan lo
-    // que quede a la derecha del selector de municipio.
+private fun CategoriaSelector(
     modifier: Modifier = Modifier,
     categories: List<com.herling.buscandoando.core.data.dto.Category>,
     selected: com.herling.buscandoando.core.data.dto.Category?,
     onSelect: (com.herling.buscandoando.core.data.dto.Category?) -> Unit,
 ) {
-    if (categories.isEmpty()) return
+    var abierto by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(8.dp)
+    val etiqueta = stringResource(R.string.home_categoria_label)
 
-    LazyRow(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    Row(
+        modifier = modifier
+            .widthIn(max = 150.dp)
+            .clip(shape)
+            .background(SurfaceWhite)
+            .border(1.dp, HairlineStrong, shape)
+            .clickable(enabled = categories.isNotEmpty()) { abierto = true }
+            .then(
+                // Mismo trato que en el de municipio: la etiqueta no
+                // está encima, así que va en la descripción accesible.
+                if (selected != null) {
+                    Modifier.semantics { contentDescription = "$etiqueta: ${selected.name}" }
+                } else Modifier,
+            )
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        item {
-            CategoryChip(
-                text = stringResource(R.string.home_all_categories),
-                selected = selected == null,
-                onClick = { onSelect(null) },
-            )
-        }
-        items(categories, key = { it.id }) { category ->
-            CategoryChip(
-                text = category.name,
-                selected = selected?.id == category.id,
-                onClick = { onSelect(if (selected?.id == category.id) null else category) },
-            )
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.List,
+            contentDescription = null,
+            tint = if (selected != null) GoldInk else TextSecondary,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = selected?.name ?: etiqueta,
+            color = if (selected != null) TextPrimary else TextMuted,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        Icon(
+            imageVector = Icons.Default.ArrowDropDown,
+            contentDescription = null,
+            tint = TextSecondary,
+        )
+    }
+
+    if (abierto) {
+        CategoriaPickerDialog(
+            categories = categories,
+            selected = selected,
+            onDismiss = { abierto = false },
+            onSelect = { categoria ->
+                onSelect(categoria)
+                abierto = false
+            },
+        )
+    }
+}
+
+/**
+ * Diálogo de categorías: mismo patrón que [MunicipioPickerDialog] —
+ * buscador que ignora tildes y orden (la misma [normalizar]) y la
+ * opción "Todas" la primera — pero sin agrupar: aquí no hay provincias.
+ */
+@Composable
+private fun CategoriaPickerDialog(
+    categories: List<com.herling.buscandoando.core.data.dto.Category>,
+    selected: com.herling.buscandoando.core.data.dto.Category?,
+    onDismiss: () -> Unit,
+    onSelect: (com.herling.buscandoando.core.data.dto.Category?) -> Unit,
+) {
+    var filtro by remember { mutableStateOf("") }
+    val etiquetaTodas = stringResource(R.string.home_all_categories)
+    val visibles = remember(categories, filtro) {
+        val consulta = normalizar(filtro)
+        if (consulta.isBlank()) categories
+        else categories.filter { normalizar(it.name).contains(consulta) }
+    }
+    // "Todas" también se puede buscar (por si alguien escribe "todas").
+    val mostrarTodas = normalizar(filtro).let { consulta ->
+        consulta.isBlank() || normalizar(etiquetaTodas).contains(consulta)
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = CardWhite,
+            border = BorderStroke(1.dp, Hairline),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 560.dp),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(R.string.home_categoria_label),
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.home_categoria_close),
+                            tint = TextSecondary,
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(6.dp))
+
+                OutlinedTextField(
+                    value = filtro,
+                    onValueChange = { filtro = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(
+                            text = stringResource(R.string.home_categoria_hint),
+                            color = TextMuted,
+                        )
+                    },
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = TextSecondary,
+                        )
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = CanaryYellow,
+                        unfocusedBorderColor = HairlineStrong,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        cursorColor = GoldInk,
+                        focusedContainerColor = SurfaceWhite,
+                        unfocusedContainerColor = SurfaceWhite,
+                    ),
+                )
+
+                if (selected != null) {
+                    TextButton(onClick = { onSelect(null) }) {
+                        Text(
+                            text = stringResource(R.string.home_categoria_clear),
+                            color = GoldInk,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    HorizontalDivider(color = Hairline, thickness = 1.dp)
+                }
+
+                when {
+                    categories.isEmpty() -> CenteredMessage(Modifier.heightIn(min = 140.dp)) {
+                        CircularProgressIndicator(color = GoldInk, strokeWidth = 3.dp)
+                    }
+
+                    visibles.isEmpty() && !mostrarTodas -> CenteredMessage(Modifier.heightIn(min = 140.dp)) {
+                        Text(
+                            text = stringResource(R.string.home_categoria_empty_list),
+                            color = TextMuted,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+
+                    else -> LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 420.dp),
+                    ) {
+                        if (mostrarTodas) {
+                            item(key = "todas") {
+                                FilaCategoria(
+                                    texto = etiquetaTodas,
+                                    activa = selected == null,
+                                    onClick = { onSelect(null) },
+                                )
+                            }
+                        }
+                        items(visibles, key = { it.id }) { categoria ->
+                            FilaCategoria(
+                                texto = categoria.name,
+                                activa = selected?.id == categoria.id,
+                                onClick = { onSelect(categoria) },
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
+/**
+ * Fila de una categoría dentro del diálogo. Misma letra que las filas
+ * de municipios; el icono de "la actual" es un check (el pin del
+ * municipio aquí no significaría nada).
+ */
 @Composable
-private fun CategoryChip(
-    text: String,
-    selected: Boolean,
+private fun FilaCategoria(
+    texto: String,
+    activa: Boolean,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(50)
-    Box(
+    Row(
         modifier = Modifier
-            .clip(shape)
-            .background(if (selected) CanaryYellow else CardWhite)
-            .border(1.dp, if (selected) CanaryYellow else HairlineStrong, shape)
+            .fillMaxWidth()
             .clickable(onClick = onClick)
-            // ACCESIBILIDAD: con 7dp los chips medían ~34dp de alto,
-            // por debajo de la zona de toque recomendada. Con 10dp
-            // quedan en ~40dp (los chips oficiales de Material3 son
-            // de 32dp, o sea bastante más justos todavía).
-            .padding(horizontal = 15.dp, vertical = 10.dp),
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = text,
-            color = if (selected) TextOnYellow else TextSecondary,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            text = texto,
+            color = if (activa) GoldInk else TextPrimary,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (activa) FontWeight.Bold else FontWeight.Normal,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
         )
+        if (activa) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = null,
+                tint = GoldInk,
+                modifier = Modifier.size(16.dp),
+            )
+        }
     }
 }
 
@@ -1989,10 +2209,15 @@ private fun PaginationBar(
 ) {
     HorizontalDivider(color = Hairline, thickness = 1.dp)
 
+    // Amarillo canario, igual que la barra de arriba (petición del
+    // dueño: las DOS zonas fijas del mismo color). Sobre amarillo el
+    // gris (TextMuted) y el dorado (GoldInk) se apagan: el texto pasa
+    // a tinta (TextOnYellow) y la jerarquía entre "Página 1 de 5" y el
+    // contador se sostiene con el peso de la letra, no con el color.
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CanvasWhite)
+            .background(CanaryYellow)
             // Espacio para la barra de navegación (gestos / botones)
             .navigationBarsPadding()
             .padding(horizontal = 6.dp),
@@ -2023,14 +2248,16 @@ private fun PaginationBar(
                 fontWeight = FontWeight.SemiBold,
             )
             // Separador tipográfico: es un "·", no texto a traducir.
+            // En amarillo va de tinta como todo lo demás; la
+            // diferencia con la línea de la izquierda es el peso.
             Text(
                 text = " · ",
-                color = TextMuted,
+                color = TextOnYellow,
                 style = MaterialTheme.typography.labelMedium,
             )
             Text(
                 text = stringResource(R.string.home_total_results, state.totalCount),
-                color = TextMuted,
+                color = TextOnYellow,
                 style = MaterialTheme.typography.labelMedium,
             )
         }
@@ -2069,7 +2296,10 @@ private fun FlechaPagina(
         Icon(
             imageVector = imageVector,
             contentDescription = contentDescription,
-            tint = if (enabled) GoldInk else TextMuted,
+            // Sobre amarillo: tinta en vez de dorado (el GoldInk está
+            // pensado para blanco y aquí se apagaba). El estado
+            // deshabilitado se va al 35% de opacidad.
+            tint = if (enabled) TextOnYellow else TextOnYellow.copy(alpha = 0.35f),
             modifier = Modifier.size(24.dp),
         )
     }
