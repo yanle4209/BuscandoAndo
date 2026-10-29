@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -99,6 +100,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -540,7 +543,10 @@ private fun HomeHeader(
     onMyLocation: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp)) {
-        Spacer(Modifier.height(14.dp))
+        // 10dp (eran 14): la cabecera es el bloque más alto de la
+        // pantalla de móvil (~290dp medidos) y todo lo que se le quita
+        // es una fila más de resultados.
+        Spacer(Modifier.height(10.dp))
 
         // Título + botones (ubicación · mapa) en la misma línea.
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -624,7 +630,7 @@ private fun HomeHeader(
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
         SearchField(
             query = state.query,
@@ -632,26 +638,39 @@ private fun HomeHeader(
             onSearch = onSearch,
         )
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
         // R1.1: sin GPS, elegir municipio es OBLIGATORIO, así que el
         // selector va FUERA de cualquier panel y a la vista (lo mismo
         // que en la web, donde nunca está escondido tras "Filtros").
-        MunicipioSelector(
-            clave = state.municipioClave,
-            cabeceras = state.cabeceras,
-            onSelect = onMunicipioSelected,
-        )
+        //
+        // MUNICIPIO + CATEGORÍAS EN UNA SOLA FILA (petición del dueño):
+        // antes iban apilados —el selector con su etiqueta (~72dp) más
+        // 12dp de margen más los chips (~40dp)≈ 124dp— y esa tira se
+        // comía más de una fila de tarjetas en una pantalla de móvil.
+        // Ahora la fila mide lo que mide el selector (~48dp): los chips
+        // corren a su derecha con weight(1f) y siguen haciendo scroll
+        // horizontal igual que antes. Se ahorran ~76dp de alto.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            MunicipioSelector(
+                clave = state.municipioClave,
+                cabeceras = state.cabeceras,
+                onSelect = onMunicipioSelected,
+                compacto = true,
+            )
+            Spacer(Modifier.width(8.dp))
+            CategoryChips(
+                modifier = Modifier.weight(1f),
+                categories = state.categories,
+                selected = state.selectedCategory,
+                onSelect = onCategorySelected,
+            )
+        }
 
-        Spacer(Modifier.height(12.dp))
-
-        CategoryChips(
-            categories = state.categories,
-            selected = state.selectedCategory,
-            onSelect = onCategorySelected,
-        )
-
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(10.dp))
     }
 }
 
@@ -1062,13 +1081,19 @@ private fun SearchField(
 /** Fila horizontal de categorías. "Todas" siempre es la primera. */
 @Composable
 private fun CategoryChips(
+    // En la cabecera compacta llega weight(1f): los chips ocupan lo
+    // que quede a la derecha del selector de municipio.
+    modifier: Modifier = Modifier,
     categories: List<com.herling.buscandoando.core.data.dto.Category>,
     selected: com.herling.buscandoando.core.data.dto.Category?,
     onSelect: (com.herling.buscandoando.core.data.dto.Category?) -> Unit,
 ) {
     if (categories.isEmpty()) return
 
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         item {
             CategoryChip(
                 text = stringResource(R.string.home_all_categories),
@@ -1943,9 +1968,15 @@ private fun CorrectionDialog(
  * flechas de 48dp (el IconButton por defecto de Material3) y DOS
  * líneas de texto. Ahora:
  *
- *  - margenes verticales de 2dp (eran 8),
+ *  - margenes verticales de 0dp (eran 8, después 2),
  *  - flechas de 40dp ([FlechaPagina]) en vez de 48dp,
  *  - los dos textos en UNA sola línea.
+ *
+ * SUELO: la barra no puede bajar de ~40dp (zona de toque de las
+ * flechas) más el inset de la barra de navegación del sistema (16-24dp
+ * con gestos, 48dp con los 3 botones): ahí ya no hay margen sin
+ * romper accesibilidad. Lo que de verdad le roba alto a la rejilla es
+ * la cabecera de ARRIBA, ahí es donde está el sitio (ver HomeHeader).
  *
  * El inset de navegación (gestos / botones) sigue DENTRO de la barra
  * para que el área blanco llegue hasta el borde del sistema.
@@ -1964,7 +1995,7 @@ private fun PaginationBar(
             .background(CanvasWhite)
             // Espacio para la barra de navegación (gestos / botones)
             .navigationBarsPadding()
-            .padding(horizontal = 6.dp, vertical = 2.dp),
+            .padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         FlechaPagina(
@@ -2258,7 +2289,9 @@ private fun ResultsHeader(state: HomeUiState) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 6.dp),
+            // 8+4 (eran 12+6): una línea de contador no necesita esa
+            // respiración, y en móvil cada punto cuenta para la rejilla.
+            .padding(start = 14.dp, top = 8.dp, end = 14.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -2496,6 +2529,10 @@ private fun MunicipioSelector(
     clave: String,
     cabeceras: List<Cabecera>,
     onSelect: (Cabecera?) -> Unit,
+    // true = en la MISMA fila que los chips de categoría (ver
+    // HomeHeader): sin etiqueta encima y con tope de ancho, para que
+    // los chips quepan a su derecha.
+    compacto: Boolean = false,
 ) {
     var abierto by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(8.dp)
@@ -2504,22 +2541,34 @@ private fun MunicipioSelector(
     // provincia está en la clave porque puede haber homónimos.
     val nombre = clave.split('~').getOrNull(1)?.takeIf { it.isNotBlank() }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = stringResource(R.string.home_municipio_label),
-            color = TextMuted,
-            style = MaterialTheme.typography.labelMedium,
-        )
+    // La etiqueta "Municipio" no se pierde en modo compacto: la web la
+    // tiene como <label> y aquí se convierte en la descripción
+    // accesible ("Municipio: Moca") y en el texto del selector cuando
+    // todavía no hay municipio.
+    val etiqueta = stringResource(R.string.home_municipio_label)
 
-        Spacer(Modifier.height(4.dp))
-
+    // La caja del selector. Se dibuja una sola vez y se envuelve según
+    // el modo: con etiqueta encima (normal) o suelta en la fila
+    // compartida (compacta).
+    val caja: @Composable () -> Unit = {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .then(
+                    if (compacto) Modifier.widthIn(max = 160.dp)
+                    else Modifier.fillMaxWidth(),
+                )
                 .clip(shape)
                 .background(SurfaceWhite)
                 .border(1.dp, HairlineStrong, shape)
                 .clickable(enabled = cabeceras.isNotEmpty()) { abierto = true }
+                .then(
+                    // En modo compacto la etiqueta ya no está encima:
+                    // el nodo que se anuncia a TalkBack debe seguir
+                    // diciendo de QUÉ municipio se trata.
+                    if (compacto && nombre != null) {
+                        Modifier.semantics { contentDescription = "$etiqueta: $nombre" }
+                    } else Modifier,
+                )
                 .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -2532,20 +2581,44 @@ private fun MunicipioSelector(
             Spacer(Modifier.width(8.dp))
             Text(
                 text = nombre ?: stringResource(
-                    if (cabeceras.isEmpty()) R.string.home_municipio_loading
-                    else R.string.home_municipio_empty,
+                    when {
+                        cabeceras.isEmpty() -> R.string.home_municipio_loading
+                        // Compacto: "Municipio" hace de etiqueta y de
+                        // aviso a la vez (y cabe, a diferencia del
+                        // texto largo, en los 160dp del tope).
+                        compacto -> R.string.home_municipio_label
+                        else -> R.string.home_municipio_empty
+                    },
                 ),
                 color = if (nombre != null) TextPrimary else TextMuted,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
+                // fill=false en compacto: la caja se queda con lo que
+                // ocupa el texto en vez de estirarse a todo el tope.
+                modifier = Modifier.weight(1f, fill = !compacto),
             )
             Icon(
                 imageVector = Icons.Default.ArrowDropDown,
                 contentDescription = null,
                 tint = TextSecondary,
             )
+        }
+    }
+
+    if (compacto) {
+        caja()
+    } else {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = etiqueta,
+                color = TextMuted,
+                style = MaterialTheme.typography.labelMedium,
+            )
+
+            Spacer(Modifier.height(4.dp))
+
+            caja()
         }
     }
 
