@@ -294,3 +294,42 @@
 4. **Keystore de Android**: `keystore.properties` guarda la contraseña
    en texto claro (gitignorado, solo local). Si algún día se pierde el
    `.jks`, no se podrán firmar actualizaciones compatibles.
+
+---
+
+## Android: cabecera compacta (D-2026-10-29/13)
+
+- **Queja del dueño** (viendo el APK): «el espacio para resultados es
+  muy reducido en relación con la barra superior y la paginación» y
+  «el selector de municipio y los filtros por categoría podrían estar
+  en el mismo inline».
+- **Decisión**: municipio + chips de categoría a **una sola fila**. La
+  web no se toca (su `<label>Municipio</label>` + select siguen igual).
+  En Android el selector pasa a **modo compacto**: sin etiqueta encima
+  (eso es lo que ahorra alto) y con **tope de ancho de 160dp** para no
+  comerse los chips. La etiqueta **no se pierde**: va en la descripción
+  accesible («Municipio: Moca», TalkBack) y en el texto del selector
+  cuando no hay municipio («Municipio»).
+- **Ahorro medido en dp**: la tira de municipio+chips pasa de ~124dp
+  (selector 72 + margen 12 + chips 40) a ~48dp → **−76dp**. Espaciado
+  de cabecera 14/12/12/14 → 10/10/10/10 (−16dp) y contador de
+  resultados 12+6 → 8+4 (−6dp). **Total ≈ −96dp** ≈ una fila más de
+  tarjetas a la vista.
+- **Paginación**: margen vertical 2dp → 0 (−4dp); las flechas se
+  quedan en **40dp** por zona de toque (accesibilidad documentada en el
+  propio código). **Suelo honesto**: la barra no puede bajar de ~40dp
+  de contenido + el inset del sistema (16-24dp con gestos, 48dp con
+  los 3 botones) sin romper accesibilidad; lo que de verdad le robaba
+  alto a la rejilla era la cabecera de arriba.
+- **Alternativa dejada sobre la mesa** (si al verlo sigue pareciendo
+  mucho): subir la paginación a la línea del contador («38 resultados ·
+  Página 1/5 ←→») y dejar el fondo libre (~+29dp más para la rejilla),
+  a cambio de alejar las flechas del pulgar. No se hizo sin preguntar:
+  cambia el patrón de uso.
+- **Verificación**: `gradlew assembleRelease` → BUILD SUCCESSFUL,
+  `lintVitalRelease` en verde, firma verificada con `apksigner`
+  (mismo certificado) y **APK reexportado al escritorio**
+  (`BuscandoAndo-v2026-10-29.apk`, se instala como actualización).
+  Sin emulador local, el ajuste fino fino (p.ej. el tope de 160dp del
+  selector en pantallas muy estrechas) queda para la revisión del
+  dueño en su teléfono.
