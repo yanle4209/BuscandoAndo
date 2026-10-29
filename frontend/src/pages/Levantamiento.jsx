@@ -488,14 +488,6 @@ export default function Levantamiento() {
     ? <span className="lev-falta-marca">falta</span>
     : null);
 
-  // El reporte se va AL LADO del formulario (y en el telefono sigue
-  // debajo, en el mismo orden de siempre): es la lista con la que se
-  // trabaja, no un tramite previo que haya que salir a buscar.
-  // En la pantalla de trabajo el reporte esta SIEMPRE: es la razon de
-  // estar aqui, y su columna existe aunque el municipio no tenga nada
-  // pendiente (ahi se dice «todavía no hay fichas»).
-  const hayReporte = dentro;
-
   // Lo que todavia le falta a la ficha abierta, medido con el formulario
   // de AHORA: la fila cambia de color mientras se teclea, sin esperar a
   // que el servidor conteste.
@@ -630,7 +622,7 @@ export default function Levantamiento() {
   // ------------------------- pantalla de trabajo ----------------------
   return (
     // <main> con id para el "Saltar al contenido" (auditoria D).
-    <main className={`lev-page${hayReporte ? ' lev-page--lado' : ''}`} id="contenido" tabIndex={-1}>
+    <main className="lev-page lev-page--lado" id="contenido" tabIndex={-1}>
       <header className="lev-top">
         <div>
           <p className="lev-top-eyebrow">Herramienta interna</p>
@@ -647,13 +639,11 @@ export default function Levantamiento() {
       </p>
 
       <form
-        className={`lev-form${hayReporte ? ' lev-form--lado' : ''}`}
+        className="lev-form lev-form--lado"
         onSubmit={enviar}
       >
         <section className="lev-card lev-firma">
           <h2 className="lev-card-title">Tu firma</h2>
-          {/* Quien esta firmando: el municipio que trae el token y los
-              cuatro ultimos caracteres, para comprobar sin exponerlo. */}
           {/* Quien esta firmando: el nombre que le dio el admin al token
               (lo trae el propio renglon del reporte) y el municipio que
               le toca. */}
@@ -677,129 +667,127 @@ export default function Levantamiento() {
             devuelve su renglon; los demas municipios no existen aqui.
             Con token se coloca AL LADO del formulario (grid-template-areas
             en el CSS); en el telefono sigue debajo, en el orden de siempre. */}
-        {hayReporte && (
-          <section className="lev-card lev-reporte">
-            <h2 className="lev-card-title">Lo que falta en tu municipio</h2>
+        <section className="lev-card lev-reporte">
+          <h2 className="lev-card-title">Lo que falta en tu municipio</h2>
 
-            {reporte.aviso && <p className="lev-aviso">{reporte.aviso}</p>}
+          {reporte.aviso && <p className="lev-aviso">{reporte.aviso}</p>}
 
-            {/* Token valido pero sin nada que contar: que se note que el
-                reporte se leyo, no que se rompio. */}
-            {!reporte.aviso && !reporte.cargando && !reporte.fila && (
-              <p className="lev-aviso">Todavía no hay fichas en tu municipio.</p>
-            )}
+          {/* Token valido pero sin nada que contar: que se note que el
+              reporte se leyo, no que se rompio. */}
+          {!reporte.aviso && !reporte.cargando && !reporte.fila && (
+            <p className="lev-aviso">Todavía no hay fichas en tu municipio.</p>
+          )}
 
-            {reporte.fila && (
-              <>
-                <p className="lev-resumen">
-                  <strong>
-                    {reporte.fila.municipio}
-                    {reporte.fila.provincia ? ` (${reporte.fila.provincia})` : ''}
-                  </strong>
-                  {' — '}
-                  {reporte.fila.total === 0
-                    ? 'todavía no hay fichas aquí.'
-                    : `${reporte.fila.total} ficha${reporte.fila.total !== 1 ? 's' : ''}`
-                      + `, ${reporte.fila.con_pendientes} con algo faltando`
-                      + `, ${reporte.fila.en_revision} esperando publicarse.`}
-                </p>
+          {reporte.fila && (
+            <>
+              <p className="lev-resumen">
+                <strong>
+                  {reporte.fila.municipio}
+                  {reporte.fila.provincia ? ` (${reporte.fila.provincia})` : ''}
+                </strong>
+                {' — '}
+                {reporte.fila.total === 0
+                  ? 'todavía no hay fichas aquí.'
+                  : `${reporte.fila.total} ficha${reporte.fila.total !== 1 ? 's' : ''}`
+                    + `, ${reporte.fila.con_pendientes} con algo faltando`
+                    + `, ${reporte.fila.en_revision} esperando publicarse.`}
+              </p>
 
-                {/* El selector: la puerta al modo completar. Elegir una
-                    ficha puebla el formulario con lo que ya hay y le marca
-                    lo que falta; el envío va con su id. */}
-                {reporte.detalle && reporte.detalle.fichas.length > 0 && (
-                  <div className="lev-field lev-elegir">
-                    <label htmlFor="lev-elegir">Negocio a completar</label>
-                    <select id="lev-elegir" value={fichaId ?? ''} onChange={elegirFicha}>
-                      <option value="">— Elige uno de la lista —</option>
-                      {reporte.detalle.fichas.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.nombre}
-                          {f.faltan.length > 0 ? ` — le falta ${f.faltan.length}` : ''}
-                        </option>
-                      ))}
-                    </select>
-                    {cargandoFicha && <p className="lev-aviso">Abriendo la ficha…</p>}
-                    {avisoFicha && <p className="lev-aviso">{avisoFicha}</p>}
-                    {fichaId !== null && (
-                      <small className="lev-elegir-nota">
-                        Formulario rellenado con lo que ya había. Lo marcado en amarillo es lo que
-                        todavía falta rellenar.
-                      </small>
-                    )}
-                  </div>
-                )}
+              {/* El selector: la puerta al modo completar. Elegir una
+                  ficha puebla el formulario con lo que ya hay y le marca
+                  lo que falta; el envío va con su id. */}
+              {reporte.detalle && reporte.detalle.fichas.length > 0 && (
+                <div className="lev-field lev-elegir">
+                  <label htmlFor="lev-elegir">Negocio a completar</label>
+                  <select id="lev-elegir" value={fichaId ?? ''} onChange={elegirFicha}>
+                    <option value="">— Elige uno de la lista —</option>
+                    {reporte.detalle.fichas.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.nombre}
+                        {f.faltan.length > 0 ? ` — le falta ${f.faltan.length}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {cargandoFicha && <p className="lev-aviso">Abriendo la ficha…</p>}
+                  {avisoFicha && <p className="lev-aviso">{avisoFicha}</p>}
+                  {fichaId !== null && (
+                    <small className="lev-elegir-nota">
+                      Formulario rellenado con lo que ya había. Lo marcado en amarillo es lo que
+                      todavía falta rellenar.
+                    </small>
+                  )}
+                </div>
+              )}
 
-                {reporte.fila.total > 0 && reporte.fila.con_pendientes > 0 && (
-                  <button type="button" className="lev-btn-ghost" onClick={verReporte}>
-                    {reporte.detalle ? 'Actualizar' : `Ver las ${reporte.fila.con_pendientes} que le falta algo`}
-                  </button>
-                )}
+              {reporte.fila.total > 0 && reporte.fila.con_pendientes > 0 && (
+                <button type="button" className="lev-btn-ghost" onClick={verReporte}>
+                  {reporte.detalle ? 'Actualizar' : `Ver las ${reporte.fila.con_pendientes} que le falta algo`}
+                </button>
+              )}
 
-                {(reporte.detalle || filas.length > 0) && (
-                  <div className="lev-detalle">
-                    {reporte.detalle && (
-                      <>
-                        <h3>Por campo faltante</h3>
-                        {/* El conteo baja SOLO cuando la ficha abierta
-                            completa ese campo: el chip se tacha y pasa a
-                            verde antes de enviar. */}
-                        <ul className="lev-por-campo">
-                          {porCampoVivo.map((f) => (
-                            <li
-                              key={f.campo}
-                              className={[
-                                f.en_trio ? 'es-trio' : '',
-                                f.cantidad === 0 ? 'es-hecho' : '',
-                              ].filter(Boolean).join(' ')}
-                            >
-                              {f.etiqueta}
-                              <span className="lev-por-campo-n">{f.cantidad}</span>
-                              {f.en_trio && f.cantidad > 0 && (
-                                <span className="lev-trio-marca">bloquea</span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </>
-                    )}
+              {(reporte.detalle || filas.length > 0) && (
+                <div className="lev-detalle">
+                  {reporte.detalle && (
+                    <>
+                      <h3>Por campo faltante</h3>
+                      {/* El conteo baja SOLO cuando la ficha abierta
+                          completa ese campo: el chip se tacha y pasa a
+                          verde antes de enviar. */}
+                      <ul className="lev-por-campo">
+                        {porCampoVivo.map((f) => (
+                          <li
+                            key={f.campo}
+                            className={[
+                              f.en_trio ? 'es-trio' : '',
+                              f.cantidad === 0 ? 'es-hecho' : '',
+                            ].filter(Boolean).join(' ')}
+                          >
+                            {f.etiqueta}
+                            <span className="lev-por-campo-n">{f.cantidad}</span>
+                            {f.en_trio && f.cantidad > 0 && (
+                              <span className="lev-trio-marca">bloquea</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
 
-                    <h3>Fichas</h3>
+                  <h3>Fichas</h3>
 
-                    {/* La confirmacion visual: barra + fila que cambia de
-                        color sin moverse de sitio. */}
-                    <p className="lev-avance">
-                      <span className="lev-avance-barra">
-                        <i style={{ width: `${avance}%` }} />
-                      </span>
-                      <span className={avance === 100 ? 'lev-avance-texto es-listo' : 'lev-avance-texto'}>
-                        {listasAhora} de {filas.length} sin nada pendiente
-                      </span>
-                    </p>
+                  {/* La confirmacion visual: barra + fila que cambia de
+                      color sin moverse de sitio. */}
+                  <p className="lev-avance">
+                    <span className="lev-avance-barra">
+                      <i style={{ width: `${avance}%` }} />
+                    </span>
+                    <span className={avance === 100 ? 'lev-avance-texto es-listo' : 'lev-avance-texto'}>
+                      {listasAhora} de {filas.length} sin nada pendiente
+                    </span>
+                  </p>
 
-                    <ul className="lev-fichas">
-                      {filas.map((f) => (
-                        <li key={f.id} className={`lev-ficha ${claseFila(f)}`}>
-                          <span className="lev-ficha-nombre">{f.nombre}</span>
-                          <span className={`lev-ficha-estado ${f.hecha ? 'hecha' : f.estado}`}>
-                            {f.hecha ? 'completada' : f.estado === 'publicado' ? 'publicada' : 'sin publicar'}
-                          </span>
-                          <span className="lev-ficha-falta">
-                            {f.restan.length === 0
-                              ? (f.hecha ? '✓ Sin nada pendiente' : '✓ Lista para enviar')
-                              : `Falta: ${f.restan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </>
-            )}
+                  <ul className="lev-fichas">
+                    {filas.map((f) => (
+                      <li key={f.id} className={`lev-ficha ${claseFila(f)}`}>
+                        <span className="lev-ficha-nombre">{f.nombre}</span>
+                        <span className={`lev-ficha-estado ${f.hecha ? 'hecha' : f.estado}`}>
+                          {f.hecha ? 'completada' : f.estado === 'publicado' ? 'publicada' : 'sin publicar'}
+                        </span>
+                        <span className="lev-ficha-falta">
+                          {f.restan.length === 0
+                            ? (f.hecha ? '✓ Sin nada pendiente' : '✓ Lista para enviar')
+                            : `Falta: ${f.restan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
 
-            {reporte.cargando && <p className="lev-aviso">Cargando…</p>}
-          </section>
-        )}
+          {reporte.cargando && <p className="lev-aviso">Cargando…</p>}
+        </section>
 
         <section className="lev-card lev-donde">
           <h2 className="lev-card-title">Dónde está</h2>

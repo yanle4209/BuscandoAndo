@@ -19,12 +19,10 @@ export default function BusinessModal({ business, onClose }) {
 
   const loc = business.location || {};
   const contact = business.contact || {};
-  const hours = business.hours || [];
   const images = business.images || [];
   const phone = business.phone || contact.phone;
   const whatsapp = business.whatsapp || contact.whatsapp;
   const email = business.email || contact.email;
-  const website = contact.website;
   const contactPerson = business.contact_person || contact.contact_person;
   const address = [business.street || loc.street, business.sector || loc.sector, business.municipality || loc.municipality, business.province || loc.province]
     .filter(Boolean).join(', ');
@@ -111,8 +109,7 @@ export default function BusinessModal({ business, onClose }) {
                   {phone && <a href={`tel:${phone}`} className="modal-link">{phone}</a>}
                   {whatsapp && <a href={`https://wa.me/${whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener" className="modal-link modal-link--wa">WhatsApp</a>}
                   {email && <a href={`mailto:${email}`} className="modal-link">{email}</a>}
-                  {website && <a href={website} target="_blank" rel="noopener" className="modal-link">Sitio web</a>}
-                  {!phone && !whatsapp && !email && !website && <span className="modal-info-empty">Sin datos</span>}
+                  {!phone && !whatsapp && !email && <span className="modal-info-empty">Sin datos</span>}
                 </div>
               </div>
             </div>
@@ -128,38 +125,6 @@ export default function BusinessModal({ business, onClose }) {
                 <div className="modal-info-content">
                   <span className="modal-info-label">Responsable</span>
                   <span className="modal-info-value">{contactPerson}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Horarios */}
-            {hours.length > 0 && (
-              <div className="modal-info-card modal-info-card--full">
-                <div className="modal-info-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                  </svg>
-                </div>
-                <div className="modal-info-content">
-                  <span className="modal-info-label">Horarios</span>
-                  <div className="modal-hours">
-                    {hours.map((h) => (
-                      <div key={h.day} className="modal-hour-row">
-                        {/* h.day viene del serializer completo
-                            ("Miércoles"); el mapa DAY_NAMES que había
-                            aquí tenia claves de una letra y nunca
-                            casaba, asi que se retiro. */}
-                        <span className="modal-hour-day">{h.day}</span>
-                        {h.is_closed ? (
-                          <span className="modal-hour-closed">Cerrado</span>
-                        ) : h.is_holiday ? (
-                          <span className="modal-hour-closed">Fiesta</span>
-                        ) : (
-                          <span className="modal-hour-time">{h.open_time} - {h.close_time}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
                 </div>
               </div>
             )}

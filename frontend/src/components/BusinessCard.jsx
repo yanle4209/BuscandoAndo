@@ -5,14 +5,13 @@ import './BusinessCard.css';
 /**
  * Tarjeta de negocio.
  *
- * - PORTADA en TODAS las tarjetas (bento de la portada y resultados):
- *   el 50% superior, con la foto (carrusel hasta 5) o, si no hay
- *   foto, el placeholder de marca. El nombre va encima, sobre un velo
- *   marron. La tarjeta no crece: la portada tiene alto fijo.
- * - Sin escalonado por nivel: `level` ya solo decide si se pinta la
- *   pastilla "Destacado" y si el hover sube un poco mas.
+ * - PORTADA en TODAS las tarjetas: el 50% superior, con la foto
+ *   (carrusel hasta 5) o, si no hay foto, el placeholder de marca.
+ *   El nombre va encima, sobre un velo marron. La tarjeta no crece:
+ *   la portada tiene alto fijo.
+ * - `is_featured` pinta la pastilla "Destacado".
  */
-export default function BusinessCard({ business, highlighted, level, onClick, onReport }) {
+export default function BusinessCard({ business, onClick, onReport }) {
   const loc = business.location || {};
   const contact = business.contact || {};
   const images = business.images || [];
@@ -26,7 +25,7 @@ export default function BusinessCard({ business, highlighted, level, onClick, on
     business.province || loc.province,
   ].filter(Boolean).join(', ');
 
-  const destacado = Boolean(business.is_featured || level);
+  const destacado = Boolean(business.is_featured);
   const hasImages = images.length > 0;
 
   // Alt descriptivo de las fotos (auditoria D): el campo caption no
@@ -46,7 +45,7 @@ export default function BusinessCard({ business, highlighted, level, onClick, on
 
   return (
     <div
-      className={`biz-card ${highlighted ? 'biz-card--highlighted' : ''}`}
+      className="biz-card"
       onClick={onClick}
       // La tarjeta es la unica puerta al modal de la ficha: sin esto, un
       // usuario de teclado o lector de pantalla no puede abrir ninguna
@@ -64,11 +63,10 @@ export default function BusinessCard({ business, highlighted, level, onClick, on
         }
       }}
     >
-      {/* Portada: siempre. La foto (o el placeholder de marca) es la
-          misma en la bento de la portada y en los resultados. */}
+      {/* Portada: siempre. La foto o el placeholder de marca. */}
       <div className={`biz-card__cover${hasImages ? '' : ' biz-card__cover--sin-foto'}`}>
         {hasImages ? (
-          <ImageCarousel images={images} cover autoplay={highlighted} altBase={altBase} />
+          <ImageCarousel images={images} altBase={altBase} />
         ) : (
           <div className="biz-card__cover-ph" role="img" aria-label="BuscandoAndo">
             <span className="biz-card__cover-ph-brand">Buscando<b>Ando</b></span>

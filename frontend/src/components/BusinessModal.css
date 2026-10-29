@@ -220,10 +220,6 @@
   border: 1px solid var(--border);
 }
 
-.modal-info-card--full {
-  grid-column: 1 / -1;
-}
-
 .modal-info-icon {
   color: #8f6c14;
   flex-shrink: 0;
@@ -294,44 +290,6 @@
   color: #fff;
 }
 
-/* Hours */
-.modal-hours {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.modal-hour-row {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 8px 4px;
-  background: #fff;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-}
-
-.modal-hour-day {
-  font-size: 11px;
-  font-weight: 700;
-  color: #8f6c14;
-  margin-bottom: 4px;
-}
-
-.modal-hour-time {
-  font-size: 11px;
-  color: #302c28;
-  font-weight: 600;
-  text-align: center;
-}
-
-.modal-hour-closed {
-  font-size: 11px;
-  color: #dc2626;
-  font-style: italic;
-}
-
 /* Map link */
 .modal-map-link {
   display: inline-flex;
@@ -384,10 +342,6 @@
 
   .modal-info-grid {
     grid-template-columns: 1fr;
-  }
-
-  .modal-hours {
-    grid-template-columns: repeat(4, 1fr);
   }
 
   .modal-carousel .biz-card__images-viewport {

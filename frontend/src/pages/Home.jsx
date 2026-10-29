@@ -38,9 +38,9 @@ const CLAVE_MUNICIPIO = 'buscandoando.municipio';
 // llegamos ahi, y el banner de fuera de zona lo dice y lo cuenta.
 const UMBRAL_FASE_KM = 30;
 // Proxy de "fase activa": con FASE1_PROVINCIAS vacia el backend
-// devuelve el padron entero (158 municipios, holgado por debajo de
-// 150) y el banner se apaga solo — no vamos a decirle a nadie que no
-// llegamos cuando llegamos a todo el pais.
+// devuelve el padron entero (158 municipios, holgado POR ENCIMA del
+// umbral de 150) y el banner se apaga solo — no vamos a decirle a
+// nadie que no llegamos cuando llegamos a todo el pais.
 const PADRON_COMPLETO = 150;
 
 // Grid: 3 cols x 4 rows = 12 cards per page; la paginacion aparece
@@ -260,7 +260,6 @@ export default function Home() {
   const [estado, dispatch] = useReducer(reducer, ESTADO_INICIAL);
   const [searchFeatured, setSearchFeatured] = useState([]);
   const [businesses, setBusinesses] = useState([]);
-  const [selected] = useState(null);
   const [modalBiz, setModalBiz] = useState(null);
   const [showContact, setShowContact] = useState(false);
   // Negocio del que el visitante ha pulsado "Corregir" (null = sin modal).
@@ -652,7 +651,6 @@ export default function Home() {
           >
             <MapView
               businesses={mapBusinesses}
-              selected={selected}
               center={centroMapa}
               onMarkerClick={(biz) => setModalBiz(biz)}
               onMapClick={elegirPuntoDelMapa}
