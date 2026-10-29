@@ -169,9 +169,40 @@ web → `a9142b7` Android).
 | # | Qué | Nota |
 |---|---|---|
 | 1 | ~~Fuente de cabeceras municipales~~ | ✅ **Resuelta** → `backend/data/cabeceras_municipales.csv` (158 filas). Ver §9. |
-| 2 | **Cobertura de datos por municipio** | **En curso** → R5 publica solo lo que cumple el trío **en todo el país**; lo que no cumple va al reporte por municipio. R6 queda como **canal de envío** (§11.5), con **correctores asignados: ninguno por ahora**. Ver §10–§11. |
-| 3 | **Destacados** | Atada al 2: marcar más no sirve fuera de donde hay datos. |
-| 4 | Confirmación: destino elegido + reabrir **con GPS** → ¿se reanuda? | R3.6 literal → **no, vuelve a tu GPS**. |
+| 2 | ~~Cobertura de datos por municipio~~ | ✅ **Mecanismo completo y verificado** (29/oct/2026): importar → deduplicar (§10-d) → trío → publicar solo; reporte §11.1 funcionando; canal de envío §11.5 funcionando. **Lo que queda es dato, no código**: el 100 % de las fichas en revisión le falta el teléfono. Ver §7.2-medido abajo. |
+| 3 | **Destacados** | Atada al 2, pero **ya se puede marcar**: hay 452 fichas publicadas en FASE1 y solo 5 destacados en total (2 en fase). |
+| 4 | ~~Confirmación: destino elegido + reabrir **con GPS** → ¿se reanuda?~~ | ✅ **Verificado en código** (29/oct/2026): **no se reanuda**, R3.6 literal. El municipio guardado **solo se lee** si el GPS falla — `restaurarMunicipio()` se invoca únicamente en los callbacks de error (`Home.jsx` GPS effect); si el GPS responde, el dispatch `'gps'` con `modo === 'espera'` pasa a GPS y el `localStorage` queda sin tocar. En modo destino **restaurado**, la siguiente posición sí cede: a ≤5 km pasa a GPS (R3.1), a >5 km sigue consultando la cabecera. |
+
+### §7.2-medido — estado real (29/oct/2026, base local: 16.287 fichas)
+
+| Métrica | Valor |
+|---|---|
+| Fichas | 16.287 (16.263 importadas · 24 manuales) |
+| Publicadas | **1.554** (9,5 %) |
+| En revisión | **14.733** |
+| Con punto | 16.287 (**100 %**) |
+| **Con teléfono** | **1.554** — el trío se cumple exactamente aquí |
+| Fichas en FASE1 (4 provincias) | 3.886 → **452 publicadas**, 3.434 en revisión |
+| **Duplicados reales** (mismo nombre + municipio a <100 m) | **0** → la deduplicación de §10-d funciona (los 1.412 nombres repetidos son cadenas con sucursales: Shell ×45, Texaco ×43, Banreservas ×38…) |
+| Municipios del padrón sin fichas | **16**: Duvergé, Fundación, Guayabal, Hostos, Jaquimeyes, Juan Santiago, Las Salinas, Las Yayas de Viajama, Monte Cristi, Pueblo Viejo, Quisqueya, Ramón Santana, Rancho Arriba, Sabana Yegua, Sabaneta, Tábara Arriba |
+| Destacados | 5 en total (2 en FASE1) |
+
+**El cuello de botella es uno solo: el teléfono.** De las 14.733 fichas en
+revisión, **14.733 le falta el teléfono** — o sea, todas. Horario, WhatsApp,
+correo y web faltan también, pero ninguno de los tres del trío: con el
+teléfono publican solas (§10).
+
+**Acciones pendientes** (en este orden):
+
+1. **FASE1 primero**: las 3.434 fichas sin teléfono de las 4 provincias son
+   las únicas que el visitante ve — ahí cada dato levantado cambia la
+   portada de alguien.
+2. **Importar los 16 municipios vacíos** (`importar_municipio --todos`): ya
+   tienen cabecera en §9, no tienen fichas.
+3. **§7.3 destacados**: con 452 publicadas en FASE1, marcar ya tiene efecto
+   visible (hoy solo 5 en todo el país, 2 en fase).
+4. **Reparto de correctores** (§11.4-k): sigue **sin asignar** — decisión
+   del dueño; el canal está completo y esperando.
 
 ---
 
