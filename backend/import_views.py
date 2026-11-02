@@ -49,7 +49,13 @@ def get_import_view():
                         data = [data]
                 except json.JSONDecodeError as e:
                     messages.error(request, f'Error al leer JSON: {e}')
-                    return render(request, 'admin/import_json.html', {'form': form})
+                    # each_context inyecta is_nav_sidebar_enabled y
+                    # available_apps: sin el, base.html no pinta la barra
+                    # lateral y la pagina quedaria sin menu.
+                    return render(request, 'admin/import_json.html', {
+                        **admin.site.each_context(request),
+                        'form': form,
+                    })
 
                 pub_status = PublicationStatus.objects.filter(slug=pub_status_slug).first()
                 if not pub_status:
@@ -146,6 +152,10 @@ def get_import_view():
             form = JSONImportForm()
 
         context = {
+            # Contexto base del admin (is_nav_sidebar_enabled,
+            # available_apps, titulos del site): sin esto base.html no
+            # pintaria la barra lateral en esta vista custom.
+            **admin.site.each_context(request),
             'form': form,
             'title': 'Importar Negocios desde JSON',
             'app_label': 'businesses',

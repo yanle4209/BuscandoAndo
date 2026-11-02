@@ -68,7 +68,7 @@ import com.herling.buscandoando.ui.theme.TextMuted
 import com.herling.buscandoando.ui.theme.TextPrimary
 import com.herling.buscandoando.ui.theme.TextSecondary
 import com.herling.buscandoando.ui.theme.WhatsAppGreen
-import com.herling.buscandoando.ui.theme.Gold
+import com.herling.buscandoando.ui.theme.TextOnYellow
 import kotlinx.coroutines.launch
 
 /**
@@ -164,63 +164,92 @@ private fun DetailBody(detail: BusinessDetail, onClose: () -> Unit) {
             }
         }
 
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
-            Spacer(Modifier.height(14.dp))
+        // ── BANDA SUPERIOR AMARILLA (petición del dueño: «lo mismo que
+        //    en la pantalla de inicio»). Aquí no hay barra de búsqueda,
+        //    así que la zona alta de la ficha es esta: nombre, pastilla
+        //    "Destacado", botón cerrar y la línea de categoría + estado.
+        //    El fondo va de borde a borde, FUERA del padding horizontal,
+        //    y el contenido se mete dentro con su propio padding.
+        //    Sobre amarillo manda la misma regla de D-14: ni gris ni
+        //    dorado, todo lo que se pinta encima va en tinta
+        //    (TextOnYellow). La pastilla "Destacado" es BLANCA, así que
+        //    no hace falta tocarla.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(CanaryYellow),
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
+                Spacer(Modifier.height(14.dp))
 
-            // ── Nombre + pastilla "Destacado" + botón cerrar ──
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = detail.name,
-                    color = Gold,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Black,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
+                // ── Nombre + pastilla "Destacado" + botón cerrar ──
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = detail.name,
+                        // Gold (#A67E18) está pensado para blanco: sobre
+                        // amarillo se apagaba. Tinta, peso Black.
+                        color = TextOnYellow,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
 
-                // Mismo badge que en la tarjeta (.modal-badge--featured)
-                if (detail.is_featured == true ||
-                    FeaturedTier.levelOf(detail.featured_tier) != null
-                ) {
-                    Spacer(Modifier.width(8.dp))
-                    DestacadoBadge()
+                    // Mismo badge que en la tarjeta (.modal-badge--featured)
+                    if (detail.is_featured == true ||
+                        FeaturedTier.levelOf(detail.featured_tier) != null
+                    ) {
+                        Spacer(Modifier.width(8.dp))
+                        DestacadoBadge()
+                    }
+
+                    IconButton(onClick = onClose) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.detail_close),
+                            tint = TextOnYellow,
+                        )
+                    }
                 }
 
-                IconButton(onClick = onClose) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(R.string.detail_close),
-                        tint = TextSecondary,
+                // ── Categoría + estado operativo ──
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = detail.category_name ?: stringResource(R.string.home_no_category),
+                        // El gris (TextMuted) es para blanco; aquí tinta
+                        // un punto más clara para que la jerarquía con el
+                        // nombre se sostenga sin romper el contraste.
+                        color = TextOnYellow.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(9.dp)
+                            .clip(CircleShape)
+                            // El punto conserva su color de SEMÁFORO (es
+                            // el indicador visual del estado), pero el
+                            // TEXTO va de tinta: verde/rojo sobre amarillo
+                            // se quedan por debajo del contraste mínimo.
+                            .background(statusColorOf(detail.effective_status)),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = detail.effective_status_name ?: "",
+                        color = TextOnYellow,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
                     )
                 }
-            }
 
-            // ── Categoría + estado operativo ──
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = detail.category_name ?: stringResource(R.string.home_no_category),
-                    color = TextMuted,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.width(12.dp))
-                Box(
-                    modifier = Modifier
-                        .size(9.dp)
-                        .clip(CircleShape)
-                        .background(statusColorOf(detail.effective_status)),
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    text = detail.effective_status_name ?: "",
-                    color = statusColorOf(detail.effective_status),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                )
+                Spacer(Modifier.height(12.dp))
             }
+        }
 
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
             // ── Descripción ──
             val description = detail.description?.takeIf { it.isNotBlank() }
                 ?: detail.short_description?.takeIf { it.isNotBlank() }

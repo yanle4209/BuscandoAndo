@@ -1,0 +1,21 @@
+{% load i18n %}
+{# Copia de admin/filter.html con un caso mas: CategoriaDesplegable no pinta #}
+{# una lista de lineas sino UN desplegable, con las 14 categorias ya a la vista #}
+{# sin tener que desplegar nada. Las categorias son planas —ninguna tiene #}
+{# hija—, asi que no hay segundo paso que encadenar como en municipio. #}
+{# Cada opcion trae su query_string montada; quien navega es #}
+{# buscandoando_filtros.js, que sin JS seguira dejando ver las opciones. #}
+<h3 class="filtro-titulo">
+  {% blocktranslate with filtro=title %}Por {{ filtro }}{% endblocktranslate %}
+</h3>
+
+<div class="filtro-categoria">
+  <select class="filtro-categoria-select" data-filtro-categoria
+          aria-label="{% trans 'Categoria' %}">
+    {% for choice in choices %}
+    <option value="{{ choice.query_string|iriencode }}"
+            data-valor="{{ choice.valor }}"
+            {% if choice.selected %}selected{% endif %}>{{ choice.display }}</option>
+    {% endfor %}
+  </select>
+</div>

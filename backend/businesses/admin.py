@@ -15,6 +15,7 @@ from business_locations.models import BusinessLocation
 from business_contacts.models import BusinessContact
 from business_hours.admin import BusinessHoursInline
 from business_images.admin import BusinessImageInline
+from categories.models import Category
 
 
 class BusinessLocationInline(admin.StackedInline):
@@ -208,23 +209,123 @@ class MunicipioPorProvincia(admin.SimpleListFilter):
         return items
 
     def choices(self, changelist):
-        yield {
-            'selected': self.value() is None,
+        """Lista (no generador) con la provincia pegada a cada municipio.
+
+        El filtro se pinta como DOS desplegables encadenados —provincia
+        primero, municipio despues—, y el template recorre las opciones dos
+        veces: una con ``{% regroup %}`` para armar la lista de provincias
+        y otra para los municipios. Un generador se vaciaria al primer
+        pase y la segunda salida saldria en blanco, de ahi la lista.
+
+        La entrada de "Todos" va la PRIMERA y con ``provincia`` en None,
+        que es como el template la distingue del resto: es a la vez el
+        placeholder del segundo desplegable y el enlace de quitar filtro.
+        """
+        elegido = self.value()
+        opciones = [{
+            'provincia': None,
+            'selected': elegido is None,
             'query_string': changelist.get_query_string(
                 remove=[self.parameter_name]),
             'display': 'Todos',
-        }
-        elegido = self.value()
+        }]
+        provincia_actual = None
         for es_provincia, etiqueta in self._arbol():
             if es_provincia:
-                yield {'provincia': etiqueta}
+                provincia_actual = etiqueta
             else:
-                yield {
+                opciones.append({
+                    'provincia': provincia_actual,
                     'selected': elegido == etiqueta,
                     'query_string': changelist.get_query_string(
                         {self.parameter_name: etiqueta}),
                     'display': etiqueta,
-                }
+                })
+        return opciones
+
+
+class CategoriaDesplegable(admin.SimpleListFilter):
+    """El filtro de categoria como UN desplegable.
+
+    El de por defecto abre un ``<details>`` con las categorias pintadas en
+    una lista: hay que desplegarlo cada vez que se cambia de categoria, y
+    una vez abierto ocupa las 14 lineas del panel. Aqui basta un
+    ``<select>`` —mismo dibujo que el de municipio— porque las categorias
+    son PLANAS: el modelo admite jerarquia (``Category.parent``), pero
+    ninguna de las que hay tiene hija, asi que no hay segundo paso que
+    encadenar.
+
+    El ``-`` de "sin categoria" solo se pinta si hay alguna ficha asi.
+    Se oculta, no se pierde: hoy el filtro por defecto lo enseñaba y
+    resolvia en 0 filas —un atajo que no lleva a ninguna parte—, pero si
+    alguna ficha se queda sin categoria vuelve a salir solo. Ningun dato
+    queda fuera de alcance por estar callado.
+    """
+
+    title = 'Categoria'
+    # Mismo sitio del parametro que ya usaba el filtro de campo: la web
+    # publica filtra por `category` (views.py), no por `category__id__exact`.
+    parameter_name = 'category'
+    template = 'admin/filtro_categoria.html'
+    SIN_CATEGORIA = 'sin'
+
+    def has_output(self):
+        # SimpleListFilter decide con `lookups()`, y aqui las opciones se
+        # arman en `choices()`: sin esto el filtro ni llegaria a salir.
+        return True
+
+    def lookups(self, request, model_admin):
+        return []
+
+    def queryset(self, request, queryset):
+        valor = (self.value() or '').strip()
+        if not valor:
+            return queryset
+        if valor == self.SIN_CATEGORIA:
+            return queryset.filter(category__isnull=True)
+        if valor.isdigit():
+            return queryset.filter(category__pk=int(valor))
+        # Un valor que no corresponde a ninguna categoria: no hay con que
+        # filtrar, y sin comprobarlo el `int()` del filtro estaria
+        # levantando un 500 con solo ensuciar la URL.
+        return queryset.none()
+
+    def choices(self, changelist):
+        """Las opciones montadas sobre la URL actual.
+
+        Cada una trae su ``query_string`` ya armada con lo demas que
+        traiga la barra —orden, otros filtros, pagina—, que es lo que hace
+        que elegir categoria navegue sin deshacer lo hecho. La primera va
+        SIN el parametro: es a la vez el placeholder del desplegable y la
+        forma de quitar el filtro.
+        """
+        elegido = (self.value() or '').strip()
+        opciones = [{
+            'valor': '',
+            'selected': not elegido,
+            'query_string': changelist.get_query_string(
+                remove=[self.parameter_name]),
+            'display': 'Todas las categorias',
+        }]
+        for categoria in Category.objects.all().order_by('name'):
+            # str() antepone ya el padre si alguna vez se usa la
+            # jerarquia ("Escuelas → Universidades").
+            opciones.append({
+                'valor': str(categoria.pk),
+                'selected': elegido == str(categoria.pk),
+                'query_string': changelist.get_query_string(
+                    {self.parameter_name: categoria.pk}),
+                'display': str(categoria),
+            })
+        if Business.objects.filter(category__isnull=True).exists():
+            opciones.append({
+                'valor': self.SIN_CATEGORIA,
+                'selected': elegido == self.SIN_CATEGORIA,
+                'query_string': changelist.get_query_string(
+                    {self.parameter_name: self.SIN_CATEGORIA}),
+                'display': 'Sin categoria',
+            })
+        return opciones
 
 
 @admin.register(Business)
@@ -235,7 +336,7 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
     list_display = [
         'name', 'get_category', 'publication_status',
         'get_operational_status', 'is_featured', 'featured_tier',
-        'get_featured_duration', 'get_city', 'created_at',
+        'get_featured_duration', 'get_city', 'get_created_short',
     ]
     list_filter = [
         # Primero lo de municipio, que es con lo que se busca: lo demas
@@ -243,7 +344,7 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
         MunicipioPorProvincia,
         'publication_status',
         'operational_status',
-        'category',
+        CategoriaDesplegable,
         'is_featured',
         'featured_tier',
         'featured_permanent',
@@ -448,6 +549,20 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
         location = getattr(obj, 'location', None)
         return location.municipality if location and location.municipality else '-'
     get_city.short_description = 'Municipio'
+
+    def get_created_short(self, obj):
+        """Fecha de alta en formato corto para la lista.
+
+        Como campo directo Django la pintaba con DATE_TIME_FORMAT, que en
+        espanol es "24 de septiembre de 2026 a las 10:14":245px por celda
+        y la tabla pasaba de 1000px. Con "24/09/2026" la columna baja a
+        ~90px. El orden por columna sigue siendo el del campo real.
+        """
+        if not obj.created_at:
+            return '-'
+        return obj.created_at.strftime('%d/%m/%Y')
+    get_created_short.short_description = 'Creado el'
+    get_created_short.admin_order_field = 'created_at'
 
 
 class ColaboradorForm(forms.ModelForm):

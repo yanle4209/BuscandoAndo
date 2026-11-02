@@ -1,19 +1,48 @@
 {% load i18n %}
 {# Copia de admin/filter.html con un caso mas: MunicipioPorProvincia no trae una lista plana sino provincia + municipios. #}
-{# La provincia se pinta como titulo de tanda, no como enlace: el que filtra es el municipio. #}
-<details data-filter-title="{{ title }}" open>
-  <summary>
-    {% blocktranslate with filter_title=title %} By {{ filter_title }} {% endblocktranslate %}
-  </summary>
-  <ul>
-  {% for choice in choices %}
-    {% if choice.provincia %}
-      <li class="filtro-provincia"><span>{{ choice.provincia }}</span></li>
-    {% else %}
-      <li class="filtro-municipio{% if choice.selected %} selected{% endif %}">
-        <a href="{{ choice.query_string|iriencode }}">{{ choice.display }}</a>
-      </li>
-    {% endif %}
-  {% endfor %}
-  </ul>
-</details>
+{# En vez de pintar159 municipios en una lista, son DOS desplegables encadenados: #}
+{# primero provincia (32), y esa recorta el segundo. El JS esta en buscandoando_filtros.js. #}
+{# choices() es una LISTA, no un generador: se recorre abajo DOS veces. #}
+{# El rotulo lo lleva el filtro porque el resto del panel lo lleva todos: #}
+{# sin el, dos desplegables sin nombre seguidos de "Por Categoria". #}
+<h3 class="filtro-titulo">
+  {% blocktranslate with filtro=title %}Por {{ filtro }}{% endblocktranslate %}
+</h3>
+
+<div class="filtro-municipio" data-filtro-municipio>
+  {% regroup choices by provincia as grupos %}
+
+  <select class="filtro-municipio-select" data-provincia
+          aria-label="{% trans 'Provincia' %}">
+    <option value="">{% trans "Todas las provincias" %}</option>
+    {% for grupo in grupos %}
+      {% if grupo.grouper %}
+      <option value="{{ grupo.grouper }}">{{ grupo.grouper }}</option>
+      {% endif %}
+    {% endfor %}
+  </select>
+
+  {# Sin `disabled` en el HTML: si el JS no llegara a cargar, el desplegable #}
+{# sigue mostrando los municipios en vez de quedar muerto. El JS lo recorta. #}
+  <select class="filtro-municipio-select" data-municipio
+          aria-label="{% trans 'Municipio' %}">
+    {% for choice in choices %}
+      {% if not choice.provincia %}
+      {# El primero de todos: sirve de placeholder y de quitar filtro. #}
+      <option value="{{ choice.query_string|iriencode }}" data-todos
+              {% if choice.selected %}selected{% endif %}>{% trans "Todos los municipios" %}</option>
+      {% endif %}
+    {% endfor %}
+    {% for choice in choices %}
+      {% if choice.provincia %}
+      {# data-valor: el municipio tal cual, para identificarlo leyendo la #}
+      {# URL sin comparar query_strings enteras —el `p` de pagina o el `o` #}
+      {# de orden no estan en cl.params y rompian esa comparacion. #}
+      <option value="{{ choice.query_string|iriencode }}"
+              data-provincia="{{ choice.provincia }}"
+              data-valor="{{ choice.display }}"
+              {% if choice.selected %}selected{% endif %}>{{ choice.display }}</option>
+      {% endif %}
+    {% endfor %}
+  </select>
+</div>

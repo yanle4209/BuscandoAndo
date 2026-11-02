@@ -1,0 +1,29 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{# Copia de admin/app_index.html (Django 5.2) con un unico cambio: se #}
+{# restaura el menu lateral. index.html vacia ese bloque ({% block #}
+{# nav-sidebar %}{% endblock %}) y app_index lo hereda, por eso las #}
+{# paginas de app (/admin/uso/, /admin/auth/, /admin/businesses/...) #}
+{# salian SIN barra lateral. Aqui se vuelve a incluir, igual que ya #}
+{# hacia buscandoando_index.html para el dashboard. #}
+
+{% block nav-sidebar %}{% include "admin/nav_sidebar.html" %}{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ app_label }}{% endblock %}
+
+{% if not is_popup %}
+{% block nav-breadcrumbs %}
+  <nav aria-label="{% translate 'Breadcrumbs' %}">
+    <div class="breadcrumbs">
+      <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+      &rsaquo;
+      {% for app in app_list %}
+        {{ app.name }}
+      {% endfor %}
+    </div>
+  </nav>
+{% endblock %}
+{% endif %}
+
+{% block sidebar %}{% endblock %}

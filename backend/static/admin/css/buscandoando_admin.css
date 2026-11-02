@@ -39,14 +39,14 @@
     --body-medium-color: #5b564d !important;
     --body-loud-color: #1f1a1a !important;
 
-    --header-color: #1f1a1a !important;
-    --header-branding-color: #8f6c14 !important;
-    --header-bg: #ffffff !important;
-    --header-link-color: #5b564d !important;
+    --header-color: #513e0c !important;
+    --header-branding-color: #513e0c !important;
+    --header-bg: #FBBF24 !important;
+    --header-link-color: #513e0c !important;
 
-    --breadcrumbs-fg: #66615a !important;
-    --breadcrumbs-link-fg: #8f6c14 !important;
-    --breadcrumbs-bg: #ffffff !important;
+    --breadcrumbs-fg: #FBBF24 !important;
+    --breadcrumbs-link-fg: #FCD34D !important;
+    --breadcrumbs-bg: #513e0c !important;
 
     --link-fg: #8f6c14 !important;
     --link-hover-color: #1f1a1a !important;
@@ -114,10 +114,19 @@ h2 { font-size: 16px !important; font-weight: 700 !important; color: var(--ink) 
 h3 { font-size: 14px !important; font-weight: 700 !important; color: var(--ink) !important; }
 h4 { font-size: 13px !important; font-weight: 700 !important; color: var(--ink) !important; }
 
-/* ===== HEADER ===== */
+/* ===== HEADER =====
+   Barra de marca en amarillo #FBBF24 (relleno, como manda el usuario).
+   El amarillo exige tinta oscura: todo el texto va en pardo #513E0C
+   (6,2:1 AA) o tinta. SIN filete inferior: bajo el logo ese filete
+   separaba dos amarillos (header y sidebar) con una costura parda que se
+   notaba; el color ya separa la barra del contenido blanco de la
+   derecha. */
 #header {
-    background: var(--white-pure) !important;
-    border-bottom: 3px solid var(--yellow) !important;
+    background: var(--yellow) !important;
+    border-bottom: none !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+    padding-left: 24px !important;
 }
 
 #branding h1, #branding a, #site-name a {
@@ -125,75 +134,252 @@ h4 { font-size: 13px !important; font-weight: 700 !important; color: var(--ink) 
     font-weight: 800;
 }
 
-/* Logotipo del admin: "Buscando" marron y "Ando" amarillo plano (sin
-   filete). Los logotipos estan exentos de la norma de contraste. */
-#site-name .site-brand-accent {
+/* Logotipo sobre placa blanca: "Buscando" en pardo y "Ando" en amarillo
+   de marca, a peticion del usuario. Los logotipos estan exentos de la
+   norma de contraste (WCAG 1.4.3), por eso el amarillo se permite aqui.
+   El sufijo "- Panel de Administracion" se quita: la pestana del navegador
+   ya indica que es el panel. */
+#site-name .site-brand-main { color: var(--brown) !important; }
+#site-name .site-brand-accent { color: var(--yellow) !important; }
+#site-name .site-brand-suffix { display: none !important; }
+
+/* Logo como placa flotante: el efecto de "despegado de la pagina" no
+   viene de una sombra de texto (se ve como letras con sombra), sino de
+   una placa redondeada que proyecta una sombra real hacia abajo. La
+   box-shadow lleva tres capas —brillo interior arriba, sombra de contacto
+   y sombra de caida— para dar profundidad de objeto elevado. La placa es
+   blanca solida: una tarjeta que flota clara sobre el amarillo. */
+#site-name a {
+    display: inline-block !important;
+    font-size: 30px !important;
+    line-height: 1.2 !important;
+    padding: 5px 18px !important;
+    background: var(--white-pure) !important;
+    border-radius: 14px !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.35),
+        0 1px 2px rgba(61, 46, 8, 0.20),
+        0 6px 16px rgba(61, 46, 8, 0.18) !important;
+    text-shadow: none !important;
+}
+
+/* Zona de usuario sobre amarillo: texto y enlaces en pardo (legible),
+   hover a tinta. Los enlaces no llevan relleno, solo color. */
+#user-tools { color: var(--brown) !important; }
+#user-tools a { color: var(--brown) !important; font-weight: 600; }
+#user-tools a:hover { color: var(--ink) !important; }
+
+/* "Cerrar sesion": accion clara, chip invertido pardo con texto amarillo
+   claro (7,7:1) — mismo lenguaje que el item activo del menu lateral. */
+#logout-form button {
+    background: var(--brown) !important;
+    color: var(--yellow-light) !important;
+    border: 1px solid #3a2c08 !important;
+    border-radius: 8px !important;
+    padding: 5px 14px !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s, color 0.2s !important;
+}
+#logout-form button:hover {
+    background: #3a2c08 !important;
     color: var(--yellow) !important;
 }
 
-#user-tools { color: var(--ink-soft) !important; }
-#user-tools a { color: var(--ink-soft) !important; font-weight: 600; }
-#user-tools a:hover { color: var(--brown) !important; }
+/* Icono de tema (sol/luna/auto): se armoniza a la barra — icono pardo
+   sobre amarillo, sin relleno, solo filete fino. */
+.theme-toggle {
+    color: var(--brown) !important;
+    border-color: rgba(81, 62, 12, 0.45) !important;
+    background: transparent !important;
+}
+.theme-toggle:hover { color: var(--ink) !important; }
 
-/* ===== BREADCRUMBS ===== */
+/* ===== BREADCRUMBS =====
+   Tira de navegacion en marron #513E0C. Sobre marron oscuro el texto
+   amarillo de marca si cumple contraste (~6,5:1). */
 div.breadcrumbs {
-    background: var(--white-pure) !important;
-    color: var(--ink-soft) !important;
-    border-bottom: 1px solid var(--border) !important;
+    background: var(--brown) !important;
+    color: var(--yellow) !important;
+    border-bottom: none !important;
     padding: 8px 20px !important;
 }
 
-div.breadcrumbs a { color: var(--brown) !important; }
-div.breadcrumbs a:hover { color: var(--ink) !important; }
+div.breadcrumbs a { color: var(--yellow-light) !important; }
+div.breadcrumbs a:hover { color: #ffffff !important; }
 
-/* ===== SIDEBAR ===== */
+/* ===== SIDEBAR =====
+   Columna entera en amarillo de marca (#FBBF24) y todo el texto en pardo
+   (#513E0C): contraste 6,2:1 (AA). El pardo pasa a ser tinta y relleno de
+   estado, no fondo. El item activo invierte los colores (chip pardo con
+   texto amarillo claro, 7,7:1). */
 #nav-sidebar {
-    background-color: var(--white-pure) !important;
-    border-right: 1px solid var(--border) !important;
+    background-color: var(--yellow) !important;
+    border-right: 1px solid rgba(81, 62, 12, 0.35) !important;
+    /* Columna mas ancha (300px en vez de los 275 de Django) para que
+       el texto respire y el contenido quede mas centrado. */
+    flex: 0 0 300px !important;
 }
 
 #nav-sidebar .module th,
 #nav-sidebar .module caption {
-    background: var(--white-pure) !important;
-    color: var(--ink) !important;
-    border-bottom: 1px solid var(--border) !important;
+    background: transparent !important;
+    color: var(--brown) !important;
+    /* SIN divisores: la separacion entre filas y secciones la da el
+       aire y la tipografia de las cabeceras, no las lineas. */
+    border-bottom: none !important;
+    /* Tipografia base de las cabeceras de grupo (la de cada item se
+       sobreescribe mas abajo). */
+    font-size: 11.5px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-shadow: none;
+}
+
+#nav-sidebar .module tr:not(.current-model) {
+    background: transparent !important;
 }
 
 #nav-sidebar .module td {
-    color: var(--ink-soft) !important;
-    border-bottom: 1px solid #e9e9d3 !important;
+    color: var(--brown) !important;
+    /* Sin divisor (ademas esta celda esta oculta: los enlaces "Anadir"
+       no se muestran en la barra). */
+    border-bottom: none !important;
+    /* Cada enlace del menu pesa 600 y va a 13,5px: sobre amarillo el
+        pardo aguanta, pero aqui es texto de navegacion pura. */
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
 }
 
 #nav-sidebar a:link,
 #nav-sidebar a:visited {
-    color: var(--ink-soft) !important;
-    font-weight: 500 !important;
-    transition: color 0.2s !important;
+    color: var(--brown) !important;
+    font-weight: 600 !important;
+    transition: color 0.2s, box-shadow 0.2s !important;
 }
 
+/* Hover/foco sobre amarillo: sin rellenos, el filete es pardo. */
 #nav-sidebar a:hover {
-    color: var(--brown) !important;
+    color: var(--ink) !important;
     background: transparent !important;
 }
 
 #nav-sidebar .current-app .section:link,
 #nav-sidebar .current-app .section:visited {
-    color: var(--yellow-ink) !important;
+    color: var(--ink) !important;
 }
 
+/* Chip activo: la inversion del anterior (relleno pardo, texto amarillo
+   claro) — sigue siendo el unico relleno del menu. */
 #nav-sidebar .current-model {
+    background: var(--brown) !important;
+    border-left: 3px solid #3a2c08 !important;
+}
+
+#nav-sidebar .current-model td,
+#nav-sidebar .current-model a:link,
+#nav-sidebar .current-model a:visited {
+    color: var(--yellow-light) !important;
+    font-weight: 700 !important;
+}
+
+#nav-sidebar .current-model a:hover {
+    background: transparent !important;
+    color: #ffffff !important;
+}
+
+/* Enlaces "Anadir" del menu lateral: fuera. La cruz verde de Django
+   rompia la paleta, y ademas la columna "Anadir" estiraba la tabla hasta
+   recortar el nombre de los modelos (se veia "Añadi..."). Para anadir se
+   entra en cada seccion; la fila queda icono + nombre y respira mejor. */
+#nav-sidebar .module td {
+    display: none !important;
+}
+
+/* Buscador del menu: superficie blanca con tinta, como los inputs. Se
+   le quita extension (marges laterales) para que no vaya de pared a
+   pared dentro de la columna, y SOLO se le da aire por arriba, el
+   mismo que hay hacia la primera seccion, para que no roce el borde
+   superior de la columna. */
+#nav-sidebar #nav-filter {
     background: var(--white-pure) !important;
-    color: var(--brown) !important;
-    border-left: 3px solid var(--yellow) !important;
+    color: var(--ink) !important;
+    border: 1px solid rgba(81, 62, 12, 0.45) !important;
+    border-radius: 8px;
+    margin: 0 14px !important;
+    margin-top: 14px !important;
+    width: calc(100% - 28px) !important;
+    max-width: 232px;
+    box-sizing: border-box;
 }
 
+#nav-sidebar #nav-filter::placeholder {
+    color: var(--ink-soft);
+    opacity: 0.85;
+}
+
+#nav-sidebar #nav-filter:focus {
+    border-color: var(--brown) !important;
+    box-shadow: 0 0 0 3px rgba(81, 62, 12, 0.25) !important;
+}
+
+/* Pastilla del colapsable: la tira de 23px de Django deja de recorrer
+   toda la altura (fijo, centrada en vertical, 24x48) y se pinta de
+   pardo, atornillada al borde de la columna. Flecha segun estado
+   (« cerrando / » abriendo) la pone Django. */
 .toggle-nav-sidebar {
-    background-color: var(--white-pure) !important;
-    color: var(--ink-soft) !important;
-    border-right: 1px solid var(--border) !important;
+    position: fixed !important;
+    top: 50% !important;
+    transform: translateY(-50%);
+    left: 0;
+    width: 24px !important;
+    height: 48px !important;
+    max-height: none !important;
+    flex: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--brown) !important;
+    color: var(--yellow-light) !important;
+    border: 1px solid #3a2c08 !important;
+    border-left: 0 !important;
+    border-radius: 0 12px 12px 0 !important;
+    box-shadow: none !important;
+    transition: left 0.25s, background-color 0.2s !important;
+    z-index: 30;
 }
 
-.toggle-nav-sidebar:hover { color: var(--ink) !important; }
+/* Menu abierto: la pastilla se apoya en el borde derecho de la
+   columna (300px + 1px de filete). */
+.main.shifted .toggle-nav-sidebar {
+    left: 301px;
+    border-left: 1px solid #3a2c08 !important;
+    border-right: 0 !important;
+    border-radius: 12px 0 0 12px !important;
+}
+
+/* Menu PERMANENTE en escritorio: la columna siempre esta visible y el
+   contenido siempre cede su ancho (300 + 1), con independencia de la
+   clase .shifted que Django alterna desde localStorage. Ya no hay
+   colapsable: la pastilla del toggle desaparece. En movil (<=1024px)
+   la columna es un overlay y sin boton no habria forma de abrirla, asi
+   que ahi la pastilla sigue. */
+@media (min-width: 1025px) {
+    .main > #nav-sidebar {
+        margin-left: 0 !important;
+        visibility: visible !important;
+    }
+    .main > #nav-sidebar + .content { max-width: calc(100% - 301px) !important; }
+    .main .toggle-nav-sidebar { display: none !important; }
+}
+
+.toggle-nav-sidebar:hover {
+    color: var(--yellow) !important;
+    background-color: #3a2c08 !important;
+}
 
 /* ===== BOTONES =====
    Todo literal: lienzo blanco y el color, solo en el borde. El estado
@@ -337,6 +523,45 @@ a.deletelink:hover { color: #8b1111 !important; background: var(--white-pure) !i
     accent-color: var(--yellow);
 }
 
+/* El listado de Negocios trae 10 columnas y en escritorio suman ~1260px
+   dentro de un contenedor de ~633px (resta la barra de filtros de242px).
+   Django pinta #changelist con `overflow: hidden`, asi que lo que sobra
+   NO scrollea: desaparece y cuatro columnas quedan invisibles sin forma
+   de verlas. La tabla scrollea dentro de su propio contenedor — lo mismo
+   que el bloque movil de mas abajo—, asi que ninguna columna se pierde. */
+#changelist-form {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Sin esto la cabecera se estira al ancho del scroll y se desalinea de
+   las celdas al scrollear: la tabla necesita un ancho minimo propio. */
+#changelist-form #result_list {
+    min-width: 720px;
+}
+
+/* La columna "Destacado" es UN checkbox y se estaba comiendo130px: el
+   ancho lo dictaba la cabecera, no el contenido. La palabra "Destacado"
+   sola mide68px (la cifra que se ve al lado es el sortpriority de
+   Django, no es parte de la etiqueta), asi que el techo va a76px: la
+   tabla recupera ~54px y el texto no se sale sobre la columna vecina.
+   No se puede acortar la etiqueta sin perder la edicion en linea,
+   que exige el nombre del campo en list_display. */
+#result_list th.column-is_featured,
+#result_list td.field-is_featured {
+    width: 76px;
+    max-width: 80px;
+}
+
+/* Los dos desplegables de list_editable (estado de publicacion y nivel
+   de destacado) medían160px en celdas de165px: sobraba aire alrededor
+   del select. */
+#result_list td.field-publication_status,
+#result_list td.field-featured_tier {
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
 /* ===== FILTROS ===== */
 #changelist-filter {
     background: var(--white-pure) !important;
@@ -391,6 +616,44 @@ a.deletelink:hover { color: #8b1111 !important; background: var(--white-pure) !i
 
 #changelist-filter ul li.filtro-municipio.selected {
     padding-left: 10px;
+}
+
+/* Los filtros resueltos con desplegable van apilados y a todo el ancho
+   del panel, para que los nombres largos ("Las Yayas de Viajama",
+   "Servicios Profesionales") no se corten. El de municipio son DOS
+   encadenados —provincia primero, esa recorta el de municipio—; el de
+   categoria va solo, porque las categorias son planas. El JS de los dos
+   esta en buscandoando_filtros.js. */
+.filtro-municipio,
+.filtro-categoria {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 0 4px;
+}
+
+.filtro-municipio-select,
+.filtro-categoria-select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 8px;
+    border: 1px solid var(--border-strong) !important;
+    border-radius: 6px;
+    background: var(--white-pure) !important;
+    color: var(--ink) !important;
+    font-size: 13px;
+}
+
+.filtro-municipio-select:focus,
+.filtro-categoria-select:focus {
+    border-color: var(--yellow) !important;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.28) !important;
+    outline: none;
+}
+
+/* El de municipio solo cobra sentido tras elegir provincia. */
+.filtro-municipio-select[data-municipio] {
+    color: var(--ink-soft) !important;
 }
 
 /* "Corregir": de un aviso de la bandeja de correcciones directo al
@@ -662,19 +925,20 @@ a { transition: color 0.2s ease !important; }
         position: fixed !important;
         top: 0 !important;
         bottom: 0 !important;
-        left: 23px !important;
-        width: 275px !important;
+        left: 0 !important;
+        width: 300px !important;
         margin-left: 0 !important;
         visibility: visible !important;
         z-index: 55;
         overflow-y: auto;
-        background-color: var(--white-pure, #ffffff) !important;
+        /* Mismo amarillo que en escritorio: el menu movil es el mismo menu. */
+        background-color: var(--yellow) !important;
         box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25);
     }
 
-    /* La tira del boton tiene que pintarse POR ENCIMA del panel para poder
+    /* La pastilla del colapsable se pinta POR ENCIMA del panel para poder
        cerrarlo; si no, quedaria debajo y no habria forma de salir. */
-    .toggle-nav-sidebar { position: relative; z-index: 70 !important; }
+    .toggle-nav-sidebar { z-index: 70 !important; }
 
     /* Django encoge el contenido 299px cuando el menu esta abierto; aqui el
        menu no empuja nada, asi que el contenido se queda a todo lo ancho. */
@@ -717,7 +981,13 @@ a { transition: color 0.2s ease !important; }
 
     #site-name .site-brand-suffix { display: none !important; }
 
-    #site-name a { font-size: 17px !important; }
+    #site-name a {
+        font-size: 17px !important;
+        padding: 3px 11px !important;
+        border-radius: 9px !important;
+        box-shadow: 0 1px 3px rgba(61, 46, 8, 0.20) !important;
+        text-shadow: none !important;
+    }
 
     #user-tools {
         display: flex;
@@ -1288,4 +1558,644 @@ a.ba-levantamiento__enlace:focus {
     .ba-recorte {
         max-width: 180px;
     }
+}
+
+/* =====================================================================
+   CAPA 16 — Dashboard tipo SaaS (rediseño del indice)
+   El indice deja de ser "4 secciones apiladas" y pasa a ser un panel:
+   cabecera con saludo y accesos, fila de KPIs, grafica por provincia,
+   bandeja de atencion, tabla de en-revision y acciones recientes como
+   tarjeta (antes flotaba abajo a la derecha). Mismo lenguaje: lienzo
+   blanco, filete, sombra minima y el color solo donde la paleta lo
+   permite — relleno en el boton primario, el menu activo, los badges
+   de estado y las barras de la grafica.
+   ===================================================================== */
+
+/* --- Ancho: Django deja el dashboard en 600px fijos --- */
+
+.dashboard #content {
+    width: auto !important;
+}
+
+.dashboard #content-main.ba-dash {
+    width: 100% !important;
+    max-width: 1180px;
+    margin: 0 auto;
+    float: none;
+}
+
+/* --- Cabecera: saludo a la izquierda, accesos rapidos a la derecha --- */
+
+.ba-dash__cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.ba-dash__cejilla {
+    margin: 0 0 2px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--yellow-ink);
+}
+
+.ba-dash__hola {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--ink);
+}
+
+.ba-dash__bajada {
+    margin: 4px 0 0;
+    max-width: 62ch;
+    font-size: 13.5px;
+    color: var(--body-quiet-color);
+    line-height: 1.55;
+}
+
+.ba-dash__rapidas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* --- Botones del dashboard --- */
+
+.ba-boton {
+    display: inline-block;
+    background: var(--white-pure) !important;
+    color: var(--ink) !important;
+    border: 1px solid var(--yellow) !important;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none !important;
+    cursor: pointer;
+    transition: box-shadow 0.2s ease, background 0.2s ease !important;
+    box-shadow: 0 1px 2px rgba(31, 26, 26, 0.05);
+}
+
+.ba-boton:hover,
+.ba-boton:focus {
+    background: var(--white-pure) !important;
+    color: var(--brown) !important;
+    border-color: var(--yellow-ink) !important;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.28) !important;
+}
+
+/* Unico relleno primario del panel (paleta: permitido en boton clave). */
+.ba-boton--primario {
+    background: var(--yellow) !important;
+    color: var(--ink) !important;
+    border-color: var(--yellow) !important;
+}
+
+.ba-boton--primario:hover,
+.ba-boton--primario:focus {
+    background: var(--yellow-light) !important;
+    color: var(--ink) !important;
+    border-color: var(--yellow-ink) !important;
+}
+
+/* --- Fila de KPIs --- */
+
+.ba-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.ba-kpi {
+    background: var(--white-pure);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--yellow);
+    border-radius: 14px;
+    padding: 16px 18px 14px;
+    box-shadow: 0 1px 2px rgba(31, 26, 26, 0.05),
+                0 10px 26px rgba(31, 26, 26, 0.06);
+}
+
+.ba-kpi__rotulo {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--yellow-ink);
+}
+
+.ba-kpi__valor {
+    margin: 4px 0 6px;
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.ba-kpi__pie {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--body-quiet-color);
+}
+
+.ba-kpi__pie--badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* --- Rejilla de tarjetas (2 columnas, cae a 1 en pantallas estrechas) --- */
+
+.ba-rejilla {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.ba-card {
+    background: var(--white-pure);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px 20px;
+    box-shadow: 0 1px 2px rgba(31, 26, 26, 0.05),
+                0 10px 26px rgba(31, 26, 26, 0.06);
+    min-width: 0;
+}
+
+.ba-card__cabecera {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.ba-card__titulo {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--ink);
+}
+
+.ba-card__sub {
+    margin: 2px 0 0;
+    font-size: 12.5px;
+    color: var(--body-quiet-color);
+    line-height: 1.5;
+}
+
+.ba-card__enlace {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--yellow-ink) !important;
+    text-decoration: none !important;
+    white-space: nowrap;
+}
+
+.ba-card__enlace:hover,
+.ba-card__enlace:focus {
+    color: var(--brown) !important;
+    text-decoration: underline !important;
+}
+
+.ba-card__nota {
+    margin: 10px 0 0;
+    font-size: 12px;
+    color: var(--body-quiet-color);
+}
+
+/* --- Grafica horizontal: fichas por provincia --- */
+
+.ba-barras {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.ba-barras__fila {
+    display: grid;
+    grid-template-columns: minmax(90px, 148px) minmax(0, 1fr) 68px;
+    align-items: center;
+    gap: 10px;
+}
+
+.ba-barras__nombre {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* La pista es filete neutro; el color solo lo lleva la barra (estado/KPI). */
+.ba-barras__pista {
+    display: block;
+    height: 12px;
+    border-radius: 999px;
+    background: rgba(31, 26, 26, 0.05);
+    overflow: hidden;
+}
+
+.ba-barras__barra {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--yellow);
+    border-right: 1px solid var(--yellow-ink);
+}
+
+.ba-barras__valor {
+    font-size: 12.5px;
+    font-weight: 800;
+    text-align: right;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- Bandeja "Necesita atencion" --- */
+
+.ba-pendientes {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.ba-pendientes li + li {
+    border-top: 1px dashed var(--border);
+}
+
+.ba-pendientes a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 6px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.15s ease;
+}
+
+.ba-pendientes a:hover {
+    background: rgba(31, 26, 26, 0.035);
+}
+
+.ba-pendientes__nombre {
+    min-width: 0;
+}
+
+.ba-pendientes__meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* --- Tabla de fichas en revision (reaprovecha .ba-tabla) --- */
+
+.ba-tabla__meta {
+    color: var(--body-quiet-color);
+    font-size: 12.5px;
+    white-space: nowrap;
+}
+
+.ba-tabla tbody td a {
+    color: var(--brown);
+    font-weight: 700;
+    text-decoration: none !important;
+}
+
+.ba-tabla tbody td a:hover {
+    color: var(--ink);
+    text-decoration: underline !important;
+}
+
+/* --- Acciones recientes --- */
+
+.ba-log {
+    list-style: none;
+    margin: 0;
+    padding: 0 4px 0 0;
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.ba-log__item {
+    padding: 9px 6px;
+    border-radius: 8px;
+    border-bottom: 1px dashed var(--border);
+}
+
+.ba-log__item:last-child {
+    border-bottom: none;
+}
+
+.ba-log__cuerpo {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ba-log__cuerpo a {
+    color: var(--brown);
+    text-decoration: none !important;
+}
+
+.ba-log__cuerpo a:hover {
+    color: var(--ink);
+    text-decoration: underline !important;
+}
+
+.ba-log__meta {
+    display: block;
+    font-size: 12px;
+    color: var(--body-quiet-color);
+}
+
+.ba-vacio {
+    margin: 0;
+    padding: 6px 0;
+    font-size: 13px;
+    color: var(--body-quiet-color);
+    line-height: 1.55;
+}
+
+/* --- Menu lateral: el activo, con relleno (elemento clave) --- */
+
+#nav-sidebar .current-model {
+    background: var(--brown) !important;
+    border-left: 3px solid #3a2c08 !important;
+}
+
+#nav-sidebar .current-model td,
+#nav-sidebar .current-model a:link,
+#nav-sidebar .current-model a:visited {
+    color: var(--yellow-light) !important;
+    font-weight: 700 !important;
+}
+
+#nav-sidebar .current-model a:hover {
+    background: transparent !important;
+    color: #ffffff !important;
+}
+
+/* El conmutador del menu, con el mismo aire que la barra superior. */
+.toggle-nav-sidebar {
+    box-shadow: none;
+}
+
+/* --- El indice ya no usa las 4 secciones; quedan para otras vistas --- */
+
+/* --- Responsive --- */
+
+@media (max-width: 1100px) {
+    .ba-rejilla {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 767px) {
+    .dashboard #content {
+        padding: 16px 14px 32px;
+    }
+
+    .ba-dash__cabecera {
+        align-items: flex-start;
+    }
+
+    .ba-dash__hola {
+        font-size: 22px;
+    }
+
+    .ba-kpis {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+    }
+
+    .ba-kpi__valor {
+        font-size: 26px;
+    }
+
+    .ba-card {
+        padding: 16px 14px 18px;
+    }
+
+    .ba-barras__fila {
+        grid-template-columns: minmax(74px, 110px) minmax(0, 1fr) 60px;
+        gap: 8px;
+    }
+
+    .ba-barras__nombre {
+        font-size: 12px;
+    }
+}
+
+/* =====================================================================
+   CAPA 17 — Iconos del menu lateral
+   Un icono por modelo, pintados como mascara SVG sobre currentColor:
+   heredan el color del texto (blanco en reposo, dorado en hover, tinta
+   dentro del chip activo) y no traen colores propios que choquen con el
+   pardo. Solo se ven en #nav-sidebar; en la "Lista completa" del indice
+   quedan ocultos.
+   ===================================================================== */
+
+.ba-ico {
+    display: none;
+}
+
+#nav-sidebar .ba-ico {
+    /* Rejilla: el icono por defecto de los modelos sin icono propio. */
+    --ba-ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='7' height='7' rx='1'/><rect x='14' y='3' width='7' height='7' rx='1'/><rect x='3' y='14' width='7' height='7' rx='1'/><rect x='14' y='14' width='7' height='7' rx='1'/></svg>");
+
+    display: inline-block;
+    width: 17px;
+    height: 17px;
+    flex: 0 0 17px;
+    background-color: currentColor;
+    -webkit-mask: var(--ba-ico) center / contain no-repeat;
+    mask: var(--ba-ico) center / contain no-repeat;
+}
+
+/* --- Grupos y personas --- */
+
+#nav-sidebar .ba-ico--group {
+    --ba-ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/><circle cx='9' cy='7' r='4'/><path d='M22 21v-2a4 4 0 0 0-3-3.87'/><path d='M16 3.13a4 4 0 0 1 0 7.75'/></svg>");
+}
+
+#nav-sidebar .ba-ico--user {
+    --ba-ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/><circle cx='12' cy='7' r='4'/></svg>");
+}
+
+#nav-sidebar .ba-ico--colaborador {
+    --ba-ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/><circle cx='9' cy='7' r='4'/><path d='m17 11 2 2 4-4'/></svg>");
+}
+
+/* --- Negocios --- */
+
+#nav-sidebar .ba-ico--business {
+    --ba-ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4H6z'/><path d='M3 6h18'/><path d='M16 10a4 4 0 0 1-8 0'/></svg>");
+}
+
+#nav-sidebar .ba-ico--category {
+    --ba-ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20.59 13.41 22 12V2H12l-8.59 8.59a2 2 0 0 0 0 2.82l7.18 7.18a2 2 0 0 0 2.82 0z'/><circle cx='7' cy='7' r='1.2'/></svg>");
+}
+
+#nav-sidebar .ba-ico--envio {
+    --ba-ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 2 11 13'/><path d='M22 2 15 22l-4-9-9-4z'/></svg>");
+}
+
+#nav-sidebar .ba-ico--correction {
+    --ba-ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z'/><path d='M4 22v-7'/></svg>");
+}
+
+/* --- SEO --- */
+
+#nav-sidebar .ba-ico--seoruta {
+    --ba-ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><circle cx='12' cy='12' r='6'/><circle cx='12' cy='12' r='2'/></svg>");
+}
+
+#nav-sidebar .ba-ico--seorobots {
+    --ba-ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><rect x='9' y='9' width='6' height='6'/><path d='M15 2v2M9 2v2M15 20v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2'/></svg>");
+}
+
+/* --- Uso de la plataforma --- */
+
+#nav-sidebar .ba-ico--usodiario {
+    --ba-ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M18 20V10M12 20V4M6 20v-6'/></svg>");
+}
+
+#nav-sidebar .ba-ico--terminodia {
+    --ba-ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><path d='m21 21-4.3-4.3'/></svg>");
+}
+
+/* --- Estados --- */
+
+#nav-sidebar .ba-ico--publicationstatus {
+    --ba-ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='m8.5 12.5 2.5 2.5 4.5-5'/></svg>");
+}
+
+#nav-sidebar .ba-ico--operationalstatus {
+    --ba-ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 7v5.5l3.5 2'/></svg>");
+}
+
+/* --- Fila del menu: icono y texto, alineados con la celda "Anadir" --- */
+
+#nav-sidebar .module th {
+    padding: 0 !important;
+}
+
+#nav-sidebar .module th a {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 8px 9px 16px;
+}
+
+/* =====================================================================
+   CAPA 18 — Menu lateral: legibilidad y jerarquia
+   Con la columna "Anadir" fuera, el texto visible de cada fila es el
+   enlace del <th> (el de 13,5px estaba en la celda <td>, ya oculta), asi
+   que los items se habian quedado en 11,5px heredados de la cabecera y
+   en mayusculas: "Reportes de usuarios" se partia en dos lineas.
+   ===================================================================== */
+
+/* Cada app del menu: sin caja blanca (venia de la regla generica
+   .module, pensada para las tarjetas del indice). El amarillo fluye de
+   principio a fin y la separacion la marcan las cabeceras. */
+#nav-sidebar .module {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin-bottom: 6px !important;
+}
+
+/* Cabecera de app: pardo, mayusculas y aire por arriba para que abra
+   seccion. SIN filete: al borrar los divisores, el espacio es el que
+   separa una seccion de la anterior. */
+#nav-sidebar .module caption {
+    padding: 20px 12px 6px 16px;
+    border-bottom: none !important;
+    margin-top: 2px;
+}
+
+/* La primera cabecera no necesita tanto aire por arriba: la separa el
+   buscador, no otra seccion. */
+#nav-sidebar .module:first-of-type caption { padding-top: 8px; }
+
+#nav-sidebar .module caption a.section,
+#nav-sidebar .module caption a.section:link,
+#nav-sidebar .module caption a.section:visited {
+    /* Titulo de seccion: MAS peso que los items —igual de ancho (13px)
+       pero en 900 y un marron mas oscuro— para que se distinga como
+       encabezado sin necesidad de filetes. Sigue en mayusulas (lo hereda
+       del caption). */
+    color: #3a2c08 !important;
+    font-size: 13px !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.1em;
+}
+
+#nav-sidebar .current-app caption a.section:link,
+#nav-sidebar .current-app caption a.section:visited {
+    color: var(--ink) !important;
+}
+
+/* Item del menu: 13px y caja normal. Sin mayusculas los nombres caben
+   en una linea y se leen mejor; el peso 600 se mantiene por ser texto de
+   navegacion sobre amarillo. */
+#nav-sidebar .module th a {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.01em;
+    text-transform: none !important;
+    color: var(--brown) !important;
+    padding: 10px 12px 10px 16px;
+}
+
+/* Hover: sin relleno (los rellenos son solo del item activo). El texto
+   pasa a tinta y entra un filete pardo a la izquierda que senala la fila. */
+#nav-sidebar .module th a:hover {
+    background: transparent !important;
+    color: var(--ink) !important;
+    box-shadow: inset 3px 0 0 var(--brown);
+}
+
+#nav-sidebar .module th a:focus-visible {
+    outline: none !important;
+    box-shadow: inset 0 0 0 2px rgba(81, 62, 12, 0.55);
+}
+
+/* Item activo: el unico chip rellenado del menu (pardo con amarillo
+   claro), con las esquinas redondeadas para que lea como pastilla. */
+#nav-sidebar tr.current-model {
+    border-radius: 8px;
+}
+
+/* Buscador del menu: 21px de alto era inapuntable; sube a ~34px y
+   hereda 13px como el resto del texto. */
+#nav-sidebar #nav-filter {
+    height: auto;
+    padding: 8px 10px;
+    font-size: 13px !important;
 }

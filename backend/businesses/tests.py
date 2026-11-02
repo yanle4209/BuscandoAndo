@@ -13,6 +13,7 @@ la web llamaba a ``featured-by-search`` y siempre recibia ``[]``.
 import datetime
 import io
 import json
+import re
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -2714,9 +2715,10 @@ class PortarDeDatosTests(TestCase):
 class FiltroMunicipioEnAdminTests(TestCase):
     """La pantalla de Negocios del admin.
 
-    Tiene que dejar filtrar por municipio, y los municipios salen debajo
-    de su provincia: una lista plana de 158 nombres en orden alfabetico
-    pone a Baní al lado de Bani y a Moca, lejos de Espaillat.
+    Tiene que dejar filtrar por municipio en DOS pasos —provincia
+    primero, municipio despues—: los 158 nombres en una sola lista no se
+    recorren. Eso exige que cada municipio conserve su provincia, que es
+    el dato con el que el segundo desplegable se recorta.
     """
 
     URL = '/admin/businesses/business/'
@@ -2753,6 +2755,19 @@ class FiltroMunicipioEnAdminTests(TestCase):
         texto = respuesta.content.decode()
         return texto[texto.index('id="changelist-filter"'):]
 
+    def opcion(self, lateral, etiqueta):
+        """El <option> entero de una etiqueta, para mirar sus atributos.
+
+        El marcado va partido en varias lineas (valor, data-provincia y
+        selected cada uno en la suya), asi que hacerle assert al texto
+        visible no basta para comprobar bajo que provincia va.
+        """
+        patron = '<option\\b[^>]*>%s</option>' % re.escape(etiqueta)
+        encontrada = re.search(patron, lateral)
+        self.assertIsNotNone(
+            encontrada, 'No aparece la opcion %r en el filtro' % etiqueta)
+        return encontrada.group(0)
+
     # ------------------------------ tests -----------------------------
 
     def test_un_municipio_y_no_los_demas(self):
@@ -2767,19 +2782,27 @@ class FiltroMunicipioEnAdminTests(TestCase):
         self.assertNotContains(respuesta, 'Panadería La Peravia')
 
     def test_los_municipios_salen_debajo_de_su_provincia(self):
+        """Cada municipio conserva su provincia, que es lo que lo agrupa.
+
+        Es el dato del que depende el segundo paso: si Moca perdiera su
+        provincia, al elegir Espaillat no saldria. Ademas las provincias
+        tienen que estar como desplegable propio, que es el primer paso.
+        """
         self.dos_municipios()
         self.client.force_login(self.visita)
 
         lateral = self.lateral(self.client.get(self.URL))
 
-        self.assertIn('Espaillat', lateral)
-        self.assertIn('Peravia', lateral)
-        # Rotulo de la tanda primero, municipio despues; las dos tandas,
-        # en orden de provincia, sin mezclarse.
-        self.assertLess(lateral.index('Espaillat'), lateral.index('Moca'))
-        self.assertLess(lateral.index('Moca'),
-                        lateral.index('Peravia'))
-        self.assertLess(lateral.index('Peravia'), lateral.index('Baní'))
+        # Primer paso: las provincias, en su propio desplegable.
+        self.assertIn('<option value="Espaillat">Espaillat</option>', lateral)
+        self.assertIn('<option value="Peravia">Peravia</option>', lateral)
+
+        # Segundo: cada municipio va con su provincia pegada, y las dos
+        # tandas no se mezclan entre si.
+        moca = self.opcion(lateral, 'Moca')
+        bani = self.opcion(lateral, 'Baní')
+        self.assertIn('data-provincia="Espaillat"', moca)
+        self.assertIn('data-provincia="Peravia"', bani)
 
     def test_se_pueden_desmarcar_los_dos(self):
         self.dos_municipios()
@@ -2790,8 +2813,11 @@ class FiltroMunicipioEnAdminTests(TestCase):
 
         # Con uno elegido, el municipio sale marcado y sigue estando el
         # "Todos" para volver a la lista completa.
-        self.assertIn('Todos', lateral)
-        self.assertIn('class="filtro-municipio selected"', lateral)
+        self.assertIn('selected', self.opcion(lateral, 'Moca'))
+        todos = self.opcion(lateral, 'Todos los municipios')
+        self.assertIn('data-todos', todos)
+        # Su value es la URL ya SIN el filtro: es como se quita.
+        self.assertIn('value="?"', todos)
 
 
 @override_settings(STORAGES=STATIC_SIN_MANIFEST)
