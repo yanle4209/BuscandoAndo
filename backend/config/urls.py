@@ -7,6 +7,9 @@ import config.admin  # noqa
 
 # Health check de Render (ver config/health.py)
 from config.health import health
+# Servido de /media/ SOLO si el storage de media es el de disco
+# (ver STORAGES en config/settings.py); con Cloudinary no hace falta.
+from django.views.static import serve
 
 # Vistas de importacion/exportacion (ANTES de admin.site.urls)
 from import_views import get_import_view, get_export_view
@@ -36,7 +39,15 @@ urlpatterns = [
     path('robots.txt', robots_txt, name='robots_txt'),
 ]
 
-# Media files served by Cloudinary (no local serving needed)
+# Media: con Cloudinary (produccion) las fotos son de
+# res.cloudinary.com y /media/ no existe; cuando no hay credenciales el
+# storage cae a disco (STORAGES en settings.py) y ahi hay que servirlo,
+# si no la ficha del admin saldria con la foto rota en vez de cargarla.
+if settings.STORAGES['default']['BACKEND'].endswith('FileSystemStorage'):
+    urlpatterns += [
+        re_path(r'^media/(?P<path>.*)$', serve,
+                {'document_root': settings.MEDIA_ROOT}),
+    ]
 
 # Serve React frontend in production
 if not settings.DEBUG:

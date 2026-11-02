@@ -170,6 +170,8 @@ CLOUDINARY_STORAGE = {
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', ''),
 }
 MEDIA_URL = '/media/'
+# Carpeta de respaldo del storage en disco (ver STORAGES mas abajo).
+MEDIA_ROOT = Path(env('MEDIA_ROOT', str(BASE_DIR / 'media')))
 # El storage de media vive en STORAGES['default'] mas abajo (Django >=4.2);
 # la vieja DEFAULT_FILE_STORAGE quedaria muerta e ignorada.
 
@@ -179,9 +181,19 @@ if REACT_BUILD_DIR.exists():
     STATICFILES_DIRS.append(REACT_BUILD_DIR)
 
 # WhiteNoise
+# El storage de media es Cloudinary SOLO si hay credenciales. Sin ellas
+# .url() de cualquier imagen levanta "Must supply cloud_name in tag or
+# in configuration" y se cae la ficha ENTERA del admin, que pinta el
+# BusinessImageInline: el panel tenia que ser usable en una maquina sin
+# secretos (los tests ya lo parcheaban a mano con STORAGES_DE_PRUEBA).
+# Con credenciales —produccion— no cambia nada; sin ellas, disco local.
 STORAGES = {
     'default': {
-        'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage',
+        'BACKEND': (
+            'cloudinary_storage.storage.MediaCloudinaryStorage'
+            if CLOUDINARY_STORAGE['CLOUD_NAME']
+            else 'django.core.files.storage.FileSystemStorage'
+        ),
     },
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',

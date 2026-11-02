@@ -88,11 +88,12 @@ def _metas_ficha(slug):
 
     descripcion = _recortar(ficha.short_description or ficha.description)
 
-    # Primera foto de la ficha para la preview de WhatsApp; si no tiene
-    # (o el storage no esta configurado, que pasa en local), la tarjeta
-    # generica del sitio. OJO: `foto.image` es un ImageFieldFile — hay
-    # que pedir `.url`, que es el que Cloudinary expande a la URL
+    # Primera foto de la ficha para la preview de WhatsApp; si no tiene,
+    # la tarjeta generica del sitio. OJO: `foto.image` es un ImageFieldFile
+    # — hay que pedir `.url`, que es el que Cloudinary expande a la URL
     # absoluta. Un fallo aqui jamas debe tumbar la pagina: es una meta.
+    # El .url ya no revienta por falta de credenciales: sin ellas
+    # STORAGES['default'] cae a disco (settings.py) y devuelve /media/.
     imagen = None
     for foto in ficha.images.all():
         try:

@@ -5,3 +5,68 @@
 {{ block.super }}
 <script src="{% static 'admin/js/business_admin.js' %}"></script>
 {% endblock %}
+
+{# El <h2> con el nombre venia de `content_subtitle` de admin/base.html #}
+{# y se repetia justo encima de la cabecera .ba-ficha, que ya lo pinta #}
+{# con foto, pastillas y metadatos. Se vacia aqui, que es el hueco que #}
+{# Django deja para eso. No lo toca ningun test (grep 'subtitle'). #}
+{% block content_subtitle %}{% endblock %}
+
+{# Cabecera de la ficha: lo que hace falta ver sin bajar a los campos. #}
+{# Solo en el cambio, no en el alta: ahi original es None y el bloque #}
+{# no se pinta. La foto es la primera de `images` (FK, manager); la #}
+{# ubicacion es OneToOne, o sea que es el objeto directo o no hay. #}
+{# El enlace al sitio es /business/:slug (frontend/App.jsx) y abre en #}
+{# pestaña aparte porque es salir del panel para mirar como se ve. #}
+{% block content %}
+{% if original %}
+<div class="ba-ficha">
+  <div class="ba-ficha-foto">
+    {% with foto=original.images.first %}
+      {% if foto %}
+        <img src="{{ foto.image.url }}" alt="{{ original.name }}">
+      {% else %}
+        <span class="ba-ficha-sinfoto">Sin foto</span>
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <div class="ba-ficha-datos">
+    <h2 class="ba-ficha-nombre">{{ original.name }}</h2>
+
+    <ul class="ba-ficha-badges">
+      <li><span class="ba-badge ba-badge--{{ original.publication_status.slug }}">{{ original.publication_status }}</span></li>
+      {% if original.operational_status %}
+        <li><span class="ba-badge ba-badge--{{ original.operational_status.slug }}">{{ original.operational_status }}</span></li>
+      {% endif %}
+      {% if original.category %}
+        <li><span class="ba-badge">{{ original.category }}</span></li>
+      {% endif %}
+      {% with loc=original.location %}
+        {% if loc and loc.municipality %}
+          <li><span class="ba-badge">{{ loc.municipality }}</span></li>
+        {% endif %}
+      {% endwith %}
+      {% if original.is_featured %}
+        <li><span class="ba-badge ba-badge--destacado">Destacado nivel {{ original.featured_tier }}</span></li>
+      {% endif %}
+    </ul>
+
+    <p class="ba-ficha-meta">
+      <span>Procedencia: <strong>{{ original.get_procedencia_display }}</strong></span>
+      <span>Creado: <strong>{{ original.created_at|date:"d/m/Y H:i" }}</strong></span>
+      <span>Actualizado: <strong>{{ original.updated_at|date:"d/m/Y H:i" }}</strong></span>
+      <span>Slug: <code>{{ original.slug }}</code></span>
+    </p>
+  </div>
+
+  {% if original.is_published %}
+  <div class="ba-ficha-acciones">
+    <a class="ba-boton ba-boton--primario" href="/business/{{ original.slug }}"
+       target="_blank" rel="noopener">Ver en el sitio</a>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}

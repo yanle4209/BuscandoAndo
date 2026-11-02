@@ -382,6 +382,14 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
                 'get_featured_stats',
             ),
         }),
+        # `procedencia` es el UNICO campo que pide R5 y no aparecia en
+        # ningun fieldset: el modelo lo guarda, la API publica lo sirve
+        # (campo `procedencia`) y en el panel no se veia ni se podia
+        # marcar como "Verificado por humano". Con las fechas de solo
+        # lectura al lado, que tampoco estaban en ninguna parte.
+        ('Origen y fechas', {
+            'fields': ('procedencia', 'created_at', 'updated_at'),
+        }),
     )
 
     class Media:

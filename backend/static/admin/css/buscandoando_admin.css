@@ -2199,3 +2199,159 @@ a.ba-levantamiento__enlace:focus {
     padding: 8px 10px;
     font-size: 13px !important;
 }
+
+/* ===== FICHA DE NEGOCIO — CABECERA =====
+   Foto, nombre, estados y origen al principio del formulario, para no
+   tener que bajar por los campos (y por los cuatro inlines) para saber
+   qué se está editando. Se pinta solo en el cambio, nunca en el alta. */
+.ba-ficha {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    background: var(--white-pure);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--yellow);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin: 0 0 20px;
+    box-shadow: 0 1px 2px rgba(31, 26, 26, 0.04);
+}
+
+.ba-ficha-foto {
+    flex: 0 0 96px;
+    width: 96px;
+    height: 96px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #f7f6ee;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ba-ficha-foto img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.ba-ficha-sinfoto {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--grey);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.ba-ficha-datos {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.ba-ficha-nombre {
+    margin: 0 0 9px;
+    font-size: 22px;
+    line-height: 1.2;
+    font-weight: 800;
+    color: var(--brown);
+    word-break: break-word;
+}
+
+.ba-ficha-badges {
+    list-style: none;
+    margin: 0 0 10px;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ba-ficha-badges .ba-badge {
+    font-size: 12px;
+    padding: 4px 10px;
+}
+
+.ba-ficha-meta {
+    margin: 0;
+    font-size: 12px;
+    color: var(--body-quiet-color);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 18px;
+}
+
+.ba-ficha-meta strong {
+    color: var(--ink);
+}
+
+.ba-ficha-meta code {
+    background: #f7f6ee;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1px 6px;
+    font-size: 11px;
+    color: var(--ink-soft);
+}
+
+.ba-ficha-acciones {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    padding-top: 2px;
+}
+
+/* Pastilla por slug de estado. Los cuatro operativos tienen su color
+   en la BD; aqui se traduce a algo legible sobre blanco. Un slug nuevo
+   cae en el neutro base (.ba-badge), que tambien se lee. */
+.ba-badge--publicado,
+.ba-badge--abierto {
+    color: #1a512d;
+    border-color: #c2dc9f;
+    background: #f2f8e9;
+}
+
+.ba-badge--en-revision,
+.ba-badge--por-cerrar {
+    color: var(--yellow-ink);
+    border-color: #f0ddab;
+    background: #fdf6e3;
+}
+
+.ba-badge--cancelado,
+.ba-badge--cerrado {
+    color: #8a2b2b;
+    border-color: #e8bcbc;
+    background: #fdefef;
+}
+
+.ba-badge--cerrado-permanente {
+    color: var(--grey);
+    border-color: var(--border-strong);
+    background: #f4f3ea;
+}
+
+.ba-badge--destacado {
+    color: var(--yellow-ink);
+    border-color: var(--yellow);
+    background: #fef7e2;
+}
+
+/* En móvil la cabecera se apila: foto arriba, botón debajo y a todo
+   el ancho, que si no la fila no cabe y el texto queda a dos caracteres. */
+@media (max-width: 767px) {
+    .ba-ficha {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .ba-ficha-acciones {
+        width: 100%;
+    }
+
+    .ba-ficha-acciones .ba-boton {
+        width: 100%;
+        text-align: center;
+    }
+}

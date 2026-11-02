@@ -320,7 +320,14 @@ class SeoTests(TestCase):
         self.assertIn('canonical" href="%s/business/%s"'
                       % (sitio, self.en_fase.slug), html)
         self.assertIn('la descripcion corta.', html)
-        self.assertIn('og.png', html)
+        # La preview usa la foto de la ficha: el fixture le crea una
+        # (la_receta.webp). Hasta aqui salia og.png por accidente, no
+        # por diseno: en los tests no hay credenciales de Cloudinary,
+        # el .url de la foto revienta y la vista cae al fallback. Desde
+        # que el storage de media cae a disco cuando no hay credenciales
+        # (STORAGES en settings.py), el .url funciona y sale la foto.
+        # El fallback sigue cubierto: el indice no tiene foto.
+        self.assertIn('la_receta.webp', html)
         self.assertIn('index,follow', html)
 
     def test_la_ficha_fuera_de_fase_abre_pero_no_se_indexa(self):
