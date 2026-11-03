@@ -14,7 +14,9 @@ import re
 import urllib.parse
 
 from django.conf import settings
-from django.http import FileResponse, Http404, HttpResponse
+from django.http import (
+    FileResponse, Http404, HttpResponse, HttpResponsePermanentRedirect,
+)
 
 # ---------------------------------------------------------------------------
 # Rutas del SPA (frontend/src/App.jsx): SOLO estas devuelven index.html.
@@ -115,6 +117,36 @@ def _metas_ficha(slug):
         # anuncia (la misma regla que la fase).
         'noindex': not geografia.en_fase(provincia),
     }
+
+
+def _destino_slug_anterior(rel):
+    """``/business/<slug-viejo>/`` -> ``/business/<slug-nuevo>/`` (301).
+
+    Si un negocio cambia de slug, el anterior queda en ``SlugAntiguo``
+    y aqui se traduce: el enlace viejo redirige en vez de dar 404, que
+    es lo que pierde visitas y posicionamiento. Solo si la ficha sigue
+    PUBLICADA: una borrada o sin publicar sigue devolviendo 404, la
+    misma regla que la vista y la API — no se filtra nada de lo que no
+    se ensena.
+    """
+    match = RUTA_NEGOCIO.match(rel)
+    if not match:
+        return None
+
+    from businesses.models import SlugAntiguo
+
+    actual = (
+        SlugAntiguo.objects
+        .filter(slug=match.group('slug'),
+                business__publication_status__slug='publicado')
+        .values_list('business__slug', flat=True)
+        .first()
+    )
+    if not actual or actual == match.group('slug'):
+        return None
+    # quote: los slugs de la base pueden llevar acentos, y el Location
+    # va percent-encoded (el sitemap hace lo mismo).
+    return '/business/' + urllib.parse.quote(actual)
 
 
 def _metas_para_ruta(rel):
@@ -250,6 +282,12 @@ def serve_react(request, path=''):
     rel = path.lstrip('/')
     metas = _metas_para_ruta(rel)
     if metas is None:
+        # Slug antiguo (SlugAntiguo): si la ficha cambio de slug, la URL
+        # vieja no muere — redirige 301 a la actual. Si no hay registro,
+        # o la ficha no esta publicada, sigue el 404 de siempre.
+        destino = _destino_slug_anterior(rel)
+        if destino:
+            return HttpResponsePermanentRedirect(destino)
         raise Http404('Ruta desconocida: %s' % rel)
 
     index_path = build_dir / 'index.html'

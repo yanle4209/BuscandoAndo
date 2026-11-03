@@ -57,6 +57,13 @@
       <span>Creado: <strong>{{ original.created_at|date:"d/m/Y H:i" }}</strong></span>
       <span>Actualizado: <strong>{{ original.updated_at|date:"d/m/Y H:i" }}</strong></span>
       <span>Slug: <code>{{ original.slug }}</code></span>
+      {% with viejos=original.slugs_antiguos.all %}
+        {% if viejos %}
+          <span>Tambien responde a:
+            {% for v in viejos|slice:":5" %}<code>{{ v.slug }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}
+          </span>
+        {% endif %}
+      {% endwith %}
     </p>
   </div>
 

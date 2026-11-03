@@ -3,6 +3,8 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from django.db.models import Case, IntegerField, Q, Value, When
+from django.http import Http404
+from django.shortcuts import redirect
 from django.utils import timezone
 
 # El mapa (radio de R1, cabeceras, distancia) vive en su modulo: si
@@ -19,7 +21,7 @@ from .geografia import (
     haversine_distance,
     normalizar,
 )
-from .models import Business, Correction
+from .models import Business, Correction, SlugAntiguo
 from .serializers import BusinessListSerializer, BusinessDetailSerializer, CorrectionCreateSerializer, CorrectionSerializer
 
 # Las metricas de uso se cuentan dentro de la vista que ya atiende la
@@ -314,8 +316,32 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
         return respuesta
 
     def retrieve(self, request, *args, **kwargs):
-        """Abrir una ficha tambien se cuenta: es la pagina que importa."""
-        respuesta = super().retrieve(request, *args, **kwargs)
+        """Abrir una ficha tambien se cuenta: es la pagina que importa.
+
+        Si piden un slug que el negocio tuvo ANTES de cambiarlo, la API
+        redirige 301 al slug actual (SlugAntiguo) en vez de dar 404:
+        misma regla que la vista publica. Lo no publicado sigue siendo
+        404 — se comprueba aqui igual que en el queryset, para no
+        filtrar nada de lo que no se ensena. En la redireccion no se
+        cuenta la visita: la peticion de despues (con el slug bueno) la
+        cuenta, y sin eso se contaria dos veces.
+        """
+        try:
+            respuesta = super().retrieve(request, *args, **kwargs)
+        except Http404:
+            origen = self.kwargs.get(self.lookup_field) or ''
+            destino = None
+            if origen:
+                destino = (
+                    SlugAntiguo.objects
+                    .filter(slug=origen,
+                            business__publication_status__slug='publicado')
+                    .values_list('business__slug', flat=True)
+                    .first()
+                )
+            if not destino or destino == origen:
+                raise
+            return redirect('business-detail', slug=destino, permanent=True)
         registrar('ficha', request)
         return respuesta
 

@@ -347,6 +347,40 @@ class SeoTests(TestCase):
             with self.subTest(ruta=ruta):
                 self.assertEqual(self._get(ruta).status_code, 404)
 
+    def test_el_slug_anterior_de_una_ficha_publicada_redirige_301(self):
+        """Cambiar el slug no rompe la URL vieja (SlugAntiguo).
+
+        El enlace compartido y lo que Google ya indexo siguen
+        abriendo: la vista traduce el slug anterior al actual con un
+        301, que es la redireccion que reparte el posicionamiento.
+        """
+        ficha = self.ficha('Cafe Bueno', 'Moca', 'Espaillat',
+                           self.publicado)
+        viejo = ficha.slug
+        ficha.slug = 'café-bueno-centro'
+        ficha.save()
+
+        respuesta = self._get('/business/%s' % viejo)
+
+        self.assertEqual(respuesta.status_code, 301)
+        # percent-encoded: el slug nuevo lleva acento (quote en la
+        # vista, igual que en el sitemap).
+        self.assertEqual(respuesta['Location'],
+                         '/business/caf%C3%A9-bueno-centro')
+        self.assertEqual(
+            self._get('/business/caf%C3%A9-bueno-centro').status_code, 200)
+
+    def test_el_slug_anterior_de_una_ficha_no_publicada_es_404(self):
+        """La regla no cambia redirigiendo: lo no publicado no existe
+        ni revelando su slug anterior."""
+        ficha = self.ficha('Ideas Nuevas', 'Moca', 'Espaillat',
+                           self.revision)
+        viejo = ficha.slug
+        ficha.slug = 'ideas-nuevas-nuevo'
+        ficha.save()
+
+        self.assertEqual(self._get('/business/%s' % viejo).status_code, 404)
+
     def test_levantamiento_se_sirve_pero_no_se_indexa(self):
         """Herramienta de campo sin enlace publico (DISENO.md 11.5)."""
         response = self._get('/levantamiento')

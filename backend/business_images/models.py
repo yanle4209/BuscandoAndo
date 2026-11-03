@@ -18,6 +18,11 @@ class BusinessImage(models.Model):
     image = models.ImageField(
         upload_to='business_images/%Y/%m/',
         verbose_name='Imagen',
+        # El texto va en el campo (y no en un ``formfield`` del
+        # modelo: ``Model`` no lo tiene y no se ejecutaria jamas).
+        help_text=(
+            'Se recorta al tamaño fijo (1200x675) y se convierte a '
+            'WebP automaticamente. Hasta 5 fotos por negocio.'),
     )
     caption = models.CharField(
         max_length=200,
@@ -51,19 +56,6 @@ class BusinessImage(models.Model):
         if campo and not campo._committed and getattr(campo, '_file', None) is not None:
             self.image = process_image(campo.file)
         super().save(*args, **kwargs)
-
-    def formfield(self, **kwargs):
-        """Texto de ayuda en el admin.
-
-        Va por ``formfield`` y no por el campo: así no cambia la
-        definición del modelo y no hace falta migración.
-        """
-        kwargs.setdefault(
-            'help_text',
-            'Se recorta al tamaño fijo (1200x675) y se convierte a WebP '
-            'automáticamente. Hasta 5 fotos por negocio.',
-        )
-        return super().formfield(**kwargs)
 
     def clean(self):
         """Validar maximo 5 imagenes por negocio."""

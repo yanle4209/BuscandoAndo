@@ -37,7 +37,7 @@ from business_contacts.models import BusinessContact
 from business_hours.models import BusinessHours
 from . import geografia, osm, portar, validacion
 from .levantamiento import LIMITE_ENVIOS_POR_MINUTO, _ip
-from .models import Business, Correction, Colaborador, Envio
+from .models import Business, Correction, Colaborador, Envio, SlugAntiguo
 from .serializers import BusinessListSerializer, compute_operational_status
 
 BUSINESSES_URL = '/api/businesses/'
@@ -3405,3 +3405,187 @@ class IPDelEnvioTests(SimpleTestCase):
         peticion = RequestFactory().get('/')
 
         self.assertEqual(_ip(peticion), '127.0.0.1')
+
+
+class SlugEditableConRedireccion(TestCase):
+    """Slug editable en el panel con redireccion 301 del slug anterior.
+
+    Tres piezas que tienen que ir juntas: el modelo guarda el slug
+    anterior (``SlugAntiguo``), el formulario del admin lo acepta — con
+    acentos, que la base los guarda — y la API publica redirige al slug
+    actual en vez de dar 404. Lo no publicado sigue siendo 404 por
+    todas las vias: el historial no filtra nada.
+    """
+
+    CAMBIO = '/admin/businesses/business/%d/change/'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado')
+        cls.revision = PublicationStatus.objects.create(
+            name='En Revision', slug='en-revision')
+        cls.abierto = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto')
+        cls.restaurantes = Category.objects.create(
+            name='Restaurantes', slug='restaurantes')
+        cls.admin = get_user_model().objects.create_superuser(
+            'admin', 'admin@example.com', 'x')
+
+    def ficha(self, nombre, estado=None):
+        return Business.objects.create(
+            name=nombre,
+            description='Descripcion de %s' % nombre,
+            short_description='%s: descripcion corta.' % nombre,
+            category=self.restaurantes,
+            publication_status=estado or self.publicado,
+            operational_status=self.abierto,
+        )
+
+    # --- el modelo: el slug anterior queda registrado --------------------
+
+    def test_al_cambiar_el_slug_el_anterior_queda_registrado(self):
+        ficha = self.ficha('Panaderia Luna')
+        viejo = ficha.slug
+
+        ficha.slug = 'panaderia-luna-centro'
+        ficha.save()
+
+        fila = SlugAntiguo.objects.get(slug=viejo)
+        self.assertEqual(fila.business_id, ficha.pk)
+        # El actual no puede quedar en el historial: el vivo manda.
+        self.assertFalse(
+            SlugAntiguo.objects.filter(slug=ficha.slug).exists())
+
+    def test_si_un_negocio_toma_un_slug_de_anteano_se_borra_su_registro(self):
+        primero = self.ficha('Primera')
+        primero.slug = 'libre'
+        primero.save()                      # historial: 'primera' -> primero
+        segundo = self.ficha('Segunda')
+        segundo.slug = 'primera'            # segundo toma ese slug
+        segundo.save()
+
+        self.assertFalse(SlugAntiguo.objects.filter(slug='primera').exists())
+
+    # --- el formulario del panel ----------------------------------------
+
+    def test_el_panel_pinta_el_slug_como_campo_editable(self):
+        ficha = self.ficha('Panaderia Luna')
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.get(self.CAMBIO % ficha.pk)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, 'name="slug"')
+        # El help_text avisa de la consecuencia de cambiarlo.
+        self.assertContains(respuesta, 'redirige')
+
+    def _datos_del_formulario(self, url):
+        """Valores que el propio panel pinta: el POST de verdad.
+
+        Se arranca de lo que Django renderiza — incluidos los
+        management forms de los inlines, que aqui van a cero filas:
+        esta prueba no anade horas ni fotos — para no inventarse campos
+        y que el 302 dependa del slug, no de un campo que falte.
+        """
+        pagina = self.client.get(url)
+        self.assertEqual(pagina.status_code, 200)
+        form = pagina.context['adminform'].form
+        datos = {}
+        for nombre in form.fields:
+            valor = form[nombre].value()
+            if valor is None:
+                continue
+            if isinstance(valor, bool):
+                if valor:
+                    datos[nombre] = 'on'
+            elif isinstance(valor, (list, tuple)):
+                datos[nombre] = [str(v) for v in valor]
+            else:
+                datos[nombre] = str(valor)
+        for inline in pagina.context['inline_admin_formsets']:
+            prefijo = inline.formset.prefix
+            datos['%s-TOTAL_FORMS' % prefijo] = '0'
+            datos['%s-INITIAL_FORMS' % prefijo] = '0'
+        datos['_save'] = 'Guardar'
+        return datos
+
+    def test_guardar_el_formulario_cambia_el_slug_y_conserva_el_anterior(self):
+        ficha = self.ficha('Panaderia Luna')
+        self.client.force_login(self.admin)
+        url = self.CAMBIO % ficha.pk
+        datos = self._datos_del_formulario(url)
+        datos['slug'] = 'panaderia-luna-centro'
+
+        respuesta = self.client.post(url, datos)
+
+        self.assertEqual(respuesta.status_code, 302)
+        ficha.refresh_from_db()
+        self.assertEqual(ficha.slug, 'panaderia-luna-centro')
+        self.assertTrue(
+            SlugAntiguo.objects.filter(slug='panaderia-luna',
+                                       business=ficha).exists())
+
+    def test_un_slug_con_tildes_no_es_error_de_validacion(self):
+        """Django valida los SlugField en ASCII: este form no puede.
+
+        Hay miles de slugs con tildes en la base; sin allow_unicode el
+        panel no dejaria guardar ninguno de esos negocios.
+        """
+        ficha = self.ficha('Cafeteria El Paraiso')
+        self.client.force_login(self.admin)
+        url = self.CAMBIO % ficha.pk
+        datos = self._datos_del_formulario(url)
+        datos['slug'] = 'cafetería-el-paraíso'
+
+        respuesta = self.client.post(url, datos)
+
+        errores = (respuesta.context['adminform'].form.errors
+                   if getattr(respuesta, 'context', None) else {})
+        self.assertEqual(respuesta.status_code, 302,
+                         'errores del form: %s' % errores)
+        ficha.refresh_from_db()
+        self.assertEqual(ficha.slug, 'cafetería-el-paraíso')
+
+    def test_un_slug_que_ya_es_de_otro_negocio_no_se_guarda(self):
+        self.ficha('Panaderia Luna')        # se queda con 'panaderia-luna'
+        otra = self.ficha('Otra Panaderia')
+        self.client.force_login(self.admin)
+        url = self.CAMBIO % otra.pk
+        datos = self._datos_del_formulario(url)
+        datos['slug'] = 'panaderia-luna'
+
+        respuesta = self.client.post(url, datos)
+
+        self.assertEqual(respuesta.status_code, 200)
+        errores = respuesta.context['adminform'].form.errors
+        self.assertIn('slug', errores)
+        otra.refresh_from_db()
+        self.assertEqual(otra.slug, 'otra-panaderia')
+
+    # --- la API publica -------------------------------------------------
+
+    def test_la_api_por_el_slug_viejo_redirige_al_actual(self):
+        ficha = self.ficha('Panaderia Luna')
+        viejo = ficha.slug
+        ficha.slug = 'panaderia-luna-centro'
+        ficha.save()
+
+        respuesta = self.client.get('/api/businesses/%s/' % viejo)
+
+        self.assertEqual(respuesta.status_code, 301)
+        self.assertEqual(respuesta['Location'],
+                         '/api/businesses/panaderia-luna-centro/')
+        # La peticion de despues (con el slug bueno) sirve la ficha.
+        self.assertEqual(
+            self.client.get(
+                '/api/businesses/panaderia-luna-centro/').status_code, 200)
+
+    def test_la_api_por_el_slug_viejo_de_una_ficha_sin_publicar_es_404(self):
+        ficha = self.ficha('Ideas Nuevas', estado=self.revision)
+        viejo = ficha.slug
+        ficha.slug = 'ideas-nuevas-nuevo'
+        ficha.save()
+
+        self.assertEqual(
+            self.client.get('/api/businesses/%s/' % viejo).status_code, 404)

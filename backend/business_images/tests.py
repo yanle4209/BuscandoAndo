@@ -12,6 +12,7 @@ import io
 import shutil
 import tempfile
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -163,3 +164,37 @@ class ProcesadoDeFotoTests(TestCase):
         with self.assertRaises(ValidationError):
             sobra.full_clean()
         self.assertEqual(self.business.images.count(), MAX_IMAGES_PER_BUSINESS)
+
+
+class AyudaDeFotoEnElPanelTests(TestCase):
+    """El texto de ayuda de la foto se pinta en el panel.
+
+    Regresión: el help_text vivia en un ``BusinessImage.formfield``
+    que Django nunca llamaba — ``Model`` no tiene ``formfield``, el
+    metodo es del campo — asi que el texto no salia en la ficha. Ahora
+    va en el campo y el admin lo pinta en el inline.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado')
+        abierto = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto')
+        categoria = Category.objects.create(
+            name='Restaurantes', slug='restaurantes')
+        cls.negocio = Business.objects.create(
+            name='Luna Fotografia', description='Descripcion de prueba',
+            category=categoria, publication_status=publicado,
+            operational_status=abierto)
+        cls.admin = get_user_model().objects.create_superuser(
+            'admin', 'admin@example.com', 'x')
+
+    def test_la_ayuda_de_la_foto_aparece_en_la_ficha(self):
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.get(
+            '/admin/businesses/business/%d/change/' % self.negocio.pk)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, '1200x675')

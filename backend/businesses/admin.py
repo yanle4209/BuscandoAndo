@@ -371,8 +371,13 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
     ]
 
     fieldsets = (
+        # `slug` va justo detras del nombre: es la URL de la ficha
+        # (/business/<slug>). Editable desde aqui y validado como
+        # unique por el propio formulario (allow_unicode y el
+        # aviso de la URL estan en el campo, ver models.py).
         ('Informacion Basica', {
-            'fields': ('name', 'category', 'description', 'short_description')
+            'fields': ('name', 'slug', 'category', 'description',
+                       'short_description')
         }),
         ('Estados', {
             'fields': ('publication_status', 'operational_status')

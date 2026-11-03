@@ -27,7 +27,23 @@ FEATURED_WEEKS_CHOICES = [
 class Business(models.Model):
     """Nucleo del negocio/servicio."""
     name = models.CharField(max_length=200, verbose_name='Nombre')
-    slug = models.SlugField(max_length=220, unique=True, blank=True)
+    # `allow_unicode` y el help_text van en el CAMPO: el form del
+    # panel valida tambien con los validadores del modelo (el
+    # ``_post_clean`` del form limpia la instancia), y un
+    # ``Business.formfield`` no se ejecuta jamas — ``Model`` no tiene
+    # ese metodo; Django llama al ``formfield`` del campo. Sin
+    # allow_unicode el panel no dejaria guardar los miles de slugs con
+    # tildes que ya hay en la base.
+    slug = models.SlugField(
+        max_length=220,
+        unique=True,
+        blank=True,
+        allow_unicode=True,
+        help_text=(
+            'URL de la ficha: /business/ mas este valor. Si lo cambias, '
+            'la URL anterior sigue abriendo: redirige a esta (301). En '
+            'vacio se genera a partir del nombre.'),
+    )
     description = models.TextField(verbose_name='Descripcion')
     short_description = models.CharField(
         max_length=300, blank=True, default='', verbose_name='Descripcion corta'
@@ -189,7 +205,26 @@ class Business(models.Model):
             self.featured_end_date = None
             self.featured_permanent = False
             self.featured_weeks = None
+
+        # El slug que estaba guardado ANTES de este save: si el negocio
+        # cambia de slug, el anterior queda en `SlugAntiguo` para que la
+        # URL vieja redirija (301) en vez de romperse. Solo hay que
+        # leerlo cuando ya existe la fila.
+        anterior = None
+        if self.pk:
+            anterior = (Business.objects.filter(pk=self.pk)
+                        .values_list('slug', flat=True).first())
+
         super().save(*args, **kwargs)
+
+        if anterior and anterior != self.slug:
+            SlugAntiguo.objects.update_or_create(
+                slug=anterior, defaults={'business': self})
+        # Un slug vivo manda sobre el historial: si este negocio acaba de
+        # tomar un slug que constaba como antiguo de otro, esa fila deja
+        # de valer. Asi la vista y la API encuentran primero la ficha
+        # real y una peticion jamas redirige a si misma.
+        SlugAntiguo.objects.filter(slug=self.slug).delete()
 
     @property
     def is_featured_active(self):
@@ -228,6 +263,42 @@ class Business(models.Model):
         if self.pk:
             qs = qs.exclude(pk=self.pk)
         return max(0, FEATURED_LIMITS.get(self.featured_tier, 0) - qs.count())
+
+
+class SlugAntiguo(models.Model):
+    """Slug que un negocio tuvo antes: mantiene viva la URL antigua.
+
+    Cuando se cambia el slug en el panel, el anterior queda aqui. La
+    vista publica (``/business/<slug>/``) y la API (``retrieve``)
+    buscan tambien en esta tabla y redirigen 301 al slug actual: el
+    enlace compartido y lo que Google ya indexo siguen abriendo.
+
+    Un slug vivo manda sobre esta tabla: ``Business.save`` borra la fila
+    que coincida con su slug actual, de modo que la vista siempre
+    encuentra primero la ficha real y jamas se entra en bucle.
+    """
+
+    slug = models.SlugField(
+        max_length=220,
+        unique=True,
+        allow_unicode=True,
+        verbose_name='Slug antiguo',
+    )
+    business = models.ForeignKey(
+        Business,
+        on_delete=models.CASCADE,
+        related_name='slugs_antiguos',
+        verbose_name='Negocio',
+    )
+    creado_el = models.DateTimeField(auto_now_add=True, verbose_name='Creado')
+
+    class Meta:
+        verbose_name = 'Slug antiguo'
+        verbose_name_plural = 'Slugs antiguos'
+        ordering = ['-creado_el']
+
+    def __str__(self):
+        return '%s -> %s' % (self.slug, self.business.slug)
 
 
 class Correction(models.Model):

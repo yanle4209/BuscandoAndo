@@ -175,10 +175,28 @@ template:
   verificado en el navegador: solo queda el nombre dentro de `.ba-ficha`.
   **Ojo**: el autoreloader de `runserver` solo vigila ficheros Python,
   así que un cambio de plantilla exige reiniciar el servidor.
-- **`slug`**: hoy se ve en la cabecera como texto, pero no es editable
-  desde el panel (cambiarlo rompería los enlaces públicos y el
-  sitemap). Si se quiere editar, hay que añadirlo a `fieldsets` y
-  pensarlo bien.
+- ~~**`slug` editable**~~ — **resuelto y probado** (3/nov, **273 tests
+  en verde**). El campo va en `fieldsets` («Informacion Basica», justo
+  tras `name`), y cambiarlo no rompe nada: el modelo `SlugAntiguo`
+  guarda el slug anterior en cada `save()` (y borra la fila si el slug
+  vuelve a ser el vigente), y tanto la vista pública (`serve_react`)
+  como la API (`BusinessViewSet.retrieve`) responden **301** al slug
+  actual. Lo no publicado sigue siendo 404 (no se filtra nada); la
+  redirección no pasa por `registrar()`, para no contar dos veces la
+  visita. Verificado en vivo: `/business/verificacion-slug-temp/` →
+  301 `Location: /business/belleza-total-salon` (y lo mismo en
+  `/api/businesses/`), y tras borrar la fila de prueba la URL vuelve a
+  404. La cabecera muestra «Tambien responde a: <slug viejo>» (máx.
+  5), comprobada en el navegador junto al campo y su ayuda.
+  **Trampa que costó descubrir**: `Model` no tiene `formfield` (lo
+  tiene el campo), así que un `Business.formfield`/`BusinessImage.formfield`
+  era código muerto — de ahí que el texto de ayuda de la foto no
+  saliera nunca. Y el form del admin valida además con los
+  validadores del modelo (`_post_clean` → `full_clean()`): tanto
+  `allow_unicode` como el `help_text` tienen que ir en el **campo**
+  del modelo, no en `formfield_overrides` del admin (se probó así y se
+  revirtió). Migraciones: `businesses/0010-0011`,
+  `business_images/0004`.
 - **Fotos en producción**: ninguna de las 144 fichas revisadas tiene
   imagen. Si Cloudinary **no** está configurado en Render, la primera
   foto subida guardará en disco y `/media/` no la servirá (en
@@ -198,3 +216,11 @@ template:
   aparecían en la consola de `runserver` (Django los manda a
   `mail_admins`, sin configurar); hizo falta un segundo servidor con
   `DEBUG=1` para leer el traceback.
+- **Herramienta de levantamiento** (pedido recurrente, 3/nov): (a) al
+  elegir la categoría, si no aparece la correcta, poder **crear una,
+  previa validación**; (b) **campo de imágenes** con las mismas reglas
+  que el formulario de creación del negocio (WebP 1200x675, mismas
+  validaciones) y **5 imágenes por ficha**; (c) **el campo de imagen
+  es obligatorio**. Por diseñar antes de tocar código: qué significa
+  exactamente «previa validación» — alta inmediata con validación de
+  entrada, o categoría pendiente de aprobación por un admin.
