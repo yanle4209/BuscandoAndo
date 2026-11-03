@@ -184,5 +184,17 @@ template:
   foto subida guardará en disco y `/media/` no la servirá (en
   producción `serve_react` excluye `media/`). Merece una comprobación
   desde el panel de Render: que `CLOUDINARY_CLOUD_NAME` esté con valor.
-- **Subir fotos desde el panel**: no se ha probado el flujo completo de
-  subida (solo se ha comprobado el pintado y el servido).
+- ~~**Subir fotos desde el panel**~~ — **resuelto y probado** (2/nov).
+  El flujo completo (fila nueva en el inline → subir → guardar →
+  `/media/` la sirve) **daba 500**: `save_related` de
+  `businesses/admin.py` usaba `date.fromordinal(...)` para marcar los
+  festivos sin tener `date` importado (`NameError`). Solo saltaba al
+  guardar un negocio con horarios de día válido, así que ningún test
+  lo alcanzaba (262 en verde antes y después) y en producción nunca
+  se vio porque no hay admin allí. Corregido con
+  `from datetime import date`. Verificado en el navegador: fila
+  insertada, imagen convertida a WebP 1200x675, `/media/` responde y
+  consola sin errores. **Nota de diagnóstico**: los `NameError` no
+  aparecían en la consola de `runserver` (Django los manda a
+  `mail_admins`, sin configurar); hizo falta un segundo servidor con
+  `DEBUG=1` para leer el traceback.
