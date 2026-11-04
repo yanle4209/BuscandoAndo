@@ -3407,6 +3407,40 @@ class IPDelEnvioTests(SimpleTestCase):
         self.assertEqual(_ip(peticion), '127.0.0.1')
 
 
+def _datos_del_formulario_admin(client, url):
+    """POST valido del panel: valores que el propio formulario pinta.
+
+    Se arranca de lo que Django renderiza — incluidos los management
+    forms de los inlines, que van a cero filas — para no inventarse
+    campos: el 302 tiene que depender de lo que se esta probando, no
+    de un campo que falte. Lo comparten la clase del slug y la de los
+    filtros del listado.
+    """
+    pagina = client.get(url)
+    if pagina.status_code != 200:
+        raise AssertionError('el panel no abrio %s (%s)' % (
+            url, pagina.status_code))
+    form = pagina.context['adminform'].form
+    datos = {}
+    for nombre in form.fields:
+        valor = form[nombre].value()
+        if valor is None:
+            continue
+        if isinstance(valor, bool):
+            if valor:
+                datos[nombre] = 'on'
+        elif isinstance(valor, (list, tuple)):
+            datos[nombre] = [str(v) for v in valor]
+        else:
+            datos[nombre] = str(valor)
+    for inline in pagina.context['inline_admin_formsets']:
+        prefijo = inline.formset.prefix
+        datos['%s-TOTAL_FORMS' % prefijo] = '0'
+        datos['%s-INITIAL_FORMS' % prefijo] = '0'
+    datos['_save'] = 'Guardar'
+    return datos
+
+
 class SlugEditableConRedireccion(TestCase):
     """Slug editable en el panel con redireccion 301 del slug anterior.
 
@@ -3481,34 +3515,8 @@ class SlugEditableConRedireccion(TestCase):
         self.assertContains(respuesta, 'redirige')
 
     def _datos_del_formulario(self, url):
-        """Valores que el propio panel pinta: el POST de verdad.
-
-        Se arranca de lo que Django renderiza — incluidos los
-        management forms de los inlines, que aqui van a cero filas:
-        esta prueba no anade horas ni fotos — para no inventarse campos
-        y que el 302 dependa del slug, no de un campo que falte.
-        """
-        pagina = self.client.get(url)
-        self.assertEqual(pagina.status_code, 200)
-        form = pagina.context['adminform'].form
-        datos = {}
-        for nombre in form.fields:
-            valor = form[nombre].value()
-            if valor is None:
-                continue
-            if isinstance(valor, bool):
-                if valor:
-                    datos[nombre] = 'on'
-            elif isinstance(valor, (list, tuple)):
-                datos[nombre] = [str(v) for v in valor]
-            else:
-                datos[nombre] = str(valor)
-        for inline in pagina.context['inline_admin_formsets']:
-            prefijo = inline.formset.prefix
-            datos['%s-TOTAL_FORMS' % prefijo] = '0'
-            datos['%s-INITIAL_FORMS' % prefijo] = '0'
-        datos['_save'] = 'Guardar'
-        return datos
+        """El POST de verdad; la logica vive en el helper de modulo."""
+        return _datos_del_formulario_admin(self.client, url)
 
     def test_guardar_el_formulario_cambia_el_slug_y_conserva_el_anterior(self):
         ficha = self.ficha('Panaderia Luna')
@@ -3589,3 +3597,62 @@ class SlugEditableConRedireccion(TestCase):
 
         self.assertEqual(
             self.client.get('/api/businesses/%s/' % viejo).status_code, 404)
+
+
+class FiltrosDelListadoSeConservan(TestCase):
+    """Volver un nivel atras no pierde los filtros del listado.
+
+    Desde un listado filtrado, Django enlaza cada fila con
+    ``?_changelist_filters=...`` (la query de origen codificada una vez
+    mas) y el tag ``add_preserved_filters`` la reexpande en la query de
+    verdad cuando el destino es ese changelist. Se perdia en dos
+    sitios:
+
+    * la miga «Negocios» del formulario de cambio, que apuntaba al
+      changelist pelado — el fallo que se reporto: guardar y volver
+      atras reestablecia la busqueda y los filtros;
+    * el redirect tras «Guardar», que Django ya hacia bien y aqui
+      queda cubierto para que nadie lo rompa.
+    """
+
+    CAMBIO = '/admin/businesses/business/%d/change/'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado')
+        cls.abierto = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto')
+        cls.restaurantes = Category.objects.create(
+            name='Restaurantes', slug='restaurantes')
+        cls.admin = get_user_model().objects.create_superuser(
+            'admin', 'admin@example.com', 'x')
+        cls.ficha = Business.objects.create(
+            name='Panaderia Luna', description='Descripcion',
+            category=cls.restaurantes, publication_status=cls.publicado,
+            operational_status=cls.abierto)
+
+    def _con_filtros(self, filtros):
+        """La URL del cambio tal como la enlaza el listado filtrado."""
+        return (self.CAMBIO % self.ficha.pk) + '?' + urlencode(
+            {'_changelist_filters': urlencode(filtros)})
+
+    def test_tras_guardar_vuelve_al_listado_con_los_filtros(self):
+        self.client.force_login(self.admin)
+        url = self._con_filtros({'q': 'Pan'})
+        datos = _datos_del_formulario_admin(self.client, url)
+
+        respuesta = self.client.post(url, datos)
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertIn('/admin/businesses/business/?', respuesta['Location'])
+        self.assertIn('q=Pan', respuesta['Location'])
+
+    def test_la_miga_al_listado_conserva_los_filtros(self):
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.get(self._con_filtros({'q': 'Pan'}))
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(
+            respuesta, 'href="/admin/businesses/business/?q=Pan"')

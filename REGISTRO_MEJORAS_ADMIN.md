@@ -197,11 +197,43 @@ template:
   del modelo, no en `formfield_overrides` del admin (se probó así y se
   revirtió). Migraciones: `businesses/0010-0011`,
   `business_images/0004`.
-- **Fotos en producción**: ninguna de las 144 fichas revisadas tiene
-  imagen. Si Cloudinary **no** está configurado en Render, la primera
-  foto subida guardará en disco y `/media/` no la servirá (en
-  producción `serve_react` excluye `media/`). Merece una comprobación
-  desde el panel de Render: que `CLOUDINARY_CLOUD_NAME` esté con valor.
+- **Fotos en producción** — el usuario confirma el 3/nov que **ya
+  funcionan**. Diagnóstico previo del fallo, por si vuelve:
+  - Escaneo de la API pública: **0 de 738 fichas con foto** (ningún
+    `image_url` en el listado — o la subida es muy reciente, o está en
+    una ficha que el listado no devuelve, que solo enseña publicadas).
+    Para cerrarlo hará falta una ficha concreta con foto visible.
+  - `GET /media/business_images/...` en producción → **404**
+    (`serve_react` excluye `media/` fuera de DEBUG).
+  - `/admin/login/` responde 200: el panel sí está desplegado, se
+    puede probar desde el navegador.
+  Causas encadenadas: (a) el 500 de `save_related` (NameError de
+  `date`) impidió guardar fotos con horario válido — corregido en
+  `9b1796e` y ya desplegado, pero **no reprobado en producción**;
+  (b) sin Cloudinary configurado en Render, la foto se guarda en el
+  disco efímero del contenedor; (c) `serve_react` no sirve `/media/`
+  en producción, así que aunque guardara daría 404; (d) cada
+  redeploy borra ese disco. **La solución es configurar
+  `CLOUDINARY_CLOUD_NAME`/`API_KEY`/`API_SECRET` en Render** (los
+  `image.url` apuntarían al CDN y ya no pasarían por `serve_react`);
+  el código de soporte ya está. Si el arreglo fue subir las
+  credenciales a Render, la ficha de prueba confirmará que `image_url`
+  sale de `res.cloudinary.com`.
+- ~~**Los filtros del listado se restablecen al volver**~~ —
+  **resuelto y probado** (3/nov, **275 tests**). Desde un listado
+  filtrado Django enlaza cada fila con `?_changelist_filters=...` y el
+  redirect tras «Guardar» ya lo reexpandía en la query de verdad; la
+  fuga era la **miga «Negocios»** del formulario de cambio, que
+  apuntaba al changelist pelado — al volver un nivel se perdían
+  búsqueda y filtros. Arreglado con el tag oficial
+  `{% add_preserved_filters %}` en el bloque `breadcrumbs` de
+  `change_form.html` (solo reexpande si el destino es ese changelist;
+  sin filtros devuelve la URL tal cual). Verificado en vivo: guardar
+  con `?q=Total` aterriza en `/admin/businesses/business/?q=Total` con
+  el filtro puesto, y la miga lleva `.../business/?q=Total`. Cubierto
+  por la clase `FiltrosDelListadoSeConservan` (2 tests); el helper de
+  POST del panel se extrajo a `_datos_del_formulario_admin` y lo
+  comparten con los tests del slug.
 - ~~**Subir fotos desde el panel**~~ — **resuelto y probado** (2/nov).
   El flujo completo (fila nueva en el inline → subir → guardar →
   `/media/` la sirve) **daba 500**: `save_related` de

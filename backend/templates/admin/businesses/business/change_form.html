@@ -1,5 +1,5 @@
 {% extends "admin/change_form.html" %}
-{% load static %}
+{% load static i18n admin_urls %}
 
 {% block extrahead %}
 {{ block.super }}
@@ -11,6 +11,22 @@
 {# con foto, pastillas y metadatos. Se vacia aqui, que es el hueco que #}
 {# Django deja para eso. No lo toca ningun test (grep 'subtitle'). #}
 {% block content_subtitle %}{% endblock %}
+
+{# La miga «Negocios» enlazaba al changelist PELADO y un clic atras #}
+{# perdia la busqueda y los filtros del listado. El tag oficial #}
+{# `add_preserved_filters` reexpande `_changelist_filters` en la #}
+{# query de verdad —solo cuando el destino ES ese changelist, que es #}
+{# exactamente el caso de esta miga— y si no hay filtros devuelve la #}
+{# URL tal cual. Mismo HTML que el bloque original de Django, con el #}
+{# enlace del changelist envuelto en el tag. #}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; {% if has_view_permission %}<a href="{% url opts|admin_urlname:'changelist' as cl %}{% add_preserved_filters cl %}">{{ opts.verbose_name_plural|capfirst }}</a>{% else %}{{ opts.verbose_name_plural|capfirst }}{% endif %}
+  &rsaquo; {% if add %}{% blocktranslate with name=opts.verbose_name %}Add {{ name }}{% endblocktranslate %}{% else %}{{ original|truncatewords:"18" }}{% endif %}
+</div>
+{% endblock %}
 
 {# Cabecera de la ficha: lo que hace falta ver sin bajar a los campos. #}
 {# Solo en el cambio, no en el alta: ahi original es None y el bloque #}
