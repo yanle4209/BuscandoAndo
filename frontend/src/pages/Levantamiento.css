@@ -484,6 +484,106 @@
   text-align: center;
 }
 
+/* -------------------------------- fotos ----------------------------
+   La tarjeta de las fotos: nota arriba (cuantas ya tiene la ficha y
+   cuanto le cabe), las miniaturas de las que van por mandar con su
+   ✕ para quitarlas, y la etiqueta de subir que se llena al llegar
+   al techo de 5. La obligatoria se avisa en la misma nota y en el
+   pie del formulario, no en rojo: aqui todavia no hay error, es lo
+   que falta por hacer. */
+.lev-fotos-nota {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.lev-fotos-nota strong {
+  color: var(--ink);
+}
+
+.lev-fotos-grid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.lev-fotos-item {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.lev-fotos-item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lev-fotos-item button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lev-fotos-item button:hover {
+  background: #b91c1c;
+}
+
+.lev-fotos-subir {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--yellow-ink);
+  cursor: pointer;
+}
+
+.lev-fotos-subir:hover {
+  border-color: var(--yellow);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+/* El input de archivo se esconde pero sigue dentro de la etiqueta:
+   el clic abre el selector, y deshabilitado ni eso. */
+.lev-fotos-subir input {
+  display: none;
+}
+
+.lev-fotos-subir--lleno {
+  border-style: solid;
+  color: var(--ink-soft);
+  cursor: default;
+}
+
+.lev-fotos-subir--lleno:hover {
+  background: transparent;
+  border-color: var(--border-strong);
+}
+
 /* -------------------------------- enviar --------------------------- */
 .lev-enviar {
   background: var(--yellow);
@@ -806,6 +906,7 @@
       "firma   reporte"
       "donde   reporte"
       "negocio reporte"
+      "fotos   reporte"
       "enviar  reporte";
     align-items: start;
   }
@@ -820,6 +921,10 @@
 
   .lev-form--lado > .lev-negocio {
     grid-area: negocio;
+  }
+
+  .lev-form--lado > .lev-fotos {
+    grid-area: fotos;
   }
 
   .lev-form--lado > .lev-enviar {

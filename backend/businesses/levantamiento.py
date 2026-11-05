@@ -23,23 +23,44 @@ el id el cruce de la regla 2 seria a ciegas y podria enriquecer el
 negocio de al lado; con el id hace falta ademas que la ficha este en el
 municipio del token (§11-i, la misma llave con la que se LEE el reporte).
 
+Dos cosas mas que nacen con el formulario del levantamiento:
+
+* **La foto es obligatoria** hasta que la ficha tenga al menos una.
+  Entra por ``imagenes`` (multipart), se abre con Pillow igual que en
+  el admin, se guarda recortada a 1200x675 en WebP por
+  ``BusinessImage.save()`` y hay techo de 5 por ficha. NO es un campo
+  del reporte: si lo fuera, las 144 fichas sin foto aparecerian todas
+  como pendientes.
+
+* **La categoria se puede crear** desde el formulario, con la bandera
+  ``categoria_nueva``: el servidor la valida al momento (nombre, sin
+  duplicar, slug unico —si ya hay una con ese slug, esa es—) y la da
+  de alta en el envio. Sin la bandera sigue valiendo lo de siempre:
+  solo se busca, porque una errata no debe abrirle una categoria
+  nueva al sistema.
+
 El token solo se acepta en cabecera (``X-Colaborador-Token`` o
 ``Authorization: Bearer``). Por la URL se quedaria en los registros del
 servidor y en el historial del navegador, que es justo donde no queremos
 que se filtre algo que firma envios enteros.
 """
+import json
 from datetime import time as dt_time, timedelta
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_ipv46_address
+from django.db import IntegrityError
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.text import slugify
+from PIL import Image
 from rest_framework import permissions, status
 from rest_framework.decorators import (
     api_view, authentication_classes, permission_classes,
 )
 from rest_framework.response import Response
 
+from business_images.models import MAX_IMAGES_PER_BUSINESS, BusinessImage
 from categories.models import Category
 from publication_status.models import PublicationStatus
 
@@ -125,6 +146,15 @@ def _horario(bruto):
     """
     from business_hours.models import BusinessHours
 
+    if isinstance(bruto, str):
+        # El formulario manda multipart: ahi el JSON del horario viaja
+        # como texto. Lo que no sea JSON valido se ignora, igual que
+        # cualquier otra franja mal formada.
+        try:
+            bruto = json.loads(bruto)
+        except ValueError:
+            return []
+
     if not isinstance(bruto, list):
         return []
 
@@ -145,6 +175,19 @@ def _horario(bruto):
         if dia and desde < hasta:
             franjas.append({'day': dia, 'open': desde, 'close': hasta})
     return franjas
+
+
+def _booleano(valor):
+    """Una casilla del cuerpo, venga como venga: ``true`` del JSON o
+    'true'/'1'/'on'/'yes' del multipart.
+
+    Sin esto ``bool('false')`` daria True y TODO lo que llegara por el
+    formulario saldria cerrado — en multipart todos los valores son
+    texto. Lo demas (ausente, ``None``, cualquier cadena rara) apagado.
+    """
+    if isinstance(valor, str):
+        return valor.strip().lower() in ('true', '1', 'on', 'yes')
+    return bool(valor)
 
 
 def _a_datos(cuerpo):
@@ -205,7 +248,7 @@ def _a_datos(cuerpo):
         'categoria': texto('categoria', 100),
         'descripcion': texto('descripcion', 300),
         'horario': _horario(cuerpo.get('horario')),
-        'cerrado': bool(cuerpo.get('cerrado')),
+        'cerrado': _booleano(cuerpo.get('cerrado')),
         'estado': estado,
     }
     return datos, motivos
@@ -225,6 +268,85 @@ def _para_json(datos):
         for f in datos.get('horario', [])
     ]
     return copia
+
+
+def _abrible(archivo):
+    """Pillow abre y carga el archivo: lo que exige un ImageField.
+
+    Al final se rebobina pase lo que pase: si no, el puntero queda al
+    final y ``BusinessImage.save()``, que vuelve a abrirlo, subiria un
+    fichero vacio.
+    """
+    try:
+        with Image.open(archivo) as imagen:
+            imagen.load()
+    except Exception:
+        abrible = False
+    else:
+        abrible = True
+    try:
+        archivo.seek(0)
+    except Exception:                                    # pragma: no cover
+        pass
+    return abrible
+
+
+def _validar_imagenes(archivos, existentes):
+    """La puerta de las fotos: abribles y hasta 5 en total.
+
+    Mismas reglas que el formulario del admin: Django abre la imagen
+    con Pillow antes de dejarla pasar, y el modelo corta en
+    ``MAX_IMAGES_PER_BUSINESS``. Aqui solo se MIRA —el guardado, el
+    recorte y el WebP, lo hace ``BusinessImage.save()``—; quien manda
+    las fotos no las procesa nunca en el cliente.
+    """
+    motivos = []
+    for archivo in archivos:
+        if not _abrible(archivo):
+            motivos.append('"imagenes" tiene que ser una imagen.')
+            break
+    if not motivos and existentes + len(archivos) > MAX_IMAGES_PER_BUSINESS:
+        motivos.append('Se aceptan hasta 5 imagenes por ficha.')
+    return motivos
+
+
+def _guardar_imagenes(negocio, archivos):
+    """Cada foto entra por ``BusinessImage``: ahi se recorta y va a WebP.
+
+    El orden continua desde las que ya hay, para que el listado —que
+    ordena por ``order``— enseñe las fotos en el en que llegaron.
+    """
+    base = BusinessImage.objects.filter(business=negocio).count()
+    for posicion, archivo in enumerate(archivos, start=base):
+        BusinessImage.objects.create(
+            business=negocio, image=archivo, order=posicion,
+        )
+
+
+def _categoria_nueva(nombre):
+    """Alta inmediata de la categoria que el formulario pide crear.
+
+    Devuelve ``(categoria, error)``. Misma regla que en el importador:
+    si ya hay una con ese nombre —sin distinguir mayusculas— o con ese
+    slug, esa es y no se crea otra; dos con el mismo slug reventarian
+    el unique de la tabla. El ``IntegrityError`` es la carrera entre la
+    consulta y el insert: gana la que acabo de nacer.
+    """
+    slug = slugify(nombre, allow_unicode=True)
+    if not slug:
+        return None, '"categoria" no sirve para crear una categoria.'
+    categoria = (
+        Category.objects.filter(name__iexact=nombre).first()
+        or Category.objects.filter(slug=slug).first()
+    )
+    if categoria is not None:
+        return categoria, None
+    try:
+        return Category.objects.create(name=nombre, slug=slug), None
+    except IntegrityError:
+        # Otro proceso la creo entre la consulta y el insert: la que
+        # acaba de nacer manda.
+        return Category.objects.get(slug=slug), None
 
 
 def _registrar(colaborador, estado, datos, motivos, faltan, negocio, request):
@@ -327,15 +449,46 @@ def levantamiento(request):
             radio_km=None,
         )
 
-    # Solo se BUSCA: aqui teclea una persona y una errata no debe abrirle
-    # una categoria nueva al sistema. Se resuelve una sola vez porque la
-    # usan los DOS caminos (completar y alta). El importador si la crea,
-    # porque el nombre viene de OSM y es de fiar.
+    # Se resuelve una sola vez porque la usan los DOS caminos (completar
+    # y alta). Sin la bandera solo se BUSCA: aqui teclea una persona y
+    # una errata no debe abrirle una categoria nueva al sistema. Con
+    # `categoria_nueva` el formulario dijo que no encontro la suya y
+    # pide crearla — ahi si, validada al momento en `_categoria_nueva`.
+    # El importador la crea siempre, porque el nombre viene de OSM.
     categoria = None
-    if not motivos and datos['categoria']:
+    if not motivos and _booleano(cuerpo.get('categoria_nueva')):
+        if not datos['categoria']:
+            motivos.append(
+                '"categoria" tiene que tener nombre para crear una '
+                'categoria.'
+            )
+        else:
+            categoria, error = _categoria_nueva(datos['categoria'])
+            if error:
+                motivos.append(error)
+    elif not motivos and datos['categoria']:
         categoria = Category.objects.filter(
             name__iexact=datos['categoria'],
         ).first()
+
+    # Las fotos: mismas reglas que el formulario del admin —Pillow
+    # abre el archivo y el modelo corta en 5—. Van DESPUES de resolver
+    # la ficha, porque "¿tiene ya foto?" solo se sabe con la ficha a la
+    # mano, y es lo que decide si una foto es obligatoria.
+    archivos = list(request.FILES.getlist('imagenes'))
+    if archivos:
+        datos['imagenes'] = [archivo.name for archivo in archivos]
+    if not motivos:
+        existentes = ficha.images.count() if ficha is not None else 0
+        motivos += _validar_imagenes(archivos, existentes)
+        if not motivos and not archivos and existentes == 0:
+            if ficha is None:
+                motivos.append('Una ficha nueva necesita al menos una foto.')
+            else:
+                motivos.append(
+                    'Esta ficha no tiene ninguna foto: '
+                    'hay que mandar al menos una.'
+                )
 
     # --------------------- 1. la puerta ------------------------------
     if motivos:
@@ -351,6 +504,7 @@ def levantamiento(request):
     # ------------------ 2. completar la ficha elegida -----------------
     if ficha is not None:
         completado = validacion.enriquecer(ficha, datos, categoria=categoria)
+        _guardar_imagenes(ficha, archivos)
         # Releer: `enriquecer` dejo en la instancia la cache de "no tiene
         # contacto" de antes de crearlo, y con ella `cumple_trio` veria el
         # telefono que acaba de ponerse.
@@ -379,6 +533,7 @@ def levantamiento(request):
             'faltan': faltan,
             'completado': completado,
             'recibo': envio.id,
+            'imagenes': ficha.images.count(),
         })
 
     # --------------------- 3. el cruce -------------------------------
@@ -398,7 +553,22 @@ def levantamiento(request):
     )
 
     if existente is not None:
+        # El techo de 5 tambien aqui: en la puerta no se sabia cuantas
+        # traia la ficha que el cruce acaba de encontrar.
+        if (existente.images.count() + len(archivos)
+                > MAX_IMAGES_PER_BUSINESS):
+            motivo = 'Se aceptan hasta 5 imagenes por ficha.'
+            envio = _registrar(
+                colaborador, 'rechazado', datos, [motivo], [],
+                existente, request,
+            )
+            return Response(
+                {'estado': 'rechazado', 'motivos': [motivo],
+                 'faltan': [], 'recibo': envio.id},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         completado = validacion.enriquecer(existente, datos, categoria=categoria)
+        _guardar_imagenes(existente, archivos)
         # Releer: `enriquecer` dejo en la instancia la cache de "no tiene
         # contacto" de antes de crearlo, y con ella `cumple_trio` veria
         # el telefono que acaba de ponerse. Sin releer, la ficha se quedaria
@@ -419,6 +589,7 @@ def levantamiento(request):
             'faltan': faltan,
             'completado': completado,
             'recibo': envio.id,
+            'imagenes': existente.images.count(),
         })
 
     # ------------------- 4. entrar y publicar ------------------------
@@ -428,6 +599,7 @@ def levantamiento(request):
         en_revision=PublicationStatus.objects.get(slug='en-revision'),
         procedencia='levantado',
     )
+    _guardar_imagenes(negocio, archivos)
     publicadas = pendientes.publicar_si_cumple(
         [negocio], PublicationStatus.objects.get(slug='publicado'),
     )
@@ -439,6 +611,6 @@ def levantamiento(request):
     )
     return Response(
         {'estado': estado, 'motivos': [], 'faltan': faltan,
-         'recibo': envio.id},
+         'recibo': envio.id, 'imagenes': negocio.images.count()},
         status=status.HTTP_201_CREATED,
     )

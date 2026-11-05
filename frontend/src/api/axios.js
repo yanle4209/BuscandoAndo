@@ -7,8 +7,11 @@ const api = axios.create({
   // timeout natural que lo saque de ahi. Con el techo, la peticion cae en
   // el catch de cada caller, que ya sabe distinguir "sin red" de
   // "sin resultados" y ofrecer reintento.
-  // No rompe nada lento: todo el frontend manda JSON (sin subidas
-  // multipart, verificado), y las consultas de listado tardan milisegundos.
+  // No rompe nada lento: el frontend manda JSON y las consultas de
+  // listado tardan milisegundos. La UNICA subida multipart (el
+  // levantamiento) va con su cabecera propia, que es lo que le dice a
+  // axios que no convierta el FormData a JSON —con la de aqui se le
+  // comian las fotos—.
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',

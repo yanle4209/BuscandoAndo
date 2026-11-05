@@ -538,6 +538,9 @@ def _para_formulario(biz):
         'correo': (contact.email or '') if contact else '',
         'web': (contact.website or '') if contact else '',
         'horario': horario,
+        # Cuantas fotos tiene YA: con ese numero el formulario calcula
+        # cuanto le queda de las 5 que caben, sin tener que mandarlas.
+        'imagenes': biz.images.count(),
         'faltan': faltantes_de(biz),
     }
 

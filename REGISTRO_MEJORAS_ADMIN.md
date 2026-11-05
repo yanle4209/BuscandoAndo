@@ -248,11 +248,72 @@ template:
   aparecían en la consola de `runserver` (Django los manda a
   `mail_admins`, sin configurar); hizo falta un segundo servidor con
   `DEBUG=1` para leer el traceback.
-- **Herramienta de levantamiento** (pedido recurrente, 3/nov): (a) al
-  elegir la categoría, si no aparece la correcta, poder **crear una,
-  previa validación**; (b) **campo de imágenes** con las mismas reglas
-  que el formulario de creación del negocio (WebP 1200x675, mismas
-  validaciones) y **5 imágenes por ficha**; (c) **el campo de imagen
-  es obligatorio**. Por diseñar antes de tocar código: qué significa
-  exactamente «previa validación» — alta inmediata con validación de
-  entrada, o categoría pendiente de aprobación por un admin.
+- ~~**Herramienta de levantamiento** (pedido recurrente, 3/nov): (a)
+  categoría creable con validación, (b) imágenes con las mismas reglas
+  que el admin, (c) imagen obligatoria~~ — **resuelto y probado**
+  (4/nov, **290 tests en verde**, desplegado en local con las tres
+  piezas verificadas en el navegador).
+  - **Backend** (`businesses/levantamiento.py`): la bandera
+    `categoria_nueva` dispara `_categoria_nueva()`, que valida el
+    nombre al momento (obligatorio), dedupea por `name__iexact`,
+    genera el slug con `slugify(allow_unicode)` y, si ese slug ya es
+    de otra categoría, reutiliza esta (`IntegrityError` → se busca);
+    sin la bandera solo se busca, como siempre (el importador la
+    sigue creando, porque el nombre viene de OSM). Las fotos entran
+    por `request.FILES.getlist('imagenes')` y pasan por `_abrible()`
+    (Pillow en la puerta: «tiene que ser una imagen»),
+    `_validar_imagenes()` (techo `MAX_IMAGES_PER_BUSINESS = 5`,
+    contando las existentes en el camino de completar y en el de
+    duplicado) y `_guardar_imagenes()` en los tres caminos (alta,
+    duplicado, completar). La obligatoria: alta sin fotos → «Una
+    ficha nueva necesita al menos una foto»; completar con la ficha
+    en 0 fotos → «Esta ficha no tiene ninguna foto: hay que mandar al
+    menos una»; si la ficha ya tiene ≥1, no hace falta mandar. El
+    envío pasa a **multipart**: `_horario` acepta el JSON como texto
+    y `_booleano()` lee `'true'/'1'/'on'/'yes'`; `None` no viajan.
+    `Envio.datos['imagenes']` guarda los nombres que llegaron y el
+    detalle `?ficha=` añade `imagenes: N` para que el cliente calcule
+    `5 − N` sin mandarlas. `imagen` no entra en `faltantes_de` (las
+    11 etiquetas siguen sin contarla).
+  - **Frontend** (`Levantamiento.jsx` / `.css`): el desplegable de
+    categoría tiene «➕ Crear categoría nueva…» (centinela
+    `__nueva__`) que abre un campo de texto sobre el **mismo**
+    `datos.categoria`, con nota de validación; sin nombre no se
+    envía (`listo` lo vigila) y tras el éxito se recarga
+    `/categories/` para que aparezca ya en la lista. Tarjeta
+    «Fotos»: nota con las que ya tiene la ficha y las que caben,
+    miniaturas de las pendientes (objectURL con ✕ para quitarlas),
+    contador `existentes + nuevas / 5`, etiqueta de subir que pasa a
+    «Máximo 5 fotos» y se deshabilita al techo — **sin bloquear el
+    envío** —, y el aviso obligatorio en el pie junto al de token y
+    nombre. `enviar()` manda **FormData** (horario → JSON en texto,
+    casillas → `'true'`/`'false'`, fotos en `imagenes` una por
+    parte) y la rejilla de dos columnas gana la fila `fotos`.
+  - **Trampa que costó descubrir**: la instancia axios manda
+    `Content-Type: application/json` por defecto y axios 1.x, con
+    esa cabecera puesta, **convierte el FormData a JSON**
+    (`formDataToJSON`): los campos viajaban perfectos pero **las
+    fotos se perdían por el camino**, y el servidor rechazaba con
+    «Una ficha nueva necesita al menos una foto» pareciendo que el
+    formulario no mandaba nada. El POST va ahora con cabecera
+    `multipart/form-data` propia (y el porqué quedó anotado en
+    `axios.js`, que antes decía «sin subidas multipart, verificado»).
+  - Verificado en el navegador (4/nov): alta con 1 foto → «✓
+    Aceptado y publicado», ficha creada **con la categoría nueva**
+    (slug `panaderia-prueba-cat`) y la foto convertida a
+    `business_images/2026/11/calle-principal.webp`, con
+    `Envio.datos['imagenes']` registrado; el desplegable ya
+    enseña «Panaderia Prueba Cat» sin recargar; el techo de 5 deja
+    la etiqueta deshabilitada con «Llegaste al máximo» y el envío
+    sigue activo (5 fotos guardadas en otra ficha); y una ficha con
+    1 foto existente se puede completar **sin mandar fotos** (la
+    foto queda intacta). Fichas de prueba en la base local, por si
+    quieres mirarlas: **16292** (categoría nueva + 1 foto), **16293**
+    (5 fotos), **16294** (pendiente → completada) y la categoría
+    «Panaderia Prueba Cat» — se borran cuando quieras.
+  - Tests: **+15** → **290 en verde**: fotos en alta (obligatoria,
+    WebP + auditoría, techo de 5, archivo que no es imagen), multipart
+    (horario como texto, `cerrado` como casilla), categoría (bandera
+    crea, dedupe mayúsculas, slug reutilizado, sin nombre se
+    rechaza) y completar (sin foto cuando no hay, con foto ya puesta,
+    techo, `imagenes` en el reporte).

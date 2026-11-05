@@ -22,16 +22,19 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db import connection
 from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
+from PIL import Image
 
 from categories.models import Category
 from operational_status.models import OperationalStatus
 from publication_status.models import PublicationStatus
 
+from business_images.models import BusinessImage
 from business_locations.models import BusinessLocation
 from business_contacts.models import BusinessContact
 from business_hours.models import BusinessHours
@@ -46,6 +49,18 @@ CORRECTIONS_URL = '/api/corrections/'
 CABECERAS_URL = '/api/cabeceras/'
 PENDIENTES_URL = '/api/pendientes/'
 LEVANTAMIENTO_URL = '/api/levantamiento/'
+
+
+def _foto(nombre='foto.jpg', color=(180, 120, 60)):
+    """Un JPEG de verdad, chiquito: el canal abre la imagen con Pillow.
+
+    El tamano no importa —se recorta a 1200x675 al guardar—; si importa
+    que sea una imagen real, porque un archivo que no abre se rechaza
+    en la puerta.
+    """
+    buf = io.BytesIO()
+    Image.new('RGB', (80, 60), color).save(buf, format='JPEG')
+    return SimpleUploadedFile(nombre, buf.getvalue(), 'image/jpeg')
 
 # El admin maquilla las hojas con el storage con manifest, que solo
 # resuelve despues de `collectstatic`: en los tests no hay manifest y la
@@ -1859,15 +1874,27 @@ class CanalDeEnvioTests(TestCase):
         datos.update(extra)
         return datos
 
-    def enviar(self, token=None, cliente=None, **extra):
-        """Un POST al canal. ``token=None`` manda el bueno; '' ninguno."""
+    def enviar(self, token=None, cliente=None, fotos=1, **extra):
+        """Un POST al canal, en multipart como el formulario de verdad.
+
+        ``token=None`` manda el bueno; '' ninguno. Trae ``fotos`` por
+        defecto porque el alta las exige: ``fotos=0`` prueba esa misma
+        obligacion y ``fotos=6`` el techo. Los ``None`` no viajan —el
+        multipart no sabe codificarlos— y ausente es igual que null
+        para el servidor.
+        """
         if token is None:
             token = self.colaborador.token
         encabezados = {'X-Colaborador-Token': token} if token else {}
+        cuerpo = {
+            clave: valor
+            for clave, valor in self.cuerpo(**extra).items()
+            if valor is not None
+        }
+        cuerpo['imagenes'] = [_foto('foto%d.jpg' % i) for i in range(fotos)]
         return (cliente or self.client).post(
             LEVANTAMIENTO_URL,
-            self.cuerpo(**extra),
-            content_type='application/json',
+            cuerpo,
             headers=encabezados,
         )
 
@@ -1936,14 +1963,20 @@ class CanalDeEnvioTests(TestCase):
         self.assertEqual(response.data['estado'], 'publicado')
 
     def test_el_token_tambien_se_acepta_como_bearer(self):
+        cuerpo = {
+            clave: valor
+            for clave, valor in self.cuerpo().items()
+            if valor is not None
+        }
+        cuerpo['imagenes'] = [_foto()]
+
         response = self.client.post(
             LEVANTAMIENTO_URL,
-            self.cuerpo(),
-            content_type='application/json',
+            cuerpo,
             headers={'Authorization': 'Bearer ' + self.colaborador.token},
         )
 
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 201, response.content)
 
     def test_del_canal_solo_se_envia_no_se_lee(self):
         """§11-i: no hay acceso, hay envio. Con la firma en la mano no se
@@ -2004,6 +2037,91 @@ class CanalDeEnvioTests(TestCase):
         self.assertEqual(Business.objects.count(), 0)
         self.assertIn('numero', ' '.join(response.data['motivos']).lower())
 
+    # --------------------------- las fotos -----------------------------
+    def test_una_ficha_nueva_sin_foto_se_rechaza(self):
+        """La foto es obligatoria hasta que la ficha tenga una.
+
+        Sin foto no hay ficha nueva que valga: se rechaza en la puerta
+        y no queda pendiente de nada (§11.5), igual que lo mal formado.
+        """
+        response = self.enviar(fotos=0)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('foto', ' '.join(response.data['motivos']).lower())
+        self.assertEqual(Business.objects.count(), 0)
+        self.assertEqual(Envio.objects.get().estado, 'rechazado')
+
+    def test_las_fotos_entran_con_la_ficha(self):
+        response = self.enviar()
+
+        self.assertEqual(response.status_code, 201, response.content)
+        negocio = Business.objects.get()
+        self.assertEqual(negocio.images.count(), 1)
+        # La regla del admin: WebP con el nombre del original.
+        self.assertTrue(negocio.images.get().image.name.endswith('.webp'))
+        self.assertEqual(response.data['imagenes'], 1)
+        # La auditoria guarda los nombres de lo que llego.
+        self.assertEqual(Envio.objects.get().datos['imagenes'], ['foto0.jpg'])
+
+    def test_seis_fotos_no_entran(self):
+        response = self.enviar(fotos=6)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('5', ' '.join(response.data['motivos']))
+        self.assertEqual(Business.objects.count(), 0)
+
+    def test_un_archivo_que_no_es_imagen_se_rechaza(self):
+        cuerpo = {
+            clave: valor
+            for clave, valor in self.cuerpo().items()
+            if valor is not None
+        }
+        cuerpo['imagenes'] = [
+            SimpleUploadedFile('nota.txt', b'no soy una imagen', 'text/plain'),
+        ]
+
+        response = self.client.post(
+            LEVANTAMIENTO_URL, cuerpo,
+            headers={'X-Colaborador-Token': self.colaborador.token},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('imagen', ' '.join(response.data['motivos']).lower())
+        self.assertEqual(Business.objects.count(), 0)
+
+    def test_el_multipart_trae_el_horario_como_texto_y_el_cerrado(self):
+        """Lo que el formulario manda como texto tiene que leerse igual.
+
+        En multipart TODO llega como cadena: sin esto el horario se
+        perdia —no es lista— y ``bool('false')`` daria True —todo
+        saldria cerrado—.
+        """
+        OperationalStatus.objects.create(name='Cerrado', slug='cerrado')
+
+        response = self.enviar(
+            cerrado='true',
+            horario='[{"dia": "Lunes", "desde": "08:00", "hasta": "17:00"}]',
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        negocio = Business.objects.get()
+        self.assertEqual(negocio.operational_status.slug, 'cerrado')
+        self.assertEqual(negocio.hours.count(), 1)
+        envio = Envio.objects.get()
+        self.assertEqual(len(envio.datos['horario']), 1)
+        self.assertTrue(envio.datos['cerrado'])
+
+    def test_un_cerrado_false_del_multipart_no_cierra_nada(self):
+        OperationalStatus.objects.create(name='Cerrado', slug='cerrado')
+
+        response = self.enviar(cerrado='false')
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(
+            Business.objects.get().operational_status.slug, 'abierto',
+        )
+        self.assertFalse(Envio.objects.get().datos['cerrado'])
+
     # --------------------------- 3. el trio ----------------------------
     def test_lo_completo_se_publica_al_momento(self):
         response = self.enviar()
@@ -2036,15 +2154,56 @@ class CanalDeEnvioTests(TestCase):
         self.assertIn('punto', response.data['faltan'])
 
     def test_una_categoria_desconocida_no_se_crea_desde_aqui(self):
-        """Aqui teclea una persona: una errata no debe abrirle una
-        categoria nueva al sistema. El importador si la crea, porque el
-        nombre viene de OSM y es de fiar."""
+        """Sin la bandera de crear, una errata no abre una categoria
+        nueva al sistema: aqui teclea una persona y solo se busca la
+        que ya hay. Con la bandera si se crea (test de al lado); el
+        importador la crea siempre, porque el nombre viene de OSM."""
         response = self.enviar(categoria='Pan (con errata)')
 
         self.assertFalse(Category.objects.filter(name='Pan (con errata)').exists())
         # Y no por eso se le retiene: la categoria no es el trio.
         self.assertEqual(response.data['estado'], 'publicado')
         self.assertIn('categoria', response.data['faltan'])
+
+    def test_con_la_bandera_se_crea_la_categoria_en_el_momento(self):
+        """Validacion inmediata: el formulario no encontro la suya, la
+        pide crear y el servidor la valida y la da de alta en el envio."""
+        response = self.enviar(
+            categoria='Panaderia Nueva', categoria_nueva=True,
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        creada = Category.objects.get(name='Panaderia Nueva')
+        self.assertEqual(Business.objects.get().category, creada)
+        self.assertNotIn('categoria', response.data['faltan'])
+
+    def test_la_categoria_nueva_no_se_duplica_si_ya_esta(self):
+        """La dedupe es sin distinguir mayusculas: 'PANADERIAS' es la
+        'Panaderias' que ya esta, no una segunda."""
+        response = self.enviar(categoria='PANADERIAS', categoria_nueva=True)
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(Category.objects.count(), 1)
+        self.assertEqual(Business.objects.get().category, self.category)
+
+    def test_si_el_slug_ya_es_de_otra_se_reutiliza(self):
+        """'Panaderias!' da el mismo slug que 'Panaderias': crearla
+        reventaria el unique, y con una basta."""
+        response = self.enviar(categoria='Panaderias!', categoria_nueva=True)
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(Category.objects.count(), 1)
+        self.assertEqual(Business.objects.get().category, self.category)
+
+    def test_crear_categoria_sin_nombre_se_rechaza(self):
+        response = self.enviar(categoria='', categoria_nueva=True)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(
+            'categoria', ' '.join(response.data['motivos']).lower(),
+        )
+        # Solo la del setup: nada se creo.
+        self.assertEqual(Category.objects.count(), 1)
 
     def test_un_pendiente_del_canal_aparece_en_el_reporte(self):
         """El circuito cerrado: entra por el canal y sale por §11.1."""
@@ -2211,9 +2370,16 @@ class CompletarFichaTests(TestCase):
             BusinessContact.objects.create(business=negocio, phone=telefono)
         return negocio
 
-    def completar(self, ficha=None, token=None, id_ficha=None, **extra):
-        """Un POST en modo completar. ``id_ficha`` sirve para probar ids
-        que no existen, que no se pueden sacar de una ficha de verdad."""
+    def completar(self, ficha=None, token=None, id_ficha=None, fotos=1,
+                  **extra):
+        """Un POST en modo completar, en multipart como el formulario.
+
+        ``id_ficha`` sirve para probar ids que no existen, que no se
+        pueden sacar de una ficha de verdad. Las fichas de aqui no
+        tienen foto, y completar una ficha sin foto exige mandar al
+        menos una: por eso el default trae ``fotos=1`` y ``fotos=0``
+        prueba ese mismo rechazo.
+        """
         if token is None:
             token = self.colaborador.token
         cuerpo = {
@@ -2225,8 +2391,14 @@ class CompletarFichaTests(TestCase):
             'municipio': 'Moca',
         }
         cuerpo.update(extra)
+        cuerpo = {
+            clave: valor
+            for clave, valor in cuerpo.items()
+            if valor is not None
+        }
+        cuerpo['imagenes'] = [_foto('foto%d.jpg' % i) for i in range(fotos)]
         return self.client.post(
-            LEVANTAMIENTO_URL, cuerpo, content_type='application/json',
+            LEVANTAMIENTO_URL, cuerpo,
             headers={'X-Colaborador-Token': token} if token else {},
         )
 
@@ -2335,6 +2507,56 @@ class CompletarFichaTests(TestCase):
         self.assertEqual(envio.negocio, ficha)
         self.assertEqual(envio.datos['ficha'], ficha.pk)
 
+    # --------------------------- las fotos -----------------------------
+    def test_completar_sin_foto_cuando_la_ficha_no_tiene_se_rechaza(self):
+        """La obligacion sigue hasta que la ficha tenga UNA: sin foto
+        no entra el envio —y con el, tampoco lo otro que traia—."""
+        ficha = self.hacer_ficha()
+
+        response = self.completar(ficha, fotos=0)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('foto', ' '.join(response.json()['motivos']).lower())
+        self.assertEqual(
+            BusinessContact.objects.filter(business=ficha).count(), 0,
+        )
+
+    def test_si_la_ficha_ya_tiene_foto_no_hace_falta_mandar(self):
+        """Hasta que tenga foto, no mas alla: la que ya tiene una no
+        bloquea completar sin mandar fotos nuevas."""
+        ficha = self.hacer_ficha()
+        BusinessImage.objects.create(business=ficha, image=_foto('ya.jpg'))
+
+        response = self.completar(ficha, fotos=0)
+
+        self.assertEqual(response.status_code, 200, response.content)
+
+    def test_las_fotos_de_completar_se_anaden_a_las_que_ya_hay(self):
+        ficha = self.hacer_ficha()
+        for i in range(4):
+            BusinessImage.objects.create(
+                business=ficha, image=_foto('vieja%d.jpg' % i),
+            )
+
+        response = self.completar(ficha)          # una mas: 5 en total
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()['imagenes'], 5)
+        self.assertEqual(ficha.images.count(), 5)
+
+    def test_completar_con_cinco_ya_no_admite_mas(self):
+        ficha = self.hacer_ficha()
+        for i in range(4):
+            BusinessImage.objects.create(
+                business=ficha, image=_foto('vieja%d.jpg' % i),
+            )
+
+        response = self.completar(ficha, fotos=2)  # 4 + 2 = 6
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('5', ' '.join(response.json()['motivos']))
+        self.assertEqual(ficha.images.count(), 4)
+
     # ------------------------ §11-i: el alcance ------------------------
     def test_una_ficha_de_otro_municipio_da_403(self):
         ficha = self.hacer_ficha(municipio='Santiago')
@@ -2390,6 +2612,17 @@ class CompletarFichaTests(TestCase):
         self.assertNotIn('telefono', datos['faltan'])
         self.assertIn('whatsapp', datos['faltan'])
         self.assertIn('horario', datos['faltan'])
+
+    def test_el_reporte_devuelve_cuantas_fotos_tiene_la_ficha(self):
+        """Con ese numero el formulario calcula cuanto le cabe: el
+        techo son 5 en total, contando las que ya hay."""
+        ficha = self.hacer_ficha()
+
+        self.assertEqual(self.pedir_ficha(ficha).json()['imagenes'], 0)
+
+        BusinessImage.objects.create(business=ficha, image=_foto())
+
+        self.assertEqual(self.pedir_ficha(ficha).json()['imagenes'], 1)
 
     def test_el_formulario_devuelve_las_referencias(self):
         """Lo que ya se sabe del sitio no se pierde al reabrir la ficha:

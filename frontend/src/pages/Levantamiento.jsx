@@ -74,6 +74,15 @@ const CAMPOS = [
   'whatsapp', 'correo', 'web', 'descripcion', 'estado',
 ];
 
+// El techo de fotos por ficha: el MISMO que en el admin (modelo
+// BusinessImage). Aqui solo se cuenta y se corta el selector; quien
+// corta de verdad es el servidor.
+const MAX_FOTOS = 5;
+
+// Valor centinela del desplegable: no es una categoria, es la opcion
+// que abre el campo de texto para crear una.
+const CATEGORIA_NUEVA = '__nueva__';
+
 const aCoordenada = (valor) => {
   if (valor === '' || valor === null || valor === undefined) return null;
   const n = Number(valor);
@@ -113,6 +122,57 @@ export default function Levantamiento() {
   const [faltanFicha, setFaltanFicha] = useState([]);
   const [cargandoFicha, setCargandoFicha] = useState(false);
   const [avisoFicha, setAvisoFicha] = useState(null);
+
+  // ------------------------------ las fotos ---------------------------
+  // Las fotos nuevas que estan por mandar, con su URL de preview para
+  // poder verlas y quitarlas antes de enviar. El techo es MAX_FOTOS por
+  // ficha CONTANDO las que la ficha ya tiene: `fotosExistentes` viene
+  // en el detalle del reporte (`imagenes`) y es lo que hace el limite
+  // 5 - N del formulario.
+  const [fotos, setFotos] = useState([]);
+  const [fotosExistentes, setFotosExistentes] = useState(0);
+
+  // «Crear categoría nueva…» elegido en el desplegable. El nombre se
+  // teclea en el MISMO datos.categoria y al enviar se manda la bandera
+  // `categoria_nueva`: el servidor la valida y la da de alta en el
+  // momento (sin ella solo se busca, que es lo de siempre).
+  const [creandoCategoria, setCreandoCategoria] = useState(false);
+
+  const fotosTotal = fotosExistentes + fotos.length;
+  const fotosLlenas = fotosTotal >= MAX_FOTOS;
+  // La obligatoria: hasta que la ficha tenga UNA foto no se puede
+  // enviar. Si ya tiene (fotosExistentes > 0) no hace falta mandar mas.
+  const faltaFoto = fotosTotal === 0;
+
+  const agregarFotos = (e) => {
+    const elegidas = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (elegidas.length === 0) return;
+    setFotos((fs) => {
+      const cupo = Math.max(0, MAX_FOTOS - fotosExistentes - fs.length);
+      return [
+        ...fs,
+        ...elegidas.slice(0, cupo).map((file, i) => ({
+          id: `${Date.now()}-${fs.length}-${i}`,
+          file,
+          url: URL.createObjectURL(file),
+        })),
+      ];
+    });
+  };
+
+  const quitarFoto = (id) => {
+    const fuera = fotos.find((f) => f.id === id);
+    if (fuera) URL.revokeObjectURL(fuera.url);
+    setFotos((fs) => fs.filter((f) => f.id !== id));
+  };
+
+  // Soltar las pendientes (y sus previews): al cambiar de ficha, al
+  // limpiar y al salir. Pertenecian a lo que estaba en pantalla.
+  const soltarFotos = () => {
+    fotos.forEach((f) => URL.revokeObjectURL(f.url));
+    setFotos([]);
+  };
 
   // Cada apertura de ficha se numera, igual que en Home y en la ficha
   // completa: elegir dos seguido (o cambiar de ficha mientras la otra
@@ -230,6 +290,9 @@ export default function Levantamiento() {
       setFichaId(null);
       setFaltanFicha([]);
       setFichaMunicipio('');
+      setFotosExistentes(0);
+      soltarFotos();
+      setCreandoCategoria(false);
       return;
     }
     const peticion = fichaRef.current + 1;
@@ -269,6 +332,12 @@ export default function Levantamiento() {
       // WhatsApp, correo y web van escondidos detrás de un botón; si es
       // lo que falta, hay que abrirlos sin que nadie lo busque.
       setMasDatos((data.faltan || []).some((x) => CONTACTO.includes(x)));
+      // Las fotos de la ficha (para el techo de 5) y las pendientes:
+      // al cambiar de ficha se sueltan las segundas —pertenecian a la
+      // anterior— y se cuentan las primeras.
+      setFotosExistentes(Number(data.imagenes) || 0);
+      soltarFotos();
+      setCreandoCategoria(false);
       setFichaId(Number(id));
     } catch (err) {
       // El aviso de la peticion vieja tampoco debe salir: si la ultima
@@ -277,6 +346,7 @@ export default function Levantamiento() {
       setFichaId(null);
       setFaltanFicha([]);
       setFichaMunicipio('');
+      setFotosExistentes(0);
       setAvisoFicha(err.response?.data?.detail || 'No se pudo abrir esa ficha.');
     } finally {
       // El "cargando" solo lo apaga quien sigue mandando; si no, la ficha
@@ -397,6 +467,9 @@ export default function Levantamiento() {
     setFranjas(diasBase());
     setEstado('');
     setMasDatos(false);
+    soltarFotos();
+    setFotosExistentes(0);
+    setCreandoCategoria(false);
     // ...y se suelta la ficha elegida: lo que sigue empieza en blanco.
     setFichaId(null);
     setFaltanFicha([]);
@@ -431,9 +504,31 @@ export default function Levantamiento() {
       ...(fichaId ? { ficha: fichaId } : {}),
     };
 
+    // Multipart, como el formulario de verdad: un solo POST con los
+    // campos y los archivos. El horario viaja como su JSON en texto y
+    // las casillas como 'true'/'false' — el servidor los lee asi (y el
+    // campo `imagenes` lleva las fotos, una por parte).
+    const fd = new FormData();
+    Object.entries(cuerpo).forEach(([clave, valor]) => {
+      if (valor === null || valor === undefined) return;
+      fd.append(
+        clave,
+        typeof valor === 'object' ? JSON.stringify(valor) : String(valor),
+      );
+    });
+    if (creandoCategoria) fd.append('categoria_nueva', 'true');
+    fotos.forEach((f) => fd.append('imagenes', f.file));
+
     try {
-      const { data } = await api.post('/levantamiento/', cuerpo, {
-        headers: { 'X-Colaborador-Token': token.trim() },
+      const { data } = await api.post('/levantamiento/', fd, {
+        headers: {
+          'X-Colaborador-Token': token.trim(),
+          // La instancia manda JSON por defecto: sin avisar, axios
+          // convierte el FormData a JSON y las fotos se pierden por el
+          // camino. Con esta cabecera pasa el multipart entero y el
+          // navegador pone el boundary.
+          'Content-Type': 'multipart/form-data',
+        },
       });
       setResultado({
         tipo: data.estado,
@@ -453,6 +548,13 @@ export default function Levantamiento() {
             nombre: nombreFicha || `Ficha ${idFicha}`,
             municipio: cabecera ? cabecera.municipio : '',
           }]));
+      }
+      // La categoria nueva ya quedo creada en el servidor: el
+      // desplegable se entera recargando la lista.
+      if (creandoCategoria) {
+        api.get('/categories/')
+          .then(({ data: cats }) => setCategorias(cats.results || cats))
+          .catch(() => {});
       }
       // Listo para el siguiente: solo se borra la ficha, no el token ni
       // el municipio, que son lo que se repite en una ronda de campo.
@@ -488,7 +590,11 @@ export default function Levantamiento() {
     }
   };
 
-  const listo = token.trim() !== '' && datos.nombre.trim() !== '' && cabecera;
+  const listo = token.trim() !== ''
+    && datos.nombre.trim() !== ''
+    && cabecera
+    && !faltaFoto
+    && (!creandoCategoria || datos.categoria.trim() !== '');
 
   // Resaltado de lo que falta. Solo mientras se completa una ficha ya
   // existente: en un alta nueva TODO está vacío y pintar la mitad del
@@ -871,12 +977,42 @@ export default function Levantamiento() {
             </div>
             <div className={claseFalta('categoria')}>
               <label htmlFor="lev-categoria">Categoría {marca('categoria')}</label>
-              <select id="lev-categoria" value={datos.categoria} onChange={cambiar('categoria')}>
+              <select
+                id="lev-categoria"
+                value={creandoCategoria ? CATEGORIA_NUEVA : datos.categoria}
+                onChange={(e) => {
+                  if (e.target.value === CATEGORIA_NUEVA) {
+                    setCreandoCategoria(true);
+                    setDatos((d) => ({ ...d, categoria: '' }));
+                  } else {
+                    setCreandoCategoria(false);
+                    setDatos((d) => ({ ...d, categoria: e.target.value }));
+                  }
+                }}
+              >
                 <option value="">La que ya exista</option>
                 {categorias.map((cat) => (
                   <option key={cat.id} value={cat.name}>{cat.name}</option>
                 ))}
+                <option value={CATEGORIA_NUEVA}>➕ Crear categoría nueva…</option>
               </select>
+              {creandoCategoria && (
+                <>
+                  <input
+                    id="lev-categoria-nueva"
+                    type="text"
+                    value={datos.categoria}
+                    onChange={cambiar('categoria')}
+                    placeholder="Nombre de la categoría nueva"
+                    maxLength={100}
+                    autoFocus
+                  />
+                  <small>
+                    Se valida al momento: si ya existe —aunque esté escrita
+                    distinto— se usa esa y no se crea otra.
+                  </small>
+                </>
+              )}
             </div>
           </div>
 
@@ -992,6 +1128,53 @@ export default function Levantamiento() {
           )}
         </section>
 
+        <section className="lev-card lev-fotos">
+          <h2 className="lev-card-title">Fotos</h2>
+
+          <p className="lev-fotos-nota">
+            {fotosExistentes > 0 && (
+              <>
+                Esta ficha ya tiene <strong>{fotosExistentes}</strong>{' '}
+                foto{fotosExistentes !== 1 ? 's' : ''}.{' '}
+              </>
+            )}
+            {faltaFoto
+              ? 'Obligatoria: hay que mandar al menos una foto para poder enviar.'
+              : fotosLlenas
+                ? 'Llegaste al máximo de 5: no se aceptan más.'
+                : `Se pueden añadir ${MAX_FOTOS - fotosTotal} más (5 por ficha).`}
+          </p>
+
+          {fotos.length > 0 && (
+            <ul className="lev-fotos-grid">
+              {fotos.map((f) => (
+                <li key={f.id} className="lev-fotos-item">
+                  <img src={f.url} alt={f.file.name} />
+                  <button
+                    type="button"
+                    onClick={() => quitarFoto(f.id)}
+                    aria-label={`Quitar ${f.file.name}`}
+                    title="Quitar"
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <label className={`lev-fotos-subir${fotosLlenas ? ' lev-fotos-subir--lleno' : ''}`}>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              disabled={fotosLlenas}
+              onChange={agregarFotos}
+            />
+            {fotosLlenas ? `Máximo ${MAX_FOTOS} fotos` : '+ Añadir fotos'} ({fotosTotal}/{MAX_FOTOS})
+          </label>
+        </section>
+
         <button type="submit" className="lev-enviar" disabled={!listo || enviando}>
           {enviando ? 'Enviando…' : 'Enviar'}
         </button>
@@ -999,7 +1182,9 @@ export default function Levantamiento() {
           <p className="lev-falta">
             {!token.trim() && 'Falta tu token. '}
             {!datos.nombre.trim() && 'Falta el nombre. '}
-            {!cabecera && 'No se reconoce el municipio del reporte.'}
+            {!cabecera && 'No se reconoce el municipio del reporte. '}
+            {faltaFoto && 'Falta al menos una foto. '}
+            {creandoCategoria && !datos.categoria.trim() && 'Falta el nombre de la categoría nueva.'}
           </p>
         )}
       </form>
