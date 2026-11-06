@@ -7,7 +7,7 @@
 Este comando solo **trae**: una consulta Overpass por cabecera. Lo que
 hace despues con cada candidato —validar en la puerta, cruzar contra lo
 que ya existe, crear el resto como `en-revision` y publicar el que cumpla
-el trio— vive en ``businesses.masivo.Lote``, que comparte con
+los obligatorios— vive en ``businesses.masivo.Lote``, que comparte con
 ``cargar_fichas``. Si cada comando hiciera lo suyo, lo que entrara por
 OpenStreetMap y lo que se trajera de otra base no seria comparable, y es
 justo la comparabilidad de lo que esta publicado lo que §10-i quiere.
@@ -20,12 +20,15 @@ En resumen, el orden que impone el lote:
    lo que le falta a la ficha que ya esta; nunca se crea una segunda
    (§10-d: OSM trae telefonos que en muchos casos nosotros no tenemos);
 3. crea el resto como `en-revision` con `procedencia='importado'`;
-4. y de lo que acaba de crear, **publica el que cumpla el trio** (§10-f:
-   nombre + telefono + punto). Lo que no lo cumple **no se descarta**:
-   se queda en `en-revision` y sale en el reporte de §11.1.
+4. y de lo que acaba de tocar, **publica el que cumpla los
+   obligatorios** (§10-f: nombre + direccion + telefono + imagen +
+   punto). Como OSM no trae fotos, lo nuevo queda en `en-revision` hasta
+   que alguien le ponga una; **nada se descarta**: sale en el reporte de
+   §11.1.
 
-Las fichas creadas a mano (`procedencia='manual'`) nunca se publican solas
-ni siquiera si cumplen el trio: eso sigue siendo el admin (VISION.md).
+Las fichas creadas a mano (`procedencia='manual'`) nunca se publican
+solos ni siquiera si cumplen los obligatorios: eso sigue siendo el admin
+(VISION.md).
 """
 from django.core.management.base import BaseCommand, CommandError
 

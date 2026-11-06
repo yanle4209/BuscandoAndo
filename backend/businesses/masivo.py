@@ -6,7 +6,8 @@ Lo comparten dos comandos que por fuera no se parecen en nada:
 * ``cargar_fichas`` los trae de un JSON exportado de otra base.
 
 Y por dentro tienen que hacer **exactamente** lo mismo: validar en la
-puerta, cruzar ANTES de publicar y publicar solo el que cumpla el trio.
+puerta, cruzar ANTES de publicar y publicar solo el que cumpla los
+obligatorios.
 Si cada uno montara su propio bucle, el dia que alguien cambiara el orden
 —crear primero y cruzar despues, por ejemplo— uno de los dos dejaria de
 deduplicar y no se enteraria hasta ver dos fichas del mismo negocio a 400
@@ -169,8 +170,16 @@ class Lote:
                 self.totales['enriquecidos'] += 1
                 # Releer: `enriquecer` dejo en la instancia la cache de
                 # "no tiene contacto" de antes de crearlo, y con ella
-                # `cumple_trio` veria el telefono que acaba de ponerse.
-                existente = Business.objects.get(pk=existente.pk)
+                # `cumple_obligatorios` veria el telefono que acaba de
+                # ponerse. Con location, contact, hours e images
+                # traidos, contar lo que falta no cuesta una consulta
+                # por ficha.
+                existente = (
+                    Business.objects
+                    .select_related('location', 'contact')
+                    .prefetch_related('hours', 'images')
+                    .get(pk=existente.pk)
+                )
                 self.tocados.append(existente)
             return
 
@@ -188,7 +197,8 @@ class Lote:
             geografia.normalizar(negocio.name)] = negocio
 
     def publicar(self):
-        """§10-f: publica lo de ESTE lote que cumpla el trio y lo vacia.
+        """§10-f: publica lo de ESTE lote que cumpla los obligatorios y
+        lo vacia.
 
         Devuelve ``(entraron, publicados, esperan)``, los tres numeros de
         la linea de resumen por municipio. Se vacian las dos listas para

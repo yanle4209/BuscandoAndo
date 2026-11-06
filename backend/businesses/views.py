@@ -35,6 +35,7 @@ from .pendientes import (
     ETIQUETAS as ETIQUETAS_PENDIENTES,
     contar_pendientes,
     faltantes_de,
+    particionar,
 )
 
 
@@ -471,20 +472,18 @@ def _provincia_de(grupo):
 def _fila(nombre, grupo, provincia=''):
     """Una fila del listado: el trabajo que hay en un municipio.
 
-    ``con_pendientes`` cuenta exactamente lo que luego sale en el
-    detalle: lo que todavia **no esta publicado** y le falta algo. Lo
-    publicado —aunque le queden extras— ya no es pendiente y no debe
-    contar, o la fila promete N y la lista entrega M.
+    Los DOS contadores cuentan exactamente lo que luego sale en el
+    detalle (``particionar``): ``con_revision`` de la lista principal y
+    ``con_publicadas`` de la lista aparte. Asi la fila promete N y la
+    lista entrega N.
     """
-    pendientes = [
-        b for b in grupo
-        if b.publication_status.slug != 'publicado' and faltantes_de(b)
-    ]
+    cubos = particionar(grupo)
     return {
         'municipio': nombre,
         'provincia': provincia,
         'total': len(grupo),
-        'con_pendientes': len(pendientes),
+        'con_revision': len(cubos['revision']),
+        'con_publicadas': len(cubos['publicadas']),
         'en_revision': sum(
             1 for b in grupo if b.publication_status.slug != 'publicado'
         ),
@@ -572,7 +571,10 @@ def _una_ficha(colaborador, ficha_id):
             'location', 'contact', 'category', 'operational_status',
             'publication_status',
         )
-        .prefetch_related('hours')
+        # `hours` e `images` entran en `faltantes_de` (la foto es
+        # obligatoria): sin precargar, la ficha cuesta una consulta por
+        # cada una de las dos.
+        .prefetch_related('hours', 'images')
         .filter(pk=pk)
         .first()
     )
@@ -601,14 +603,16 @@ def pendientes(request):
     """Reporte de pendientes por municipio (DISENO.md seccion 11.1).
 
     La ficha de trabajo del editor. Sin ``?municipio=`` lista **todos los
-    municipios del padron** —con cuantas le falta algo y cuantas esperan
-    publicacion— para elegir donde trabajar; con el parametro, el detalle
-    de ese municipio, agrupado por campo faltante.
+    municipios del padron** —con cuantas hay en revision y cuantas
+    publicadas traen faltantes— para elegir donde trabajar; con el
+    parametro, el detalle de ese municipio, agrupado por campo faltante.
 
-    **Pendiente = no publicado.** Cuando un envio deja la ficha
-    publicada, esta sale sola de la lista —fila, contador, desglose y
-    detalle— aunque le falten extras opcionales: los requeridos ya estan
-    y al editor no le queda nada que hacer aqui.
+    **Dos listas, cubos disjuntos** (``pendientes.particionar``). En la
+    de REVISION entra todo lo que le falta un **obligatorio** —aunque
+    este publicada— y lo que todavia no se publica: ahi se completa y se
+    publica. En la de PUBLICADAS entran las ya publicadas con todos los
+    obligatorios y aun opcionales sin completar: salen aparte para
+    rellenarlas mas adelante, sin estorbar la lista principal.
 
     Sale de lo ya decidido y **no guarda nada nuevo**: el municipio lo da
     la ubicacion de cada ficha, la cabecera viene del CSV de la seccion 9
@@ -675,7 +679,9 @@ def pendientes(request):
     negocios = (
         Business.objects
         .select_related('location', 'contact', 'category', 'publication_status')
-        .prefetch_related('hours')
+        # `images` porque la foto es obligatoria y `faltantes_de` la
+        # mira: sin precargar, una consulta por ficha.
+        .prefetch_related('hours', 'images')
     )
 
     grupos = {}
@@ -773,18 +779,17 @@ def pendientes(request):
         provincia = en_padron['provincia']
         cab = en_padron
 
-    # La lista es lo que **falta publicar**. Si un envio ya dejo la ficha
-    # publicada (tiene los requeridos), sale sola de aqui aunque le
-    # falten extras: el editor pidio que no siga apareciendo, y lo mismo
-    # se aplica al desglose por campo y al contador de la fila, para que
-    # el numero y la lista digan lo mismo.
-    pendientes = [
-        (b, faltantes_de(b)) for b in grupo
-        if b.publication_status.slug != 'publicado'
-    ]
-    pendientes = [(b, faltan) for b, faltan in pendientes if faltan]
-    fichas = [
-        {
+    # Dos listas, cubos disjuntos (particionar): en REVISION entra lo
+    # que le falta un obligatorio —aunque este publicada— y lo que
+    # todavia no se publica; en PUBLICADAS, las que ya estan publicadas
+    # con todos los obligatorios y solo traen opcionales sin completar.
+    # El editor pidio tenerlas aparte, en la misma tarjeta, para
+    # rellenarlas mas adelante sin estorbar la lista principal.
+    cubos = particionar(grupo)
+
+    def _detalle_ficha(par):
+        b, faltan = par
+        return {
             'id': b.id,
             'nombre': b.name,
             'slug': b.slug,
@@ -797,11 +802,13 @@ def pendientes(request):
                     if getattr(b, 'location', None) else None),
             'faltan': faltan,
         }
-        for b, faltan in pendientes
-    ]
-    # Ninguna es publicada ya, pero por nombre para que NADA se mueva de
-    # sitio al completarse: una confirmacion que salta no se lee.
+
+    fichas = [_detalle_ficha(par) for par in cubos['revision']]
+    publicadas = [_detalle_ficha(par) for par in cubos['publicadas']]
+    # Por nombre para que NADA se mueva de sitio al completarse: una
+    # confirmacion que salta no se lee.
     fichas.sort(key=lambda f: (f['nombre'] or '').casefold())
+    publicadas.sort(key=lambda f: (f['nombre'] or '').casefold())
 
     return Response({
         'municipio': real,
@@ -809,8 +816,14 @@ def pendientes(request):
         'cabecera': ({'lat': cab['lat'], 'lng': cab['lng']} if cab else None),
         'radio_km': RADIO_KM,
         'total': len(grupo),
-        'con_pendientes': len(fichas),
+        'con_revision': len(fichas),
+        'con_publicadas': len(publicadas),
         'campos': ETIQUETAS_PENDIENTES,
-        'por_campo': contar_pendientes([b for b, _ in pendientes]),
+        # El desglose cuenta lo que falta en las DOS listas: es el
+        # trabajo entero del municipio, obligatorios y opcionales.
+        'por_campo': contar_pendientes(
+            [b for b, _ in cubos['revision'] + cubos['publicadas']],
+        ),
         'fichas': fichas,
+        'publicadas': publicadas,
     })

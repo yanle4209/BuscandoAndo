@@ -339,9 +339,9 @@
 
 /* Lo que sin esto no se publica: mas enfasis, pero con las MISMAS formas
    — un borde grueso distinto al resto se leeria como error. */
-.lev-field--trio input,
-.lev-field--trio select,
-.lev-field--trio textarea {
+.lev-field--obligatorio input,
+.lev-field--obligatorio select,
+.lev-field--obligatorio textarea {
   box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.75);
 }
 
@@ -692,6 +692,19 @@
   color: var(--ink);
 }
 
+/* Municipio sin pendientes: el reporte se queda en pie y lo dice, en
+   verde, en vez de dejar la tarjeta casi vacia y parecer roto. */
+.lev-vacio {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--green);
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(135, 179, 50, 0.6);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
 .lev-detalle {
   margin-top: 16px;
   padding-top: 14px;
@@ -724,7 +737,7 @@
   color: var(--ink-soft);
 }
 
-.lev-por-campo li.es-trio {
+.lev-por-campo li.es-obligatorio {
   border-color: var(--yellow);
   color: var(--ink);
 }
@@ -734,7 +747,7 @@
   color: var(--yellow-ink);
 }
 
-.lev-trio-marca {
+.lev-obligatorio-marca {
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -795,14 +808,49 @@
   color: var(--ink-soft);
 }
 
+/* El nombre de la segunda lista es un boton: abre la ficha en el MISMO
+   formulario que el desplegable. Se pinta como texto para que la fila no
+   cambie de forma al ser clicable. */
+.lev-ficha-abrir {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lev-ficha-abrir .lev-ficha-nombre {
+  border-bottom: 1px dotted transparent;
+}
+
+.lev-ficha-abrir:hover .lev-ficha-nombre {
+  border-bottom-color: currentColor;
+}
+
+.lev-ficha-abrir:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.lev-publicadas-nota {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: -2px 0 8px;
+}
+
 /* -------------------- filas: la confirmacion ------------------------
    Los colores no son adorno: son el recibo del trabajo.
-   rojo     = le falta algo del trío (nombre, teléfono o punto): esa no
-              se publica sola, hay que completarla.
+   rojo     = le falta algo de lo obligatorio (nombre, direccion,
+              telefono, imagen o punto): esa no se publica sola, hay
+              que completarla.
    amarillo = incompleta, pero se puede enviar.
    verde    = ya no le debe nada al servidor.
    anillo   = la ficha abierta en el formulario.
-   Nada se mueve de sitio al completarse: solo cambia de color. */
+   Nada se mueva de sitio al completarse: solo cambia de color. */
 .lev-fichas li.lev-ficha--bloquea {
   border-left-color: #b91c1c;
   background: rgba(239, 68, 68, 0.1);
@@ -890,9 +938,9 @@
 
 /* --------------------- chips del reporte --------------------------- */
 /* Tachado y verde: ya no le falta ese campo a NINGUNA ficha — o a la
-   abierta, mientras se teclea. Va despues de .es-trio a proposito: con
-   la misma especificidad gana el ultimo, y un pendiente resuelto deja
-   de ser «bloquea». */
+   abierta, mientras se teclea. Va despues de .es-obligatorio a
+   proposito: con la misma especificidad gana el ultimo, y un pendiente
+   resuelto deja de ser «bloquea». */
 .lev-por-campo li.es-hecho {
   background: rgba(34, 197, 94, 0.1);
   border-color: rgba(135, 179, 50, 0.6);

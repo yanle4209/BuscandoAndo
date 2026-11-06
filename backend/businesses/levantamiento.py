@@ -7,12 +7,13 @@ montar autenticacion —y bloquear a UNO sin cerrar a los demas—.
 Tres reglas, en este orden, y cada una es una decision distinta:
 
 1. **Validar en la puerta.** Lo mal formado se rechaza con sus motivos y
-   no queda pendiente de nada (§11.5). Lo que solo le falta el trio NO se
-   rechaza — eso seria esconderlo (§10-g).
+   no queda pendiente de nada (§11.5). Lo que solo le falta un
+   obligatorio NO se rechaza — eso seria esconderlo (§10-g).
 2. **Cruzar.** Si el negocio ya existe no se crea una segunda ficha: se le
    completa lo que le falta a la que ya esta (§10-d).
-3. **Publicar solo el trio.** nombre + telefono + punto -> publicado; sin
-   eso -> pendiente, y sale en el reporte de su municipio (§10-f/g).
+3. **Publicar solo con los obligatorios.** nombre + direccion + telefono +
+   imagen + punto -> publicado; sin eso -> pendiente, y sale en el
+   reporte de su municipio (§10-f/g).
 
 Quien decide es el sistema en los tres: quien envia no publica (§11-j).
 
@@ -28,9 +29,9 @@ Dos cosas mas que nacen con el formulario del levantamiento:
 * **La foto es obligatoria** hasta que la ficha tenga al menos una.
   Entra por ``imagenes`` (multipart), se abre con Pillow igual que en
   el admin, se guarda recortada a 1200x675 en WebP por
-  ``BusinessImage.save()`` y hay techo de 5 por ficha. NO es un campo
-  del reporte: si lo fuera, las 144 fichas sin foto aparecerian todas
-  como pendientes.
+  ``BusinessImage.save()`` y hay techo de 5 por ficha. Es ademas uno de
+  los **obligatorios**: sin foto no se publica, y por eso las fichas sin
+  foto salen en el reporte de revision aunque ya esten publicadas.
 
 * **La categoria se puede crear** desde el formulario, con la bandera
   ``categoria_nueva``: el servidor la valida al momento (nombre, sin
@@ -382,7 +383,7 @@ def _registrar(colaborador, estado, datos, motivos, faltan, negocio, request):
 @authentication_classes(AUTENTICACION_DE_ESCRITURA)
 @permission_classes([permissions.AllowAny])
 def levantamiento(request):
-    """Un envio del canal: validar -> cruzar -> publicar si hay trio."""
+    """Un envio del canal: validar -> cruzar -> publicar si cumple."""
     colaborador = colaborador_de(request)
     if colaborador is None:
         return Response(
@@ -522,11 +523,11 @@ def levantamiento(request):
         completado = validacion.enriquecer(ficha, datos, categoria=categoria)
         _guardar_imagenes(ficha, archivos)
         # Releer: `enriquecer` dejo en la instancia la cache de "no tiene
-        # contacto" de antes de crearlo, y con ella `cumple_trio` veria el
-        # telefono que acaba de ponerse.
+        # contacto" de antes de crearlo, y con ella `cumple_obligatorios`
+        # veria el telefono que acaba de ponerse.
         ficha = Business.objects.get(pk=ficha.pk)
         # Siempre, no solo si acaba de tocar algo: puede que ya cumpliera
-        # el trio desde antes y se quedara esperando.
+        # los obligatorios desde antes y se quedara esperando.
         pendientes.publicar_si_cumple(
             [ficha], PublicationStatus.objects.get(slug='publicado'),
         )
@@ -588,9 +589,9 @@ def levantamiento(request):
         completado = validacion.enriquecer(existente, datos, categoria=categoria)
         _guardar_imagenes(existente, archivos)
         # Releer: `enriquecer` dejo en la instancia la cache de "no tiene
-        # contacto" de antes de crearlo, y con ella `cumple_trio` veria
-        # el telefono que acaba de ponerse. Sin releer, la ficha se quedaria
-        # en revision a pesar de que ya cumple el trio.
+        # contacto" de antes de crearlo, y con ella `cumple_obligatorios`
+        # veria el telefono que acaba de ponerse. Sin releer, la ficha se
+        # quedaria en revision a pesar de que ya cumple los obligatorios.
         existente = Business.objects.get(pk=existente.pk)
         if completado:
             # `publicar_si_cumple` actualiza la instancia y la guarda.

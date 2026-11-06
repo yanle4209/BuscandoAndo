@@ -3,8 +3,8 @@
 El mismo camino para el importador de OSM y para el canal de envio de
 §11.5. Si cada uno montara su ``Business`` a su manera, los dos entrarian
 con formas distintas y el reporte de §11.1 contaria una cosa u otra segun
-de donde vinieran — que es justo lo que §10-i queria evitar al reunir el
-trio en un solo sitio.
+de donde vinieran — que es justo lo que §10-i queria evitar al reunir
+esa decision en un solo sitio.
 """
 from business_contacts.models import BusinessContact
 from business_hours.models import BusinessHours
@@ -24,7 +24,8 @@ def crear(datos, *, categoria, en_revision, procedencia='importado'):
     abra una categoria nueva al sistema.
 
     Siempre entra como ``en-revision``: quien la publica es
-    ``pendientes.publicar_si_cumple``, y solo si cumple el trio.
+    ``pendientes.publicar_si_cumple``, y solo si cumple los
+    obligatorios.
 
     El estado operativo se busca con ``filter().first()`` y no con
     ``get()``: es nullable y opcional, y un sembrado a medias no puede

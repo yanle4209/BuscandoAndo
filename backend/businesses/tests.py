@@ -1019,16 +1019,20 @@ class ReportePendientesTests(TestCase):
     """GET /api/pendientes/ -> reporte de pendientes por municipio (§11.1).
 
     La ficha de trabajo con la que se edita y publica a mano lo que no
-    llego a cumplir el trio. Hay que proteger tres cosas:
+    llego a cumplir los obligatorios. Hay que proteger tres cosas:
 
     1. que **solo staff** la lea — dentro estan fichas sin publicar y el
        reparto de trabajo, y el DEFAULT_PERMISSION_CLASSES del proyecto es
        AllowAny;
-    2. que agrupe por campo faltante **y marque el trio**: lo que sale de
-       aqui es lo que un editor va a ir rellenando, y el trio es lo que
-       decide si una ficha se publica sola;
+    2. que agrupe por campo faltante **y marque lo obligatorio**: lo que
+       sale de aqui es lo que un editor va a ir rellenando, y los
+       obligatorios son los que deciden si una ficha se publica sola;
     3. que traiga **cabecera y radio**, que es lo que ancla el circulo de
        5 km con el que se mide si una ficha entrara en el municipio.
+
+    Y lo nuevo de la regla del editor: DOS listas disjuntas —lo que falta
+    obligatorio va a revision aunque este publicado, lo que solo trae
+    opcionales va a la lista aparte de «publicadas con faltantes»—.
     """
 
     @classmethod
@@ -1038,15 +1042,17 @@ class ReportePendientesTests(TestCase):
         cls.category = Category.objects.create(name='Restaurantes', slug='restaurantes')
         cls.op_status = OperationalStatus.objects.create(name='Abierto', slug='abierto')
 
-        # Nada que pedir: no debe salir ni en el contador ni en la lista.
+        # Nada que pedir: publicada, completa y CON foto, no debe salir
+        # ni en el contador ni en ninguna de las dos listas.
         cls.completa = cls.crear(
             'La Receta', telefono='809-555-1111', extras=True, horario=True,
         )
-        # Cumple el trio, pero no horario ni contacto extra: se publica
-        # sola y entonces YA NO vuelve a la lista de pendientes, aunque
-        # le falten extras — el editor pidio salir de ella.
+        # Cumple los obligatorios, pero no horario ni contacto extra: se
+        # publica sola y entonces pasa a la lista APARTE de publicadas
+        # con faltantes — fuera de la de revision, que es lo que pidio
+        # el editor.
         cls.sin_extras = cls.crear('Panaderia Sol', telefono='809-555-2222')
-        # Sin telefono no hay trio -> queda en revision.
+        # Sin telefono no hay obligatorios -> queda en revision.
         cls.sin_telefono = cls.crear(
             'Taller El Rayo', telefono='', estado=cls.en_revision,
             procedencia='importado',
@@ -1076,7 +1082,8 @@ class ReportePendientesTests(TestCase):
     def crear(cls, nombre, *, municipio='Moca', provincia='Espaillat',
               lat=MOCA_LAT, lng=MOCA_LNG, calle='Calle 1',
               telefono='809-555-0000', extras=False, estado=None,
-              procedencia='manual', horario=False, con_ubicacion=True):
+              procedencia='manual', horario=False, con_ubicacion=True,
+              foto=True):
         biz = Business.objects.create(
             name=nombre,
             description='Descripcion de %s' % nombre,
@@ -1106,6 +1113,10 @@ class ReportePendientesTests(TestCase):
                 open_time=datetime.time(8, 0),
                 close_time=datetime.time(17, 0),
             )
+        # La foto es obligatoria: con ``foto=False`` se prueba que una
+        # ficha sin ella vuelve a revision aunque este publicada.
+        if foto:
+            BusinessImage.objects.create(business=biz, image=_foto())
         return biz
 
     # ------------------------------ acceso ------------------------------
@@ -1142,11 +1153,12 @@ class ReportePendientesTests(TestCase):
         por_nombre = {f['municipio']: f for f in datos}
         self.assertEqual(por_nombre['Moca']['total'], 4)
         self.assertEqual(por_nombre['Santiago']['total'], 1)
-        # 'La Receta' esta publicada completa y 'Panaderia Sol' esta
-        # publicada aunque le falten extras: ninguna de las dos es
-        # pendiente. Quedan las dos sin publicar.
-        self.assertEqual(por_nombre['Moca']['con_pendientes'], 2)
-        # Dos de Moca y la sin municipio esperan publicacion.
+        # 'La Receta' esta publicada y completa: no es de nadie. Quedan
+        # las dos sin publicar en revision, y 'Panaderia Sol' —publicada
+        # y solo con extras sin completar— en la lista aparte.
+        self.assertEqual(por_nombre['Moca']['con_revision'], 2)
+        self.assertEqual(por_nombre['Moca']['con_publicadas'], 1)
+        # Las dos de Moca sin publicar esperan publicarse.
         self.assertEqual(por_nombre['Moca']['en_revision'], 2)
 
     def test_las_fichas_sin_municipio_no_desaparecen(self):
@@ -1195,55 +1207,97 @@ class ReportePendientesTests(TestCase):
         datos = self.admin()
 
         self.assertEqual(datos['total'], 4)
-        # Publicadas con faltans o no, las dos publicadas de Moca salen
-        # de la lista: solo cuentan las que faltan publicar.
-        self.assertEqual(datos['con_pendientes'], 2)
+        # 'La Receta' esta publicada y completa: no sale ni en la lista
+        # de revision ni en la de publicadas con faltantes.
+        self.assertEqual(datos['con_revision'], 2)
         nombres = [f['nombre'] for f in datos['fichas']]
         self.assertNotIn('La Receta', nombres)
+        self.assertNotIn(
+            'La Receta', [f['nombre'] for f in datos['publicadas']],
+        )
+        # 'Panaderia Sol' esta publicada y solo le faltan opcionales:
+        # no es de revision; la lista aparte si la incluye.
         self.assertNotIn('Panaderia Sol', nombres)
+        self.assertIn(
+            'Panaderia Sol', [f['nombre'] for f in datos['publicadas']],
+        )
 
-    def test_agrupa_por_campo_faltante_y_marca_el_trio(self):
-        """§11.1: agrupado por campo. El trio va marcado para que se vea
-        de un vistazo que lo que bloquea la publicacion."""
+    def test_agrupa_por_campo_faltante_y_marca_lo_obligatorio(self):
+        """§11.1: agrupado por campo. Lo obligatorio va marcado para que
+        se vea de un vistazo que es lo que bloquea la publicacion."""
         por_campo = {f['campo']: f for f in self.admin()['por_campo']}
 
-        self.assertTrue(por_campo['telefono']['en_trio'])
-        self.assertTrue(por_campo['punto']['en_trio'])
-        self.assertFalse(por_campo['horario']['en_trio'])
+        self.assertTrue(por_campo['telefono']['en_obligatorio'])
+        self.assertTrue(por_campo['punto']['en_obligatorio'])
+        self.assertFalse(por_campo['horario']['en_obligatorio'])
         self.assertGreaterEqual(por_campo['telefono']['cantidad'], 1)
 
-    def test_el_trio_va_primero_en_la_cola(self):
+    def test_lo_obligatorio_va_primero_en_la_cola(self):
         """Si no, los campos que no tiene casi nadie (WhatsApp, web)
         taparian el telefono, que es el que decide la publicacion."""
+        from . import pendientes
+
         filas = self.admin()['por_campo']
         nombres = [f['campo'] for f in filas]
 
-        ultimo_trio = max(
-            nombres.index(c) for c in ('nombre', 'telefono', 'punto')
+        ultimo_obligatorio = max(
+            nombres.index(c) for c in pendientes.OBLIGATORIOS
             if c in nombres
         )
-        primero_sin_trio = min(
-            i for i, fila in enumerate(filas) if not fila['en_trio']
+        primero_sin_obligatorio = min(
+            i for i, fila in enumerate(filas)
+            if not fila['en_obligatorio']
         )
 
-        self.assertLess(ultimo_trio, primero_sin_trio)
+        self.assertLess(ultimo_obligatorio, primero_sin_obligatorio)
 
-    def test_una_publicada_con_faltans_no_vuelve_a_la_lista(self):
-        """La regla del editor: si un envio dejo la ficha publicada (ya
-        tiene los requeridos), no vuelve a aparecer aunque le falten
-        extras — y el contador de la fila y la lista dicen lo mismo."""
+    def test_una_publicada_con_faltantes_pasa_a_la_segunda_lista(self):
+        """La regla del editor: la publicada con todos los obligatorios
+        sale de la lista de revision —no estorba ahi— y aparece en la
+        lista aparte de «publicadas con faltantes» para rellenarla mas
+        adelante; el contador de la fila y la lista dicen lo mismo."""
         datos = self.admin()
         nombres = [f['nombre'] for f in datos['fichas']]
 
-        # Publicada con extras sin completar: fuera.
+        # Publicada con extras sin completar: fuera de revision...
         self.assertNotIn('Panaderia Sol', nombres)
-        # Publicada y completa: ya salia fuera, sigue fuera.
+        # ...y en la lista aparte, con su falta a la vista.
+        por_publicadas = {f['nombre']: f for f in datos['publicadas']}
+        self.assertIn('Panaderia Sol', por_publicadas)
+        self.assertIn('horario', por_publicadas['Panaderia Sol']['faltan'])
+        # Publicada y completa: no sale en ninguna de las dos.
         self.assertNotIn('La Receta', nombres)
-        # Lo que queda es exactamente lo que espera publicarse.
+        self.assertNotIn('La Receta', por_publicadas)
+        # Lo que queda en revision es exactamente lo que espera publicarse.
         self.assertTrue(
             all(f['estado'] == 'en-revision' for f in datos['fichas']),
         )
-        self.assertEqual(datos['con_pendientes'], len(datos['fichas']))
+        self.assertEqual(datos['con_revision'], len(datos['fichas']))
+        self.assertEqual(datos['con_publicadas'], len(datos['publicadas']))
+
+    def test_una_publicada_sin_foto_vuelve_a_la_revision(self):
+        """La foto es obligatoria: aunque ya este publicada, si se quedo
+        sin imagen VUELVE a la lista de revision —con «imagen» marcado—
+        hasta que alguien le ponga una."""
+        self.crear(
+            'Cafeteria El Parque', extras=True, horario=True, foto=False,
+        )
+
+        datos = self.admin()
+        por_fichas = {f['nombre']: f for f in datos['fichas']}
+
+        self.assertIn('Cafeteria El Parque', por_fichas)
+        self.assertEqual(
+            por_fichas['Cafeteria El Parque']['faltan'], ['imagen'],
+        )
+        self.assertNotIn(
+            'Cafeteria El Parque',
+            [f['nombre'] for f in datos['publicadas']],
+        )
+        self.assertEqual(datos['con_revision'], len(datos['fichas']))
+        # Y en el desglose, «imagen» cuenta como obligatorio.
+        por_campo = {f['campo']: f for f in datos['por_campo']}
+        self.assertTrue(por_campo['imagen']['en_obligatorio'])
 
     def test_trae_la_procedencia(self):
         """§10: lo que viene del servicio entra marcado."""
@@ -1341,8 +1395,9 @@ class ReportePendientesTests(TestCase):
 
         self.assertEqual([f['municipio'] for f in datos], ['Moca'])
         self.assertEqual(datos[0]['total'], 4)
-        # Solo las dos sin publicar: las publicadas ya no cuentan.
-        self.assertEqual(datos[0]['con_pendientes'], 2)
+        # Solo las dos sin publicar; la publicada con faltantes va en la
+        # lista aparte.
+        self.assertEqual(datos[0]['con_revision'], 2)
 
     def test_el_reporte_le_dice_quien_firma(self):
         """La tarjeta «Tu firma» enseña el nombre del colaborador al que
@@ -1445,21 +1500,33 @@ class ReportePendientesTests(TestCase):
         self.assertIsNotNone(sin_acento['cabecera'])
         self.assertEqual(sin_acento['provincia'], 'Peravia')
 
-    # ---------------------------- el trio (R5) --------------------------
-    def test_el_trio_es_nombre_telefono_y_punto(self):
-        """§10-f: el telefono es obligatorio porque es el propio trio."""
+    # ---------------------- los obligatorios (R5) ---------------------
+    def test_los_obligatorios_son_nombre_direccion_telefono_imagen_y_punto(self):
+        """§10-f: el telefono, la direccion y la foto son obligatorios
+        porque sin ellos la ficha no puede publicarse sola."""
         from . import pendientes
 
-        self.assertTrue(pendientes.cumple_trio(self.completa))
-        self.assertFalse(pendientes.cumple_trio(self.sin_telefono))
-        self.assertFalse(pendientes.cumple_trio(self.sin_coordenadas))
+        self.assertTrue(pendientes.cumple_obligatorios(self.completa))
+        self.assertFalse(pendientes.cumple_obligatorios(self.sin_telefono))
+        self.assertFalse(pendientes.cumple_obligatorios(self.sin_coordenadas))
+        # Sin direccion tampoco.
+        sin_direccion = self.crear(
+            'Sin Calle', calle='', extras=True, horario=True,
+        )
+        self.assertFalse(pendientes.cumple_obligatorios(sin_direccion))
+        # Sin foto no se publica, aunque tenga todo lo demas.
+        sin_foto = self.crear(
+            'Sin Foto', extras=True, horario=True, foto=False,
+        )
+        self.assertFalse(pendientes.cumple_obligatorios(sin_foto))
+        self.assertEqual(pendientes.faltantes_de(sin_foto), ['imagen'])
 
-    def test_los_extras_no_forman_parte_del_trio(self):
+    def test_los_extras_no_son_obligatorios(self):
         """§10: horario y WhatsApp son pendientes, pero no impiden
         publicar. 'Panaderia Sol' no tiene ninguno de los dos."""
         from . import pendientes
 
-        self.assertTrue(pendientes.cumple_trio(self.sin_extras))
+        self.assertTrue(pendientes.cumple_obligatorios(self.sin_extras))
         self.assertIn('horario', pendientes.faltantes_de(self.sin_extras))
 
 
@@ -1485,8 +1552,8 @@ class ValidacionDeEntradaTests(TestCase):
     """§11.5: la puerta. Lo mal formado NO entra; lo incompleto SI.
 
     Esta distincion es la que sostiene R5 entero: si la puerta rechazara
-    por no cumplir el trio, los que mas necesitamos (los que no tienen
-    telefono) no llegarian nunca al reporte de §11.1.
+    por no cumplir los obligatorios, los que mas necesitamos (los que no
+    tienen telefono) no llegarian nunca al reporte de §11.1.
     """
 
     def validar(self, **extra):
@@ -1505,7 +1572,7 @@ class ValidacionDeEntradaTests(TestCase):
     def test_un_dato_completo_pasa(self):
         self.assertEqual(self.validar(), [])
 
-    def test_faltar_el_trio_no_rechaza(self):
+    def test_faltar_lo_obligatorio_no_rechaza(self):
         """§10-g: quien no tiene telefono no se descarta, se acumula."""
         self.assertEqual(
             self.validar(nombre='Taller Nuevo', telefono='', lat=None, lng=None),
@@ -1734,9 +1801,10 @@ class ImportarMunicipioTests(TestCase):
     """``manage.py importar_municipio`` -> R5 en la practica.
 
     Tres pasos dependen del anterior y hay que protegerlos en ese orden:
-    validar ANTES de crear, cruzar ANTES de publicar, y publicar SOLO el
-    trio. El cuarto, que no se ve a primera vista: lo creado a mano nunca
-    se publica solo (VISION.md).
+    validar ANTES de crear, cruzar ANTES de publicar, y publicar SOLO con
+    los obligatorios —que incluyen la foto, que OSM no trae: lo nuevo se
+    queda en revision—. El cuarto, que no se ve a primera vista: lo
+    creado a mano nunca se publica solo (VISION.md).
     """
 
     @classmethod
@@ -1759,14 +1827,14 @@ class ImportarMunicipioTests(TestCase):
         call_command('importar_municipio', municipio, stdout=salida)
         return salida.getvalue()
 
-    def hacer_manual(self, nombre):
-        """Una ficha creada a mano y sin publicar, en el circulo de Moca."""
+    def hacer_manual(self, nombre, procedencia='manual'):
+        """Una ficha sin publicar, en el circulo de Moca."""
         biz = Business.objects.create(
             name=nombre,
             description='Descripcion',
             publication_status=self.en_revision,
             operational_status=self.abierto,
-            procedencia='manual',
+            procedencia=procedencia,
         )
         BusinessLocation.objects.create(
             business=biz, street='Calle 1 #10', municipality='Moca',
@@ -1776,7 +1844,10 @@ class ImportarMunicipioTests(TestCase):
 
     # ---------------------- R5: que se publica --------------------------
     @patch('businesses.osm.consultar')
-    def test_publica_la_que_cumple_el_trio(self, consultar):
+    def test_sin_foto_no_se_publica(self, consultar):
+        """La foto es obligatoria: OSM no la trae, y sin ella la ficha
+        se queda en revision aunque cumpla todo lo demas — es la
+        regla del editor, y nada se descarta por eso."""
         consultar.return_value = [
             nodo('Pan del Dia', phone='809-555-1111'),
         ]
@@ -1785,8 +1856,28 @@ class ImportarMunicipioTests(TestCase):
 
         pan = Business.objects.get(name='Pan del Dia')
 
-        self.assertEqual(pan.publication_status.slug, 'publicado')
+        self.assertEqual(pan.publication_status.slug, 'en-revision')
         self.assertEqual(pan.procedencia, 'importado')
+
+    @patch('businesses.osm.consultar')
+    def test_una_importada_con_foto_se_publica_al_completarse(self, consultar):
+        """El importador sigue publicando cuando se cumplen los
+        obligatorios: la ficha ya existia CON foto y OSM trae el
+        telefono que le faltaba."""
+        existente = self.hacer_manual(
+            'Pan del Dia', procedencia='importado',
+        )
+        BusinessImage.objects.create(business=existente, image=_foto())
+        consultar.return_value = [
+            nodo('Pan del Dia', phone='809-555-1111'),
+        ]
+
+        self.importar()
+
+        existente.refresh_from_db()
+
+        self.assertEqual(existente.publication_status.slug, 'publicado')
+        self.assertEqual(existente.contact.phone, '809-555-1111')
 
     @patch('businesses.osm.consultar')
     def test_sin_telefono_queda_en_revision_y_no_se_descarta(self, consultar):
@@ -1986,9 +2077,9 @@ class CanalDeEnvioTests(TestCase):
         self.assertEqual(Envio.objects.count(), 0)
 
     def test_las_referencias_llegan_y_se_guardan(self):
-        """Un campo mas en «Dode esta»: no decide nada — no es del trio
-        ni del reporte — pero sirve para llegar a pie, y tiene que
-        sobrevivir el viaje entero hasta la ficha."""
+        """Un campo mas en «Dode esta»: no decide nada — no es de lo
+        obligatorio ni del reporte — pero sirve para llegar a pie, y
+        tiene que sobrevivir el viaje entero hasta la ficha."""
         response = self.enviar(referencias='Frente a la parada del bus')
 
         self.assertEqual(response.status_code, 201, response.content)
@@ -2183,7 +2274,7 @@ class CanalDeEnvioTests(TestCase):
         )
         self.assertFalse(Envio.objects.get().datos['cerrado'])
 
-    # --------------------------- 3. el trio ----------------------------
+    # ----------------------- 3. los obligatorios -----------------------
     def test_lo_completo_se_publica_al_momento(self):
         response = self.enviar()
 
@@ -2223,7 +2314,7 @@ class CanalDeEnvioTests(TestCase):
         self.assertEqual(response.data['estado'], 'publicado')
 
     def test_sin_punto_queda_pendiente(self):
-        """Falta el trio, no esta roto: tambien entra."""
+        """Falta un obligatorio, no esta roto: tambien entra."""
         response = self.enviar(lat=None, lng=None)
 
         self.assertEqual(response.status_code, 201)
@@ -2238,7 +2329,7 @@ class CanalDeEnvioTests(TestCase):
         response = self.enviar(categoria='Pan (con errata)')
 
         self.assertFalse(Category.objects.filter(name='Pan (con errata)').exists())
-        # Y no por eso se le retiene: la categoria no es el trio.
+        # Y no por eso se le retiene: la categoria no es de lo obligatorio.
         self.assertEqual(response.data['estado'], 'publicado')
         self.assertIn('categoria', response.data['faltan'])
 
@@ -2318,8 +2409,8 @@ class CanalDeEnvioTests(TestCase):
         self.assertEqual(por_nombre['Pan del Dia']['estado'], 'en-revision')
 
     def test_un_envio_que_publica_no_deja_pendiente(self):
-        """La otra mitad del circuito: si el envio trae los requeridos,
-        la ficha se publica y **no entra** en la lista de pendientes,
+        """La otra mitad del circuito: si el envio trae los obligatorios,
+        la ficha se publica y **no entra** en la lista de revision,
         aunque le falten extras opcionales — asi lo pidio el editor."""
         self.enviar()
         User = get_user_model()
@@ -2331,7 +2422,12 @@ class CanalDeEnvioTests(TestCase):
 
         nombres = [f['nombre'] for f in response.data['fichas']]
         self.assertNotIn('Pan del Dia', nombres)
-        self.assertEqual(response.data['con_pendientes'], 0)
+        self.assertEqual(response.data['con_revision'], 0)
+        # Con extras sin completar si aparece: en la lista aparte.
+        self.assertIn(
+            'Pan del Dia',
+            [f['nombre'] for f in response.data['publicadas']],
+        )
 
     # ------------------------- 2. el cruce -----------------------------
     def test_un_duplicado_no_crea_una_segunda_ficha(self):
@@ -2346,14 +2442,14 @@ class CanalDeEnvioTests(TestCase):
         )
         self.assertEqual(existente.contact.phone, '809-555-1111')
 
-    def test_completarle_el_trio_a_una_importada_la_publica(self):
+    def test_completarle_lo_obligatorio_a_una_importada_la_publica(self):
         """§10-d + §10-f, juntas.
 
-        La ficha existente es una importada sin telefono; el envio trae el
-        que nos falta. Se le completa **y** se publica, porque ya cumple
-        el trio. Es la prueba de que hay que releer la instancia: si no,
-        `cumple_trio` veria la cache de "no tiene contacto" de antes de
-        crearlo y la ficha se quedaria en revision.
+        La ficha existente es una importada sin telefono ni foto; el
+        envio trae las dos. Se le completan **y** se publica, porque ya
+        cumple todo lo obligatorio. Es la prueba de que hay que releer la
+        instancia: si no, `cumple_obligatorios` veria la cache de "no
+        tiene contacto" de antes de crearlo y se quedaria en revision.
         """
         existente = self.hacer('Pan del Dia', procedencia='importado')
 
@@ -2567,7 +2663,7 @@ class CompletarFichaTests(TestCase):
         self.assertIn('descripcion', completado)
         self.assertIn('categoria', completado)
 
-    def test_se_publica_en_cuanto_cumple_el_trio(self):
+    def test_se_publica_en_cuanto_cumple_lo_obligatorio(self):
         ficha = self.hacer_ficha()
         self.assertEqual(ficha.publication_status, self.en_revision)
 
@@ -2937,8 +3033,9 @@ class PortarDeDatosTests(TestCase):
         self.assertEqual(pan.category.name, 'Tiendas')
         self.assertEqual(pan.operational_status.slug, 'abierto')
         self.assertEqual(pan.procedencia, 'importado')
-        # Cumple el trio, y ademas no es manual: la publica el sistema.
-        self.assertEqual(pan.publication_status.slug, 'publicado')
+        # El archivo no trae fotos y la imagen es obligatoria: la ficha
+        # se carga entera pero espera en revision hasta que le pongan una.
+        self.assertEqual(pan.publication_status.slug, 'en-revision')
         self.assertTrue(pan.hours.exists())
 
     def test_correr_la_carga_dos_veces_no_duplica(self):

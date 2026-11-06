@@ -98,9 +98,9 @@ def validar(*, nombre, telefono, lat, lng, municipio, cabecera,
             radio_km=RADIO_KM):
     """Los motivos por los que un dato NO se deja entrar. [] = pasa.
 
-    **No evalua el trio.** Que falte el telefono o el punto no rechaza:
-    eso es un pendiente y se acumula (§10-g). Aqui solo se descarta lo que
-    esta mal formado o que no se puede verificar.
+    **No evalua los obligatorios.** Que falte el telefono, la foto o el
+    punto no rechaza: eso es un pendiente y se acumula (§10-g). Aqui solo
+    se descarta lo que esta mal formado o que no se puede verificar.
 
     ``cabecera`` es obligatoria: sin ella no hay forma de comprobar que
     las coordenadas caen en el municipio que dice ser (§11.5). En la
@@ -134,8 +134,8 @@ def validar(*, nombre, telefono, lat, lng, municipio, cabecera,
         elif not telefonos_valido(telefono):
             motivos.append('El telefono no tiene un formato valido.')
 
-    # Sin coordenadas NO se rechaza: falta el punto, y eso es trio
-    # incompleto (§10-g -> reporte), no un dato mal formado. Lo que si se
+    # Sin coordenadas NO se rechaza: falta el punto, y eso deja la ficha
+    # incompleta (§10-g -> reporte), no un dato mal formado. Lo que si se
     # rechaza es que vengan a medias, que no es ni una cosa ni la otra.
     # El circulo solo se puede comprobar cuando hay punto Y circulo.
     if (lat is None) != (lng is None):

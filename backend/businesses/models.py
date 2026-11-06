@@ -447,16 +447,16 @@ class Envio(models.Model):
 
     ``estado`` refleja la decision del sistema, no una decision humana:
 
-    * ``publicado``   — cumplio el trio, entro a la luz;
-    * ``pendiente``   — paso la validacion pero le falta el trio, y ya
-                        esta en el reporte de §11.1;
+    * ``publicado``   — cumplio los obligatorios, entro a la luz;
+    * ``pendiente``   — paso la validacion pero le falta algo
+                        obligatorio, y ya esta en el reporte de §11.1;
     * ``rechazado``   — fallo en la puerta, no queda pendiente de nada;
     * ``duplicado``   — ya existia: se le completo lo que faltaba.
     """
 
     ESTADOS = [
         ('publicado', 'Publicado'),
-        ('pendiente', 'Pendiente (falta el trio)'),
+        ('pendiente', 'Pendiente (falta lo obligatorio)'),
         ('rechazado', 'Rechazado en la puerta'),
         ('duplicado', 'Ya existia'),
     ]
@@ -488,8 +488,9 @@ class Envio(models.Model):
     faltan = models.JSONField(
         default=list, blank=True,
         verbose_name='Campos que faltan',
-        help_text='Que le falta al negocio para cumplir el trio. Es lo que '
-                  'se le devuelve al colaborador para que lo complete.',
+        help_text='Que le falta al negocio para cumplir los obligatorios. '
+                  'Es lo que se le devuelve al colaborador para que lo '
+                  'complete.',
     )
     datos = models.JSONField(
         default=dict, blank=True,

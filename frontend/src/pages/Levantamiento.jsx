@@ -64,17 +64,19 @@ const diasBase = (horario = []) => {
   return filas;
 };
 
-// Lo que sin esto no se publica solo (§10-f). Marcarlo distinto al resto
-// porque completarlo es lo que saca la ficha del reporte.
-const TRIO = ['nombre', 'telefono', 'punto'];
+// Lo que sin esto no se publica solo (§10-f): nombre, direccion, telefono,
+// imagen y punto. Marcarlo distinto al resto porque completarlo es lo que
+// saca la ficha de la lista de revision.
+const OBLIGATORIOS = ['nombre', 'direccion', 'telefono', 'imagen', 'punto'];
 
 const CONTACTO = ['whatsapp', 'correo', 'web'];
 
-// Los once campos del reporte, en el mismo orden que pendientes.py. Aqui
-// solo se usan para medir en vivo cuanto le queda a la ficha abierta.
+// Los doce campos del reporte, en el mismo orden que pendientes.py. Aqui
+// solo se usan para medir en vivo cuanto le queda a la ficha abierta (el
+// «imagen» lo decide el servidor con las fotos que la ficha ya tenga).
 const CAMPOS = [
-  'nombre', 'telefono', 'punto', 'categoria', 'direccion', 'horario',
-  'whatsapp', 'correo', 'web', 'descripcion', 'estado',
+  'nombre', 'direccion', 'telefono', 'imagen', 'punto', 'categoria',
+  'horario', 'whatsapp', 'correo', 'web', 'descripcion', 'estado',
 ];
 
 // El techo de fotos por ficha: el MISMO que en el admin (modelo
@@ -200,9 +202,9 @@ export default function Levantamiento() {
   });
 
   // Las fichas que YA no le deben nada en ESTA sesion. El backend solo
-  // manda las pendientes —en cuanto se completan desaparecen del
-  // reporte—, y sin este registro la fila se borraria en vez de ponerse
-  // verde: es la confirmacion del trabajo hecho, no un dato del servidor.
+  // manda lo que falta —revision y publicadas con faltantes—, y sin este
+  // registro la fila se borraria en vez de ponerse verde: es la
+  // confirmacion del trabajo hecho, no un dato del servidor.
   const [hechas, setHechas] = useState([]);
 
   // Una sola carga, usada al validar el token y al refrescar: primero la
@@ -220,7 +222,10 @@ export default function Levantamiento() {
       return;
     }
     const fila = data[0] || null;
-    const espera = Boolean(fila) && fila.con_pendientes > 0;
+    // Dos listas en la tarjeta: hay trabajo mientras quede ALGO en
+    // revision o algo publicado con faltantes.
+    const espera = Boolean(fila)
+      && (fila.con_revision > 0 || fila.con_publicadas > 0);
     // El detalle anterior se conserva mientras llega el nuevo: sin eso la
     // lista parpadearia vacia con cada envio y se perdia justo la
     // confirmacion que el colaborador acaba de ganarse. Solo si sigue
@@ -289,12 +294,13 @@ export default function Levantamiento() {
     })));
   };
 
-  // Un ficha concreta del reporte -> el formulario ya rellenado. El
-  // backend devuelve solo LA que se pidió (y solo si es de su municipio):
-  // poblar con las 148 de golpe sería mandar medio municipio a rellenar
-  // UNO.
-  const elegirFicha = async (e) => {
-    const id = e.target.value;
+  // Una ficha concreta del reporte -> el formulario ya rellenado. El
+  // backend devuelve solo LA que se pidio (y solo si es de su
+  // municipio): poblar con las 148 de golpe seria mandar medio
+  // municipio a rellenar UNO. Lo comparten el desplegable y las listas
+  // clicables: revision y publicadas con faltantes abren la misma
+  // ficha.
+  const abrirFichaPorId = async (id) => {
     setResultado(null);
     setAvisoFicha(null);
     if (!id) {
@@ -371,6 +377,9 @@ export default function Levantamiento() {
       if (vigente()) setCargandoFicha(false);
     }
   };
+
+  // El desplegable del reporte: mismo camino, el id llega como cadena.
+  const elegirFicha = (e) => abrirFichaPorId(e.target.value);
 
   // La API pagina (12 por hoja): con solo la primera, el desplegable
   // esconde categorias reales — y quien teclea una que existe en otra
@@ -582,12 +591,14 @@ export default function Levantamiento() {
           'Content-Type': 'multipart/form-data',
         },
       });
-      // Verde cuando el servidor dio la ficha por terminada: PUBLICADA
-      // —entonces el backend la saca de la lista en el refresco de
-      // abajo— o ya sin nada que completar. Aqui se conserva para que
-      // la fila no desaparezca sino que CAMBIE DE COLOR; al volver a
-      // entrar, la publicada ya no aparece.
-      const quedoPublicada = data.estado === 'publicado';
+      // Verde solo cuando el servidor dio la ficha por TERMINADA:
+      // publicada y ya sin nada que completar. La publicada con
+      // faltantes NO se pinta verde —sigue pendiente, en su lista
+      // aparte—, asi la fila verde siempre dice la verdad. Se conserva
+      // aqui para que la fila no desaparezca sino que CAMBIE DE COLOR;
+      // al volver a entrar, la terminada ya no aparece en ninguna lista.
+      const quedoCompleta = data.estado === 'publicado'
+        && (data.faltan || []).length === 0;
       setResultado({
         tipo: data.estado,
         motivos: data.motivos || [],
@@ -595,9 +606,9 @@ export default function Levantamiento() {
         completado: data.completado || [],
         categoriaCreada: data.categoria_creada || null,
         categoriaReusada: data.categoria_reusada || null,
-        verde: idFicha !== null && quedoPublicada,
+        verde: idFicha !== null && quedoCompleta,
       });
-      if (idFicha !== null && quedoPublicada) {
+      if (idFicha !== null && quedoCompleta) {
         setHechas((h) => (h.some((x) => x.id === idFicha)
           ? h
           : [...h, {
@@ -665,8 +676,8 @@ export default function Levantamiento() {
   const claseFalta = (...campos) => {
     const hitos = campos.filter((c) => falta(c));
     if (hitos.length === 0) return 'lev-field';
-    const trio = hitos.some((c) => TRIO.includes(c));
-    return `lev-field lev-field--falta${trio ? ' lev-field--trio' : ''}`;
+    const obligatorio = hitos.some((c) => OBLIGATORIOS.includes(c));
+    return `lev-field lev-field--falta${obligatorio ? ' lev-field--obligatorio' : ''}`;
   };
 
   const marca = (campo) => (falta(campo)
@@ -680,10 +691,13 @@ export default function Levantamiento() {
     if (fichaId === null) return faltanFicha;
     const lleno = {
       nombre: datos.nombre.trim() !== '',
+      direccion: datos.calle.trim() !== '',
       telefono: telefonos.some((t) => t.trim() !== ''),
+      // Las fotos de la ficha mas las nuevas: el «imagen» del servidor
+      // se mide igual, con las que la ficha YA tiene.
+      imagen: !faltaFoto,
       punto: punto[0] !== null && punto[1] !== null,
       categoria: datos.categoria !== '',
-      direccion: datos.calle.trim() !== '',
       horario: franjas.some((f) => f.day && f.desde && f.hasta),
       whatsapp: datos.whatsapp.trim() !== '',
       correo: datos.correo.trim() !== '',
@@ -692,7 +706,7 @@ export default function Levantamiento() {
       estado: estado !== '',
     };
     return CAMPOS.filter((c) => !lleno[c]);
-  }, [fichaId, faltanFicha, datos, telefonos, punto, franjas, estado]);
+  }, [fichaId, faltanFicha, datos, telefonos, punto, franjas, estado, faltaFoto]);
 
   // El conteo por campo con la ficha abierta descontada en vivo: cuando
   // ya no le falta telefono a NINGUNA, el chip se tacha y pasa a verde.
@@ -707,10 +721,10 @@ export default function Levantamiento() {
     }));
   }, [reporte.detalle, fichaId, faltanFicha, restanFicha]);
 
-  // Lo que se ve: las que quedaron verdes en esta sesion (el backend deja
-  // de mandarlas) unidas a las que faltan, ordenadas por nombre para que
-  // NADA se mueva de sitio al completarse — el color es la confirmacion,
-  // y una confirmacion que salta de lugar no se lee.
+  // Lo que se ve en REVISION: las que quedaron verdes en esta sesion (el
+  // backend deja de mandarlas) unidas a las que faltan, ordenadas por
+  // nombre para que NADA se mueva de sitio al completarse — el color es
+  // la confirmacion, y una confirmacion que salta de lugar no se lee.
   const filas = useMemo(() => {
     const muni = reporte.detalle?.municipio || reporte.fila?.municipio || '';
     const listas = hechas.filter((h) => normal(h.municipio) === normal(muni));
@@ -731,15 +745,39 @@ export default function Levantamiento() {
       .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
   }, [reporte.detalle, reporte.fila, hechas, fichaId, restanFicha]);
 
-  const listasAhora = filas.filter((f) => f.restan.length === 0).length;
-  const avance = filas.length > 0
-    ? Math.round((listasAhora / filas.length) * 100)
+  // La lista aparte: publicadas con todos los obligatorios y aun con
+  // algo de lo demas sin rellenar. Las que quedaron verdes en esta
+  // sesion NO se repiten aqui —su verde vive en la lista de revision—
+  // para que una misma ficha nunca salga dos veces.
+  const filasPublicadas = useMemo(() => {
+    const muni = reporte.detalle?.municipio || reporte.fila?.municipio || '';
+    const listas = hechas.filter((h) => normal(h.municipio) === normal(muni));
+    return (reporte.detalle?.publicadas || [])
+      .filter((f) => !listas.some((h) => h.id === f.id))
+      .map((f) => ({
+        id: f.id,
+        nombre: f.nombre,
+        activa: f.id === fichaId,
+        restan: f.id === fichaId ? restanFicha : f.faltan,
+        hecha: false,
+      }))
+      .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
+  }, [reporte.detalle, reporte.fila, hechas, fichaId, restanFicha]);
+
+  // El avance se mide sobre las DOS listas: lo que ya quedo sin nada
+  // pendiente (verdes de revision + publicadas que se completaron en
+  // vivo) sobre todo lo que habia que tocar.
+  const listasAhora = filas.filter((f) => f.restan.length === 0).length
+    + filasPublicadas.filter((f) => f.restan.length === 0).length;
+  const avanceTotal = filas.length + filasPublicadas.length;
+  const avance = avanceTotal > 0
+    ? Math.round((listasAhora / avanceTotal) * 100)
     : 0;
 
   const claseFila = (f) => {
     let base = 'lev-ficha--curso';
     if (f.restan.length === 0) base = 'lev-ficha--hecha';
-    else if (f.restan.some((c) => TRIO.includes(c))) base = 'lev-ficha--bloquea';
+    else if (f.restan.some((c) => OBLIGATORIOS.includes(c))) base = 'lev-ficha--bloquea';
     return f.activa ? `${base} lev-ficha--activa` : base;
   };
 
@@ -819,8 +857,10 @@ export default function Levantamiento() {
       <p className="lev-intro">
         Cada envío lo <strong>firma tu token</strong>: no abre nada, solo deja constancia de quién
         lo mandó. El sistema valida, cruza con lo que ya existe y publica solo si trae{' '}
-        <strong>nombre + teléfono + punto</strong>. Si falta alguno no se descarta: queda en el
-        reporte del municipio para que lo completen.
+        <strong>nombre, dirección, teléfono, imagen y punto</strong>. Si falta alguno no se
+        descarta: queda en la lista de revisión para que lo completen. Lo demás (horario,
+        WhatsApp, web…) se puede rellenar más adelante: esas fichas van en la lista aparte de
+        publicadas con faltantes.
       </p>
 
       <form
@@ -847,8 +887,9 @@ export default function Levantamiento() {
           </button>
         </section>
 
-        {/* §11.1 + lo decidido: el reporte de incompletas POR MUNICIPIO,
-            que es lo que le dice al colaborador que hacer. El backend solo
+        {/* §11.1 + lo decidido: el reporte POR MUNICIPIO con sus dos
+            listas —en revisión y publicadas con faltantes—, que es lo
+            que le dice al colaborador que hacer. El backend solo
             devuelve su renglon; los demas municipios no existen aqui.
             Con token se coloca AL LADO del formulario (grid-template-areas
             en el CSS); en el telefono sigue debajo, en el orden de siempre. */}
@@ -874,19 +915,39 @@ export default function Levantamiento() {
                 {reporte.fila.total === 0
                   ? 'todavía no hay fichas aquí.'
                   : `${reporte.fila.total} ficha${reporte.fila.total !== 1 ? 's' : ''}`
-                    + `, ${reporte.fila.con_pendientes} con algo faltando`
+                    + `, ${reporte.fila.con_revision} en revisión`
+                    + `, ${reporte.fila.con_publicadas} publicada${reporte.fila.con_publicadas !== 1 ? 's' : ''}`
+                      + ' con faltantes'
                     + `, ${reporte.fila.en_revision} esperando publicarse.`}
               </p>
 
+              {/* Sin nada pendiente el reporte NO desaparece: se
+                  explica. En cuanto las DOS listas quedan vacias —todo
+                  publicado y sin faltantes— el vacio tiene que decirlo
+                  en la cara, o la seccion parece rota. */}
+              {reporte.fila.total > 0
+                && reporte.fila.con_revision === 0
+                && reporte.fila.con_publicadas === 0 && (
+                <p className="lev-vacio">
+                  ✓ Todo completo en tu municipio: no hay ninguna ficha esperando
+                  publicarse ni publicadas con faltantes.
+                </p>
+              )}
+
               {/* El selector: la puerta al modo completar. Elegir una
                   ficha puebla el formulario con lo que ya hay y le marca
-                  lo que falta; el envío va con su id. */}
-              {reporte.detalle && reporte.detalle.fichas.length > 0 && (
+                  lo que falta; el envío va con su id. Entra con las de
+                  AMBAS listas: si no, abrir una publicada dejaria en el
+                  desplegable un valor que no esta en sus opciones. */}
+              {reporte.detalle && (
+                reporte.detalle.fichas.length > 0
+                || (reporte.detalle.publicadas || []).length > 0
+              ) && (
                 <div className="lev-field lev-elegir">
                   <label htmlFor="lev-elegir">Negocio a completar</label>
                   <select id="lev-elegir" value={fichaId ?? ''} onChange={elegirFicha}>
                     <option value="">— Elige uno de la lista —</option>
-                    {reporte.detalle.fichas.map((f) => (
+                    {[...reporte.detalle.fichas, ...(reporte.detalle.publicadas || [])].map((f) => (
                       <option key={f.id} value={f.id}>
                         {f.nombre}
                         {f.faltan.length > 0 ? ` — le falta ${f.faltan.length}` : ''}
@@ -904,7 +965,7 @@ export default function Levantamiento() {
                 </div>
               )}
 
-              {reporte.fila.total > 0 && reporte.fila.con_pendientes > 0 && (
+              {(reporte.fila.con_revision > 0 || reporte.fila.con_publicadas > 0) && (
                 <button
                   type="button"
                   className="lev-btn-ghost"
@@ -919,7 +980,7 @@ export default function Levantamiento() {
                     ? 'Actualizando…'
                     : reporte.detalle
                       ? 'Actualizar'
-                      : `Ver las ${reporte.fila.con_pendientes} que le falta algo`}
+                      : `Ver las ${reporte.fila.con_revision + reporte.fila.con_publicadas} con algo faltando`}
                 </button>
               )}
 
@@ -936,14 +997,14 @@ export default function Levantamiento() {
                           <li
                             key={f.campo}
                             className={[
-                              f.en_trio ? 'es-trio' : '',
+                              f.en_obligatorio ? 'es-obligatorio' : '',
                               f.cantidad === 0 ? 'es-hecho' : '',
                             ].filter(Boolean).join(' ')}
                           >
                             {f.etiqueta}
                             <span className="lev-por-campo-n">{f.cantidad}</span>
-                            {f.en_trio && f.cantidad > 0 && (
-                              <span className="lev-trio-marca">bloquea</span>
+                            {f.en_obligatorio && f.cantidad > 0 && (
+                              <span className="lev-obligatorio-marca">bloquea</span>
                             )}
                           </li>
                         ))}
@@ -951,16 +1012,17 @@ export default function Levantamiento() {
                     </>
                   )}
 
-                  <h3>Fichas</h3>
+                  <h3>En revisión</h3>
 
                   {/* La confirmacion visual: barra + fila que cambia de
-                      color sin moverse de sitio. */}
+                      color sin moverse de sitio. El avance cuenta las
+                      DOS listas: lo resuelto de todo lo que habia. */}
                   <p className="lev-avance">
                     <span className="lev-avance-barra">
                       <i style={{ width: `${avance}%` }} />
                     </span>
                     <span className={avance === 100 ? 'lev-avance-texto es-listo' : 'lev-avance-texto'}>
-                      {listasAhora} de {filas.length} sin nada pendiente
+                      {listasAhora} de {avanceTotal} sin nada pendiente
                     </span>
                   </p>
 
@@ -979,6 +1041,39 @@ export default function Levantamiento() {
                       </li>
                     ))}
                   </ul>
+
+                  {/* La segunda lista, en la MISMA tarjeta: publicadas
+                      que ya tienen todo lo obligatorio y aun les falta
+                      algo de lo demas. Son clicables —abren el mismo
+                      formulario— porque rellenarlas tarde tambien es el
+                      trabajo. */}
+                  {filasPublicadas.length > 0 && (
+                    <>
+                      <h3>Publicadas con faltantes</h3>
+                      <p className="lev-publicadas-nota">
+                        Ya tienen todo lo obligatorio; les queda rellenar lo demás cuando se pueda.
+                      </p>
+                      <ul className="lev-fichas lev-fichas--publicadas">
+                        {filasPublicadas.map((f) => (
+                          <li key={f.id} className={`lev-ficha ${claseFila(f)}`}>
+                            <button
+                              type="button"
+                              className="lev-ficha-abrir"
+                              onClick={() => abrirFichaPorId(String(f.id))}
+                            >
+                              <span className="lev-ficha-nombre">{f.nombre}</span>
+                            </button>
+                            <span className="lev-ficha-estado publicado">publicada</span>
+                            <span className="lev-ficha-falta">
+                              {f.restan.length === 0
+                                ? '✓ Completa'
+                                : `Falta: ${f.restan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
                 </div>
               )}
             </>
@@ -1303,10 +1398,11 @@ export default function Levantamiento() {
 
 const ETIQUETAS = {
   nombre: 'nombre',
+  direccion: 'dirección',
   telefono: 'teléfono',
+  imagen: 'imagen',
   punto: 'punto (coordenadas)',
   categoria: 'categoría',
-  direccion: 'dirección',
   horario: 'horario',
   whatsapp: 'whatsapp',
   correo: 'correo',
@@ -1337,7 +1433,7 @@ function Resultado({ r }) {
   // unica señal de que el envío entró, y tiene que leerse de un vistazo.
   const titulo = {
     publicado: ['✓ Aceptado y publicado', 'lev-ok'],
-    pendiente: ['✓ Aceptado: se queda en el reporte', 'lev-ok'],
+    pendiente: ['✓ Aceptado: se queda en revisión', 'lev-ok'],
     duplicado: ['✓ Aceptado: ficha existente completada', 'lev-ok'],
     rechazado: ['No se aceptó', 'lev-malo'],
     firma: ['Token no válido', 'lev-malo'],
@@ -1352,13 +1448,15 @@ function Resultado({ r }) {
   const completado = (r.completado || []).map((c) => COMPLETADOS[c] || c);
 
   // El cierre de la nota tiene que ser cierto caso por caso: la
-  // PUBLICADA ya no vuelve a la lista de pendientes —aunque le falten
-  // extras, el backend la saca en el refresco—; la que sigue en
+  // PUBLICADA con faltantes sale de revision y pasa a la lista aparte;
+  // la que quedo COMPLETA ya no sale en ninguna; la que sigue en
   // revision sigue ahi (lo dice su propio renglon de arriba), y el
-  // verde solo se promete si el servidor acabo publicandola.
+  // verde solo se promete si el servidor acabo dejandola terminada.
   const cierre = r.tipo === 'publicado'
-    ? ': la ficha publicada ya no sale en la lista de pendientes'
-      + (faltan.length > 0 ? ', aunque le falten extras' : '')
+    ? faltan.length > 0
+      ? ': sale de la lista de revisión y pasa a la de publicadas con faltantes'
+      + (r.verde ? ', y la que dejaste queda en verde' : '') + '.'
+      : ': la ficha publicada ya no sale en ninguna lista'
       + (r.verde ? ', y la que dejaste queda en verde' : '') + '.'
     : '.';
 
@@ -1396,7 +1494,7 @@ function Resultado({ r }) {
 
       {r.tipo === 'pendiente' && faltan.length > 0 && (
         <p>
-          Está en el reporte de su municipio. Le falta:{' '}
+          Sigue en la lista de revisión de su municipio. Le falta:{' '}
           <strong>{faltan.join(', ')}</strong>.
         </p>
       )}

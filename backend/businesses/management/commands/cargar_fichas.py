@@ -6,11 +6,13 @@
 La segunda mitad de la opcion B: lo que ya hay aqui manda. Cada linea
 pasa por ``masivo.Lote``, el mismo camino que usa ``importar_municipio``
 —validar en la puerta, cruzar contra lo que ya existe (§10-d) y publicar
-solo el que cumpla el trio (§10-f)—, asi que:
+solo el que cumpla los obligatorios (§10-f)—, asi que:
 
 * **se puede correr dos veces**: la segunda no crea nada, solo enriquece;
 * **no pisa**: si la ficha ya tiene telefono, se queda el de aqui, y el
   que trae el archivo se ignora (§10-d: nunca sobrescribir);
+* **lo nuevo no se publica solo**: el formato no trae fotos y la imagen
+  es obligatoria; queda en revision hasta que alguien le ponga una;
 * **una ficha creada a mano no se publica sola**, aunque el archivo diga
   que estaba publicada: quien publica es el admin (VISION.md);
 * **un municipio se puede dejar fuera** con ``--omitir``, para cuando la
