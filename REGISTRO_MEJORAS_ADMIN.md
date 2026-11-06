@@ -455,3 +455,136 @@ template:
     regla vieja estaba al revés: la publicada iba la última
     *dentro* de la lista) y los contadores que pasaban de 3 a 2
     en Moca (fila y detalle).
+- **El levantamiento: con el municipio sin nada pendiente, la
+  columna derecha se vaciaba y parecía rota (arreglado)** —
+  **Qué pasaba**: con la regla nueva, en producción el municipio
+  del token quedó con `con_pendientes = 0` (todo lo que tenía
+  faltantes ya estaba publicado) y, como el detalle solo se carga
+  cuando `con_pendientes > 0`, la tarjeta «Lo que falta en tu
+  municipio» se quedaba con **solo el título y la línea del
+  resumen**: «toda la sección de la derecha desapareció». El
+  reporte estaba en regla (no queda nada por completar), pero no
+  lo decía y parecía que algo se había caído.
+  - **Arreglo** (`Levantamiento.jsx` + clase `.lev-vacio` en el
+    CSS): si existe la fila, `total > 0` y
+    `con_pendientes = 0`, la tarjeta pinta en verde —con el mismo
+    verde del resto del reporte— «✓ No queda nada por completar en
+    tu municipio: todo lo que tenía faltantes ya está publicado.»
+    El reporte nunca desaparece: se explica. Si además hay fichas
+    `en_revision` sin faltantes, el resumen de arriba ya los
+    cuenta («esperando publicarse») y no se duplica el mensaje.
+  - **Verificado en el navegador (5/nov)**: token temporal para
+    «(sin municipio)» (3 fichas, todas publicadas) → título +
+    resumen + aviso en verde, sin selector, sin botón y sin
+    lista — exactamente la pantalla de producción pero explicada;
+    con el token Demo Local (Moca, 111 pendientes) nada cambia
+    (select de 112, 111 filas, sin aviso). Token temporal
+    borrado al terminar.
+  - **Tests**: sin cambios de servidor → **298 en verde**;
+    `oxlint` limpio, build + `collectstatic` (21).
+- **El «atrás» desde una ficha completa perdía los filtros del home
+  (arreglado)** — **Qué pasaba**: en producción, al pulsar «Ver ficha
+  completa» el visitante llegaba a `/business/:slug` y, al volver con
+  el botón de atrás, Home remontaba desde `ESTADO_INICIAL`: sin texto
+  de búsqueda, sin categoría, sin página y sin el modal abierto —
+  «te envía a la página sin filtros aplicados ni nada». La causa:
+  la vista (filtros, punto, página, modal) vivía solo en el
+  `useReducer` de `Home.jsx` (y el municipio en el `localStorage`),
+  así que la URL del historial no tenía nada que restaurar.
+  - **Arreglo** (`frontend/src/pages/Home.jsx`): la URL pasa a ser
+    el estado de la vista. Al montar, `leerVista()` y
+    `estadoDesdeVista()` leen `?text=`, `?category=`, `?page=`,
+    `?lat=`/`?lng=` y `?ficha=` y los devuelven como estado inicial
+    (el punto de la URL entra por la misma puerta que «elegir
+    municipio»: con GPS cerca manda el GPS y con GPS lejos se queda
+    el suyo). Un efecto escribe la vista a la URL con `replace` —sin
+    ensuciar el historial— y **solo escribe el punto elegido**
+    (`destino`): la posición exacta del GPS jamás entra en la URL,
+    que es dato personal, no un estado que compartir en un enlace.
+    Abrir el modal empuja `?ficha=` y cerrarlo lo quita con
+    `replace`: al volver de la ficha completa el modal se reabre solo
+    (y «atrás» con el modal abierto lo cierra, como es habitual en
+    la web). Si la consulta ya contestó y el slug no está en los
+    resultados, el parámetro se descarta para no dejar un modal
+    muerto que se abriera solo más adelante.
+  - **Verificado en el navegador (6/nov)**: con Moca +
+    «restaurante» (3 resultados) la URL queda
+    `?lat=…&lng=…&text=restaurante`; al pulsar una tarjeta se añade
+    `&ficha=restaurante-el-conuco`; «Ver ficha completa» → **atrás**
+    → mismos 3 resultados, el input con «restaurante» y el modal
+    **reabierto** con El Conuco; la X del modal quita solo
+    `&ficha=` dejando los filtros; y una visita nueva a `/` sin
+    parámetros queda limpia (sin fugas de la URL).
+  - **Tests**: sin cambios de servidor → **298 en verde**;
+    `oxlint` limpio, build (`Home-DeSY9edv.js`) + `collectstatic`
+    (21) + runserver reiniciado.
+- **El levantamiento: los obligatorios pasan a ser cinco (nombre,
+  dirección, teléfono, imagen + punto) y las publicadas con faltantes
+  van a su propia lista** — **resuelto y probado** (6/nov, **300
+  tests**). Regla que pidió el editor y que cambia las dos entradas
+  anteriores: publicar ya no exige el «trio» `nombre + teléfono +
+  punto` sino **cinco campos** —nombre, dirección, teléfono, imagen y
+  punto—; con eso completo la ficha **se publica aunque le falten el
+  resto** (horario, WhatsApp, correo, web, descripción…), sale de la
+  lista de revisión y pasa a una **lista aparte dentro de la misma
+  tarjeta**: «Publicadas con faltantes», cuyos campos «se podrán
+  rellenar más adelante». Una ficha sin foto ya **no** se publica,
+  tampoco (el formato de importación no trae fotos: lo recargado
+  espera en revisión).
+  - **Servidor** (`businesses/pendientes.py`): `OBLIGATORIOS` con
+    los cinco campos; `faltantes_de()` cuenta ya `imagen` (hay foto
+    o no); `particionar()` reparte en tres cubos —`revision`
+    (falta ≥1 obligatorio o sin publicar), `publicadas` (publicada,
+    obligatorios listos y falta ≥1 opcional) y `completas` (sale en
+    ninguna lista)—; `contar_pendientes()` marca `en_obligatorio`
+    por chip y pone los obligatorios primero; `publicar_si_cumple()`
+    exige los cinco. `views.py`: la fila del listado mide
+    `con_revision`/`con_publicadas` sobre los cubos, el detalle
+    manda `fichas` + `publicadas` y calcula `por_campo` sobre las
+    dos listas, y el prefeteche trae `hours` e `images` (sin la
+    foto, `imagen` se contaría mal). Comentarios actualizados en
+    `masivo`, `levantamiento`, `ingreso`, `validacion`,
+    `importar_municipio` y `cargar_fichas`. `models.py`: los textos
+    de `Envio.estado`/`faltan` dicen «lo obligatorio» — migración
+    `0012_alter_envio_estado_alter_envio_faltan`.
+  - **Navegador** (`Levantamiento.jsx` / `.css`): `OBLIGATORIOS` y
+    `CAMPOS` (12 con `imagen`); la tarjeta espera si hay algo en
+    cualquiera de las **dos** listas; resumen con los dos
+    contadores («146 en revisión, 2 publicadas con faltantes»);
+    chips con «bloquea» en los cinco obligatorios, ordenados
+    primero; selector = revisión + publicadas (evita un valor
+    huérfano al abrir una publicada); **segunda lista clicable**
+    (`abrirFichaPorId`, extraído de `elegirFicha`) que abre el
+    mismo formulario; avance medido sobre las dos listas; `imagen`
+    en `lleno` con las fotos que la ficha ya tiene; fila verde
+    **solo** para la publicada completa (la que queda con faltantes
+    no se pinta verde); `Resultado` explica los dos casos —«sale de
+    la lista de revisión y pasa a la de publicadas con faltantes» /
+    «ya no sale en ninguna lista, y la que dejaste queda en
+    verde»—; el vacío cubre las dos listas.
+  - **Verificado en el navegador (6/nov)**: Moca con 148 fichas →
+    «146 en revisión, 2 publicadas con faltantes, 111 esperando
+    publicarse», chips Imagen 146 / Teléfono 111 / Dirección 69
+    primero con «bloquea», «En revisión» (146 filas) +
+    «Publicadas con faltantes» (Belleza Total Salon y Restaurante
+    El Conuco). Clic en una publicada → formulario rellenado
+    (select sincronizado, WhatsApp/Correo/Web en amarillo, «Esta
+    ficha ya tiene 4 fotos»). Envío de **Animal Farm SRL** (solo le
+    faltaba la foto) → «✓ Aceptado y publicado» + «…sale de la
+    lista de revisión y pasa a la de publicadas con faltantes»,
+    sin verde, y tras el refresco aparece en la segunda lista
+    (145/3). Completándole WhatsApp + horario + descripción →
+    «…ya no sale en ninguna lista, y la que dejaste queda en
+    verde», fila verde «completada ✓ Sin nada pendiente» en la
+    lista de revisión y la segunda lista vuelve a 2. Consola sin
+    errores. Datos restaurados (Animal Farm: `publicado` sin foto,
+    WhatsApp, horario ni descripción; 2 envíos borrados) →
+    **146/2/148** como al principio.
+  - **Tests**: **+2** → **300 en verde** —
+    `test_una_publicada_sin_foto_vuelve_a_la_revision`,
+    `test_una_importada_con_foto_se_publica_al_completarse` (y
+    renombres: `test_faltar_lo_obligatorio_no_rechaza`,
+    `test_los_obligatorios_son_nombre_direccion_telefono_imagen_y_
+    punto`, `test_se_publica_en_cuanto_cumple_lo_obligatorio`,
+    `con_pendientes` → `con_revision`/`con_publicadas`). `oxlint`
+    limpio, build + `collectstatic` + runserver reiniciado.
