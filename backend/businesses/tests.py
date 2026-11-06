@@ -1566,6 +1566,50 @@ class ValidacionDeEntradaTests(TestCase):
         self.assertFalse(validacion.telefono_valido('123'))
         self.assertFalse(validacion.telefono_valido(''))
 
+    def test_de_varios_numeros_se_parten_todos(self):
+        """El negocio con mas de uno: la cadena se parte con el mismo
+        separador de OSM. (Ese recorte al primero es del importador, en
+        ``limpiar_telefono``; el canal si guarda todos.)"""
+        self.assertEqual(
+            validacion.partir_telefonos('809-555-1111; 809-555-2222'),
+            ['809-555-1111', '809-555-2222'],
+        )
+        self.assertEqual(
+            validacion.partir_telefonos('809-1,809-2/809-3|809-4'),
+            ['809-1', '809-2', '809-3', '809-4'],
+        )
+        self.assertEqual(validacion.partir_telefonos(''), [])
+        self.assertEqual(validacion.partir_telefonos('  ;  '), [])
+
+    def test_toda_la_cadena_de_telefonos_tiene_que_ser_llamable(self):
+        self.assertTrue(
+            validacion.telefonos_valido('809-555-1111; 809-555-2222'),
+        )
+        # Un solo malo entre los buenos echa atras el envio entero.
+        self.assertFalse(validacion.telefonos_valido('809-555-1111; 123'))
+        self.assertFalse(validacion.telefonos_valido(''))
+
+    def test_varios_telefonos_validos_pasan_la_puerta(self):
+        motivos = self.validar(telefono='809-555-1111; 809-555-2222')
+
+        self.assertEqual(motivos, [])
+
+    def test_un_telefono_malo_en_la_cadena_se_rechaza(self):
+        motivos = self.validar(telefono='809-555-1111; no-telefono')
+
+        self.assertEqual(len(motivos), 1)
+        self.assertIn('formato valido', motivos[0])
+
+    def test_se_aceptan_hasta_cinco_telefonos(self):
+        """El mismo techo razonable que las fotos: cinco, y el resto
+        que se quede el numero del directorio."""
+        cadena = '; '.join('809-555-%04d' % i for i in range(1, 7))
+
+        motivos = self.validar(telefono=cadena)
+
+        self.assertEqual(len(motivos), 1)
+        self.assertIn('hasta 5 telefonos', motivos[0])
+
     # ---------------------------- duplicados ----------------------------
     def hacer(self, nombre, lat=19.3970, lng=-70.5270):
         publicado = PublicationStatus.objects.create(
@@ -2144,6 +2188,22 @@ class CanalDeEnvioTests(TestCase):
         self.assertEqual(
             Business.objects.get().publication_status.slug, 'en-revision',
         )
+
+    def test_pueden_llegar_varios_telefonos(self):
+        """El negocio con mas de uno: la cadena entra entera y el
+        contacto se queda con los dos, tal cual los escribio quien
+        levanto la ficha (la ficha publica los pinta cada uno con su
+        enlace tel:)."""
+        response = self.enviar(telefono='809-555-1111; 809-555-2222')
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(
+            BusinessContact.objects.get(
+                business=Business.objects.get(),
+            ).phone,
+            '809-555-1111; 809-555-2222',
+        )
+        self.assertEqual(response.data['estado'], 'publicado')
 
     def test_sin_punto_queda_pendiente(self):
         """Falta el trio, no esta roto: tambien entra."""

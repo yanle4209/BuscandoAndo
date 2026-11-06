@@ -275,6 +275,20 @@
   cursor: not-allowed;
 }
 
+/* Cada numero en su fila, con su ✕ cuando hay mas de uno: el mismo
+   gesto que las franjas del horario. */
+.lev-telefono-fila {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.lev-telefono-fila input {
+  flex: 1;
+  min-width: 0;
+}
+
 .lev-aviso {
   font-size: 13px;
   color: var(--ink-soft);

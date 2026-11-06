@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { claveCabecera } from '../municipios';
+import { partirTelefono } from '../telefono';
 import api from '../api/axios';
 import './Levantamiento.css';
 
@@ -12,7 +13,9 @@ const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', '
 
 const VACIO = {
   nombre: '',
-  telefono: '',
+  // El telefono no vive en `datos`: va como lista (`telefonos`), porque
+  // el negocio con mas de uno pide mas de un campo. Al enviar se une en
+  // la cadena que el servidor entiende.
   calle: '',
   sector: '',
   referencias: '',
@@ -78,6 +81,9 @@ const CAMPOS = [
 // BusinessImage). Aqui solo se cuenta y se corta el selector; quien
 // corta de verdad es el servidor.
 const MAX_FOTOS = 5;
+// El mismo techo que en el servidor (validacion.MAX_TELEFONOS): cinco
+// es un negocio con varios numeros, no un directorio telefonico.
+const MAX_TELEFONOS = 5;
 
 // Valor centinela del desplegable: no es una categoria, es la opcion
 // que abre el campo de texto para crear una.
@@ -137,6 +143,11 @@ export default function Levantamiento() {
   // `categoria_nueva`: el servidor la valida y la da de alta en el
   // momento (sin ella solo se busca, que es lo de siempre).
   const [creandoCategoria, setCreandoCategoria] = useState(false);
+
+  // Varios telefonos, uno por campo: se editan como lista y al enviar
+  // se mandan como la cadena `; ` que el backend guarda en
+  // contact.phone (la convencion de OSM, que ya partia asi).
+  const [telefonos, setTelefonos] = useState(['']);
 
   const fotosTotal = fotosExistentes + fotos.length;
   const fotosLlenas = fotosTotal >= MAX_FOTOS;
@@ -309,7 +320,6 @@ export default function Levantamiento() {
       if (!vigente()) return;
       setDatos({
         nombre: data.nombre || '',
-        telefono: data.telefono || '',
         calle: data.calle || '',
         sector: data.sector || '',
         referencias: data.referencias || '',
@@ -319,6 +329,13 @@ export default function Levantamiento() {
         correo: data.correo || '',
         web: data.web || '',
       });
+      // La ficha puede traer varios numeritos en su cadena: cada uno
+      // vuelve a su propio campo.
+      setTelefonos(
+        partirTelefono(data.telefono).length > 0
+          ? partirTelefono(data.telefono)
+          : [''],
+      );
       setLat(data.lat === null || data.lat === undefined ? '' : String(data.lat));
       setLng(data.lng === null || data.lng === undefined ? '' : String(data.lng));
       setEstado(data.operativo || '');
@@ -453,6 +470,18 @@ export default function Levantamiento() {
 
   const cambiar = (campo) => (e) => setDatos((d) => ({ ...d, [campo]: e.target.value }));
 
+  const cambiarTelefono = (i, valor) => {
+    setTelefonos((ts) => ts.map((t, j) => (j === i ? valor : t)));
+  };
+
+  const agregarTelefono = () => {
+    setTelefonos((ts) => (ts.length >= MAX_TELEFONOS ? ts : [...ts, '']));
+  };
+
+  const quitarTelefono = (i) => {
+    setTelefonos((ts) => ts.filter((_, j) => j !== i));
+  };
+
   const agregarFranja = () => {
     setFranjas((f) => [...f, { id: `${Date.now()}-${f.length}`, day: '', desde: '', hasta: '' }]);
   };
@@ -483,6 +512,7 @@ export default function Levantamiento() {
 
   const limpiarFicha = () => {
     setDatos(VACIO);
+    setTelefonos(['']);
     setFranjas(diasBase());
     setEstado('');
     setMasDatos(false);
@@ -510,6 +540,9 @@ export default function Levantamiento() {
 
     const cuerpo = {
       ...datos,
+      // Los varios numeros del negocio, unidos en la cadena que el
+      // servidor guarda tal cual en contact.phone.
+      telefono: telefonos.map((t) => t.trim()).filter(Boolean).join('; '),
       municipio: cabecera ? cabecera.municipio : '',
       lat: punto[0],
       lng: punto[1],
@@ -644,7 +677,7 @@ export default function Levantamiento() {
     if (fichaId === null) return faltanFicha;
     const lleno = {
       nombre: datos.nombre.trim() !== '',
-      telefono: datos.telefono.trim() !== '',
+      telefono: telefonos.some((t) => t.trim() !== ''),
       punto: punto[0] !== null && punto[1] !== null,
       categoria: datos.categoria !== '',
       direccion: datos.calle.trim() !== '',
@@ -656,7 +689,7 @@ export default function Levantamiento() {
       estado: estado !== '',
     };
     return CAMPOS.filter((c) => !lleno[c]);
-  }, [fichaId, faltanFicha, datos, punto, franjas, estado]);
+  }, [fichaId, faltanFicha, datos, telefonos, punto, franjas, estado]);
 
   // El conteo por campo con la ficha abierta descontada en vivo: cuando
   // ya no le falta telefono a NINGUNA, el chip se tacha y pasa a verde.
@@ -1010,8 +1043,41 @@ export default function Levantamiento() {
           <div className="lev-row">
             <div className={claseFalta('telefono')}>
               <label htmlFor="lev-telefono">Teléfono {marca('telefono')}</label>
-              <input id="lev-telefono" type="tel" value={datos.telefono} onChange={cambiar('telefono')} placeholder="809-555-1111" />
-              <small>Sin teléfono no se publica solo: queda en el reporte.</small>
+              {telefonos.map((valor, i) => (
+                <div className="lev-telefono-fila" key={i}>
+                  <input
+                    id={i === 0 ? 'lev-telefono' : `lev-telefono-${i}`}
+                    type="tel"
+                    value={valor}
+                    onChange={(e) => cambiarTelefono(i, e.target.value)}
+                    placeholder={i === 0 ? '809-555-1111' : 'Otro número'}
+                  />
+                  {telefonos.length > 1 && (
+                    <button
+                      type="button"
+                      className="lev-btn-ghost lev-btn-quitar"
+                      onClick={() => quitarTelefono(i)}
+                      aria-label="Quitar este teléfono"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                className="lev-btn-ghost"
+                onClick={agregarTelefono}
+                disabled={telefonos.length >= MAX_TELEFONOS}
+              >
+                {telefonos.length >= MAX_TELEFONOS
+                  ? `Máximo ${MAX_TELEFONOS} teléfonos`
+                  : '+ Añadir teléfono'}
+              </button>
+              <small>
+                Sin teléfono no se publica solo: queda en el reporte.
+                {telefonos.length === 1 && ' Si tiene más de uno, añade otro campo.'}
+              </small>
             </div>
             <div className={claseFalta('categoria')}>
               <label htmlFor="lev-categoria">Categoría {marca('categoria')}</label>

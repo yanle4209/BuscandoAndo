@@ -1,7 +1,8 @@
-import { Suspense, lazy, useState, useEffect, useRef } from 'react';
+import { Fragment, Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { slugDeEstado, nombreDeEstado } from '../estado';
+import { partirTelefono } from '../telefono';
 import './BusinessDetail.css';
 
 // Code-splitting (DISENO.md 14.6): el mapa (Leaflet) en su propio chunk.
@@ -72,6 +73,8 @@ export default function BusinessDetail() {
 
   const loc = biz.location || {};
   const contact = biz.contact || {};
+  // Varios numeros en una sola cadena: cada uno con su enlace tel:.
+  const telefonos = partirTelefono(contact.phone);
   const hours = biz.hours || [];
 
   const address = [loc.street, loc.sector, loc.municipality, loc.district, loc.province]
@@ -110,10 +113,15 @@ export default function BusinessDetail() {
         {/* Contacto */}
         <section className="detail-section">
           <h2>📞 Contacto</h2>
-          {contact.phone && (
+          {telefonos.length > 0 && (
             <div className="detail-contact-row">
               <span>Teléfono:</span>
-              <a href={`tel:${contact.phone}`}>{contact.phone}</a>
+              {telefonos.map((n, i) => (
+                <Fragment key={n}>
+                  {i > 0 ? ' · ' : ''}
+                  <a href={`tel:${n}`}>{n}</a>
+                </Fragment>
+              ))}
             </div>
           )}
           {contact.whatsapp && (

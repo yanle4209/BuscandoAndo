@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ImageCarousel from './ImageCarousel';
 import { slugDeEstado, nombreDeEstado } from '../estado';
+import { partirTelefono } from '../telefono';
 import './BusinessModal.css';
 
 export default function BusinessModal({ business, onClose }) {
@@ -21,6 +22,8 @@ export default function BusinessModal({ business, onClose }) {
   const contact = business.contact || {};
   const images = business.images || [];
   const phone = business.phone || contact.phone;
+  // Varios numeros en una sola cadena: cada uno con su enlace tel:.
+  const telefonos = partirTelefono(phone);
   const whatsapp = business.whatsapp || contact.whatsapp;
   const email = business.email || contact.email;
   const contactPerson = business.contact_person || contact.contact_person;
@@ -106,10 +109,12 @@ export default function BusinessModal({ business, onClose }) {
               <div className="modal-info-content">
                 <span className="modal-info-label">Contacto</span>
                 <div className="modal-contact-links">
-                  {phone && <a href={`tel:${phone}`} className="modal-link">{phone}</a>}
+                  {telefonos.map((n) => (
+                    <a key={n} href={`tel:${n}`} className="modal-link">{n}</a>
+                  ))}
                   {whatsapp && <a href={`https://wa.me/${whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener" className="modal-link modal-link--wa">WhatsApp</a>}
                   {email && <a href={`mailto:${email}`} className="modal-link">{email}</a>}
-                  {!phone && !whatsapp && !email && <span className="modal-info-empty">Sin datos</span>}
+                  {telefonos.length === 0 && !whatsapp && !email && <span className="modal-info-empty">Sin datos</span>}
                 </div>
               </div>
             </div>

@@ -53,6 +53,39 @@ def limpiar_telefono(valor):
     return re.split(r'[;,/|]', texto)[0].strip()
 
 
+# Cuantos telefonos cabe en una ficha: el mismo techo razonable que las
+# fotos — lo que se levanta aqui es un negocio, no un directorio
+# telefonico. El formulario del levantamiento respeta el mismo numero.
+MAX_TELEFONOS = 5
+
+
+def partir_telefonos(valor):
+    """Todos los numeros de la cadena, uno por parte.
+
+    El separador es el de OSM (``limpiar_telefono`` ya partia asi):
+    ``;``, ``,``, ``/`` o ``|``. Lo vacio no cuenta.
+    """
+    texto = (valor or '').strip()
+    if not texto:
+        return []
+    return [
+        parte.strip() for parte in re.split(r'[;,/|]', texto) if parte.strip()
+    ]
+
+
+def telefonos_valido(valor):
+    """¿Se pueden llamar todos los numeros de la cadena?
+
+    Igual que ``telefono_valido`` para el caso simple: vacio no es
+    valido (aunque si permitido por quien llama), y un solo numero malo
+    entre los buenos echa atras el envio entero.
+    """
+    numeros = partir_telefonos(valor)
+    if not numeros:
+        return False
+    return all(telefono_valido(n) for n in numeros)
+
+
 def telefono_valido(valor):
     """¿Se puede llamar a esto? Vacio no es valido (aunque si permitido)."""
     texto = (valor or '').strip()
@@ -93,8 +126,13 @@ def validar(*, nombre, telefono, lat, lng, municipio, cabecera,
     elif cabecera is None:
         motivos.append('Municipio fuera del padron de cabeceras.')
 
-    if telefono and not telefono_valido(telefono):
-        motivos.append('El telefono no tiene un formato valido.')
+    if telefono:
+        if len(partir_telefonos(telefono)) > MAX_TELEFONOS:
+            motivos.append(
+                'Se aceptan hasta %d telefonos.' % MAX_TELEFONOS,
+            )
+        elif not telefonos_valido(telefono):
+            motivos.append('El telefono no tiene un formato valido.')
 
     # Sin coordenadas NO se rechaza: falta el punto, y eso es trio
     # incompleto (§10-g -> reporte), no un dato mal formado. Lo que si se

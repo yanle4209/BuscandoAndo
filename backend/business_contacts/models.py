@@ -10,7 +10,12 @@ class BusinessContact(models.Model):
         related_name='contact',
         verbose_name='Negocio',
     )
-    phone = models.CharField(max_length=20, blank=True, default='', verbose_name='Teléfono')
+    phone = models.CharField(
+        max_length=200, blank=True, default='', verbose_name='Teléfono',
+        help_text=(
+            'Varios numeros separados por punto y coma, '
+            'ej: 8095551234; 8095555678.'),
+    )
     whatsapp = models.CharField(
         max_length=20, blank=True, default='',
         verbose_name='WhatsApp',

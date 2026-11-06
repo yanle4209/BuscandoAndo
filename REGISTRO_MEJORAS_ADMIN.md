@@ -358,3 +358,53 @@ template:
     / `categoria_reusada` en los casos de creación y de reuso, y
     test nuevo: bandera + envío rechazado → no se crea la
     categoría).
+- **Levantamiento: el teléfono admitía un solo número** —
+  **resuelto y probado** (5/nov, **297 tests**). Negocios con más de
+  uno no cabían: un solo campo en el formulario y `contact.phone`
+  (CharField de 20 caracteres) guardaba un solo número. Diseño
+  elegido: **varios campos en el formulario → una cadena** con la
+  convención de OSM (`;`, `,`, `/` o `|`), que es como ya venían
+  los teléfonos del importador — sin modelo nuevo ni tabla aparte:
+  - **Formulario**: cada número en su propio campo, con «+ Añadir
+    teléfono» (techo de **5**, el mismo razonable que las fotos; al
+    llegar el botón pasa a «Máximo 5 teléfonos») y ✕ para quitar
+    cada fila. Al enviar se une con `'; '`; los campos vacíos no
+    cuentan. La nota recuerda que sin teléfono la ficha queda en el
+    reporte y, si solo hay un campo, invita a añadir otro.
+  - **Servidor**: `contact.phone` pasa de 20 a **200** caracteres
+    (migración `business_contacts/0004_alter_businesscontact_phone`,
+    con help_text para el panel); `partir_telefonos()` parte la
+    cadena y `validar()` exige que **todos** los números sean
+    llamables (uno malo rechaza el envío entero, mensaje
+    «El telefono no tiene un formato valido.» de siempre) y añade
+    «Se aceptan hasta 5 telefonos.» si se pasa del techo. El trío
+    `nombre + telefono + punto` no cambia: basta con que la cadena
+    no esté vacía. `enriquecer()` y el alta guardan la cadena tal
+    cual (siguen sin sobrescribir lo que ya había).
+  - **Fichas públicas**: helper nuevo `src/telefono.js`
+    (`partirTelefono`) y las tres superficies — tarjeta, modal y
+    ficha completa — pintan **cada número con su enlace `tel:`
+    propio** separados por «·» (un `href` con dos números pegados
+    no marca a nadie).
+  - **Al abrir una ficha** en el levantamiento la cadena se vuelve
+    a repartir en sus campos, y «limpiar» la deja en un campo
+    vacío; el chip del reporte (`restanFicha`) mide si algún campo
+    tiene número.
+  - Verificado en el navegador (5/nov): campo único + botón; dos
+    clics → 3 campos con ✕; a 5 → «Máximo 5 teléfonos»
+    deshabilitado; quitar → 4. Envío real con dos números → POST
+    con `telefono: "809-555-1111; 809-555-2222"` → «✓ Aceptado y
+    publicado» y `contact.phone` guardado **exactamente** esa
+    cadena. Ficha pública `/business/prueba-telefonos-varios`:
+    «Teléfono: 809-555-1111 · 809-555-2222» con dos `<a href="tel:…">`;
+    tarjeta en el inicio: misma fila con los dos enlaces; modal:
+    dos píldoras de contacto. Al elegir la ficha en el
+    desplegable, la cadena se reparte en dos campos con sus valores.
+    Datos de prueba borrados: 1 ficha (16296), 1 foto y 1 envío →
+    **16.287 fichas** como al principio.
+  - Tests: **+6** → **297 en verde**: `partir_telefonos` (varios
+    separadores, vacíos), `telefonos_valido` (cadena válida, un
+    malo entre buenos), puerta (`validar` acepta cadena y rechaza
+    un número malo), techo de 5, y alta con
+    `telefono='809-555-1111; 809-555-2222'` → `contact.phone`
+    entero + publicado.
