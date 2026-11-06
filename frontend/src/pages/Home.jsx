@@ -5,6 +5,7 @@ import CorrectionModal from '../components/CorrectionModal';
 import BusinessModal from '../components/BusinessModal';
 import MapOverlay from '../components/MapOverlay';
 import { claveCabecera } from '../municipios';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import './Home.css';
 
@@ -64,6 +65,44 @@ const ESTADO_INICIAL = {
   haBuscado: false,
   pagina: 1,
 };
+
+// La vista viaja en la URL (texto, categoria, pagina, punto elegido y el
+// modal abierto). Sin esto, "Atras" desde una ficha completa devolvia la
+// portada sin NADA de lo que el visitante habia dejado: los filtros vivian
+// solo en el reducer y al remontar Home se perdia todo. Lo que NO viaja es
+// la posicion exacta del GPS: es dato personal, no un estado que compartir
+// en un enlace.
+function leerVista(busqueda) {
+  const p = new URLSearchParams(busqueda);
+  const filtros = { text: p.get('text') || '', category: p.get('category') || '' };
+  const pagina = Math.max(1, parseInt(p.get('page'), 10) || 1);
+  const lat = parseFloat(p.get('lat'));
+  const lng = parseFloat(p.get('lng'));
+  const coords = Number.isFinite(lat) && Number.isFinite(lng)
+    ? { lat, lng }
+    : null;
+  const hayVista = Boolean(coords) || Boolean(filtros.text)
+    || Boolean(filtros.category) || pagina > 1 || p.has('ficha');
+  return { filtros, pagina, coords, hayVista };
+}
+
+// Al montar con una vista en la URL, el punto de la URL entra por la
+// misma puerta que "elegir municipio" (modo destino): con GPS cerca manda
+// el GPS y con GPS lejos se queda el punto de la URL — las reglas R3 ya
+// escritas resuelven el resto sin casos nuevos.
+function estadoDesdeVista(vista) {
+  if (!vista.hayVista) return ESTADO_INICIAL;
+  return {
+    ...ESTADO_INICIAL,
+    modo: vista.coords ? 'destino' : 'espera',
+    punto: vista.coords,
+    destino: vista.coords,
+    restaurado: Boolean(vista.coords),
+    filters: vista.filtros,
+    haBuscado: true,
+    pagina: vista.pagina,
+  };
+}
 
 function distanciaKm(a, b) {
   const R = 6371;
@@ -258,7 +297,13 @@ function reducer(estado, accion) {
 }
 
 export default function Home() {
-  const [estado, dispatch] = useReducer(reducer, ESTADO_INICIAL);
+  // La vista de la URL se lee UNA vez, al montar: es lo que permite
+  // volver atras desde una ficha completa y encontrar la busqueda tal
+  // cual la dejo (filtros, pagina, punto y modal).
+  const [vista] = useState(() => leerVista(window.location.search));
+  const [estado, dispatch] = useReducer(reducer, vista, estadoDesdeVista);
+  const [, setSearchParams] = useSearchParams();
+  const ubicacion = useLocation();
   const [searchFeatured, setSearchFeatured] = useState([]);
   const [businesses, setBusinesses] = useState([]);
   const [modalBiz, setModalBiz] = useState(null);
@@ -300,6 +345,10 @@ export default function Home() {
   const pendienteRef = useRef(null);
   const ultimaRefrescoRef = useRef(0);
   const temporizadorRef = useRef(null);
+  // Marca que la consulta vigente ya contesto: sirve para descartar un
+  // ?ficha= cuyo slug no esta en los resultados (se veria mas abajo, en
+  // el efecto que sincroniza el modal con la URL).
+  const consultaHechaRef = useRef(false);
 
   // ------------------------------------------------------------------
   // Las 158 cabeceras: selector manual y respaldo cuando no hay GPS.
@@ -310,6 +359,15 @@ export default function Home() {
       .catch(() => setCabeceras([]));
   }, []);
 
+  // El punto de la URL puede ser una cabecera: cuando llega el padron,
+  // se recupera el nombre para que el selector no quede en blanco. Si no
+  // coincide con ninguna (un punto arrastrado del mapa) no se toca nada.
+  useEffect(() => {
+    if (!vista.coords || cabeceras.length === 0) return;
+    const cab = cabeceras.find((c) => distanciaKm(vista.coords, c) <= 0.05);
+    if (cab) setMunicipioClave(claveCabecera(cab));
+  }, [cabeceras, vista.coords]);
+
   // Mismo trato que las cabeceras: si falla, el selector de categoria
   // queda en "Todas" — se pierde el filtro, no la pagina.
   useEffect(() => {
@@ -319,7 +377,10 @@ export default function Home() {
   }, []);
 
   const restaurarMunicipio = useCallback(() => {
-    // R3.4 + R3.6: lo recordado solo entra cuando NO hay GPS.
+    // R3.4 + R3.6: lo recordado solo entra cuando NO hay GPS. Y si la
+    // URL trae su propio punto (la vista a la que se vuelve de una
+    // ficha completa), la URL manda: lo recordado no la pisa.
+    if (vista.coords) return;
     try {
       const guardado = localStorage.getItem(CLAVE_MUNICIPIO);
       if (!guardado) return;
@@ -332,7 +393,7 @@ export default function Home() {
       // Sin localStorage (modo privado) o dato corrupto: se queda en espera
       // y el usuario elige municipio a mano.
     }
-  }, []);
+  }, [vista.coords]);
 
   // ------------------------------------------------------------------
   // GPS. "Mi ubicacion" manda al abrir (R3.6); el watch es el que mueve el
@@ -481,7 +542,10 @@ export default function Home() {
       // pintaban IDENTICOS.
       setErrorRed(true);
     } finally {
-      if (vigente()) setLoading(false);
+      if (vigente()) {
+        consultaHechaRef.current = true;
+        setLoading(false);
+      }
     }
   }, [estado.punto, estado.filters]);
 
@@ -507,6 +571,69 @@ export default function Home() {
     setErrorRed(false);
     return undefined;
   }, [estado.punto]);
+
+  // ------------------------------------------------------------------
+  // La URL es el estado de la vista: lo que se consulta viaja en ella
+  // (replace, sin entradas nuevas por cada cambio) para que "Atras" o
+  // un enlace lo devuelvan tal cual. Solo lo NO derivado del GPS se
+  // escribe: la posicion exacta del visitante jamas entra en la URL.
+  // ------------------------------------------------------------------
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const poner = (k, v) => { if (v) p.set(k, v); else p.delete(k); };
+    poner('text', estado.filters.text);
+    poner('category', estado.filters.category);
+    poner('page', estado.pagina > 1 ? String(estado.pagina) : '');
+    poner('lat', estado.destino ? String(estado.destino.lat) : '');
+    poner('lng', estado.destino ? String(estado.destino.lng) : '');
+    const qs = p.toString();
+    const actual = window.location.search.replace(/^\?/, '');
+    if (qs === actual) return;
+    setSearchParams(qs ? `?${qs}` : '', { replace: true });
+  }, [estado.filters, estado.pagina, estado.destino, setSearchParams]);
+
+  // ------------------------------------------------------------------
+  // El modal sigue a la URL: se abre cuando ella trae ?ficha= (al volver
+  // de la ficha completa, o con Adelante/Atras del navegador) y se cierra
+  // cuando deja de pedirlo. Los resultados llegan despues que la URL: si
+  // la consulta ya contesto y el slug no esta, el parametro se descarta
+  // para no dejar un modal muerto que se abriera solo mas adelante.
+  // ------------------------------------------------------------------
+  useEffect(() => {
+    const slug = new URLSearchParams(ubicacion.search).get('ficha');
+    if (!slug) {
+      setModalBiz(null);
+      return;
+    }
+    const hit = businesses.find((b) => b.slug === slug)
+      || searchFeatured.find((b) => b.slug === slug);
+    if (hit) {
+      setModalBiz(hit);
+      return;
+    }
+    if (!consultaHechaRef.current) return; // aun sin resultados: se espera
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('ficha') !== slug) return;
+    p.delete('ficha');
+    setSearchParams(p.toString() ? `?${p.toString()}` : '', { replace: true });
+  }, [ubicacion.search, businesses, searchFeatured, setSearchParams]);
+
+  // Abrir el modal agrega ?ficha= con push: el "Atras" de la ficha
+  // completa cae en esta entrada y el modal se reabre. Cerrarlo quita el
+  // parametro con replace para no ensuciar el historial.
+  const abrirFicha = (biz) => {
+    setModalBiz(biz);
+    const p = new URLSearchParams(window.location.search);
+    p.set('ficha', biz.slug);
+    setSearchParams(`?${p.toString()}`);
+  };
+  const cerrarFicha = () => {
+    setModalBiz(null);
+    const p = new URLSearchParams(window.location.search);
+    if (!p.has('ficha')) return;
+    p.delete('ficha');
+    setSearchParams(p.toString() ? `?${p.toString()}` : '', { replace: true });
+  };
 
   // Pestañas viejas: una pestaña abierta se queda con el bundle con el
   // que se cargo y no se entera del deploy (teselas 403, sombra sin
@@ -695,7 +822,7 @@ export default function Home() {
             <MapView
               businesses={mapBusinesses}
               center={centroMapa}
-              onMarkerClick={(biz) => setModalBiz(biz)}
+              onMarkerClick={abrirFicha}
               onMapClick={elegirPuntoDelMapa}
             />
           </Suspense>
@@ -759,7 +886,7 @@ export default function Home() {
                     <BusinessCard
                       key={biz.id || biz.slug}
                       business={biz}
-                      onClick={() => setModalBiz(biz)}
+                      onClick={() => abrirFicha(biz)}
                       onReport={() => setCorrectionBiz(biz)}
                     />
                   ))}
@@ -807,7 +934,7 @@ export default function Home() {
                   <BusinessCard
                     key={biz.id || biz.slug}
                     business={biz}
-                    onClick={() => setModalBiz(biz)}
+                    onClick={() => abrirFicha(biz)}
                     onReport={() => setCorrectionBiz(biz)}
                   />
                 ))}
@@ -834,7 +961,7 @@ export default function Home() {
         )}
       </div>
 
-      {modalBiz && <BusinessModal business={modalBiz} onClose={() => setModalBiz(null)} />}
+      {modalBiz && <BusinessModal business={modalBiz} onClose={cerrarFicha} />}
 
       {/* Formulario "Corregir": se monta aqui, en la raiz y fuera de la
           tarjeta, igual que los demas modales (el overlay es position:fixed,
