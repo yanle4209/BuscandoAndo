@@ -317,3 +317,44 @@ template:
     crea, dedupe mayúsculas, slug reutilizado, sin nombre se
     rechaza) y completar (sin foto cuando no hay, con foto ya puesta,
     techo, `imagenes` en el reporte).
+- **Levantamiento: la categoría no se confirmaba y «Actualizar» no
+  se notaba** — **resuelto y probado** (5/nov, **291 tests**). Dos
+  defectos reportados en producción:
+  - **«Crear categoría nueva» parecía no hacer nada**. Causa doble:
+    (a) la API `/categories/` está **paginada** (12 por hoja) y el
+    desplegable solo cargaba la primera — en producción eso
+    escondía «Talleres Mecánicos», «Tecnología», «Tiendas» y
+    «Veterinaria», y si el usuario tecleaba una de esas el
+    servidor la **reutilizaba en silencio** (dedupe `name__iexact`)
+    sin crear nada ni decirlo; (b) no había **ninguna
+    confirmación**: la respuesta no contaba qué pasó con la
+    categoría. Arreglo: `cargarCategorias()` recorre **todas las
+    hojas** (sigue `next`), el backend responde `categoria_creada`
+    / `categoria_reusada` (con el nombre canónico) en los tres
+    éxitos — `_categoria_nueva` ahora devuelve si creó—, y
+    `Resultado` lo dice en castellano: «Se creó la categoría X y ya
+    aparece en el desplegable» / «La categoría X ya existía: se usó
+    esa y no se creó otra», con la categoría **preseleccionada** en
+    el desplegable tras el envío. Además la categoría ahora solo
+    se crea **si el envío entero se acepta** (las fotos validan
+    antes): un rechazo no deja hojas sueltas en la tabla.
+  - **«Actualizar» no daba señal**. El refresco sí ocurría
+    (`GET /pendientes/`), pero la lista vieja se conserva a
+    propósito mientras llega la nueva (para que no parpadee) y si
+    los datos no cambiaban **no se veía nada**. Ahora el botón se
+    deshabilita y dice «Actualizando…» mientras vuela la petición
+    (con `cursor: not-allowed`), y la línea de «Cargando…» acompaña.
+  - Verificado en el navegador (5/nov): clic en «Actualizar» →
+    `GET /api/pendientes/` + etiqueta «Actualizando…» observada
+    con MutationObserver; desplegable con las **14** categorías
+    locales (antes 12, perdía la página 2); alta con bandera →
+    «✓ Aceptado y publicado» + «Se creó la categoría Panaderia
+    Confirmacion…» preseleccionada; reenvío del mismo nombre →
+    «✓ Aceptado: ficha existente completada» + «…ya existía: se
+    usó esa» sin duplicar (15 categorías, ninguna segunda). Datos
+    de prueba borrados: 1 ficha (16295), 2 fotos, 2 envíos y la
+    categoría.
+  - Tests: **+1** → **291 en verde** (asserts de `categoria_creada`
+    / `categoria_reusada` en los casos de creación y de reuso, y
+    test nuevo: bandera + envío rechazado → no se crea la
+    categoría).

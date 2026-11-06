@@ -35,9 +35,11 @@ Dos cosas mas que nacen con el formulario del levantamiento:
 * **La categoria se puede crear** desde el formulario, con la bandera
   ``categoria_nueva``: el servidor la valida al momento (nombre, sin
   duplicar, slug unico —si ya hay una con ese slug, esa es—) y la da
-  de alta en el envio. Sin la bandera sigue valiendo lo de siempre:
-  solo se busca, porque una errata no debe abrirle una categoria
-  nueva al sistema.
+  de alta en el envio. La respuesta lo confirma, para que nadie se
+  quede con la duda de si paso: ``categoria_creada`` con el nombre si
+  nacio aqui, ``categoria_reusada`` si ya estaba y no se duplica otra.
+  Sin la bandera sigue valiendo lo de siempre: solo se busca, porque
+  una errata no debe abrirle una categoria nueva al sistema.
 
 El token solo se acepta en cabecera (``X-Colaborador-Token`` o
 ``Authorization: Bearer``). Por la URL se quedaria en los registros del
@@ -326,27 +328,29 @@ def _guardar_imagenes(negocio, archivos):
 def _categoria_nueva(nombre):
     """Alta inmediata de la categoria que el formulario pide crear.
 
-    Devuelve ``(categoria, error)``. Misma regla que en el importador:
-    si ya hay una con ese nombre —sin distinguir mayusculas— o con ese
-    slug, esa es y no se crea otra; dos con el mismo slug reventarian
-    el unique de la tabla. El ``IntegrityError`` es la carrera entre la
-    consulta y el insert: gana la que acabo de nacer.
+    Devuelve ``(categoria, error, creada)``: ``creada`` dice si nacio
+    aqui —lo que la respuesta lleva al formulario para confirmarlo—.
+    Misma regla que en el importador: si ya hay una con ese nombre
+    —sin distinguir mayusculas— o con ese slug, esa es y no se crea
+    otra; dos con el mismo slug reventarian el unique de la tabla. El
+    ``IntegrityError`` es la carrera entre la consulta y el insert:
+    gana la que acabo de nacer.
     """
     slug = slugify(nombre, allow_unicode=True)
     if not slug:
-        return None, '"categoria" no sirve para crear una categoria.'
+        return None, '"categoria" no sirve para crear una categoria.', False
     categoria = (
         Category.objects.filter(name__iexact=nombre).first()
         or Category.objects.filter(slug=slug).first()
     )
     if categoria is not None:
-        return categoria, None
+        return categoria, None, False
     try:
-        return Category.objects.create(name=nombre, slug=slug), None
+        return Category.objects.create(name=nombre, slug=slug), None, True
     except IntegrityError:
         # Otro proceso la creo entre la consulta y el insert: la que
         # acaba de nacer manda.
-        return Category.objects.get(slug=slug), None
+        return Category.objects.get(slug=slug), None, False
 
 
 def _registrar(colaborador, estado, datos, motivos, faltan, negocio, request):
@@ -449,32 +453,13 @@ def levantamiento(request):
             radio_km=None,
         )
 
-    # Se resuelve una sola vez porque la usan los DOS caminos (completar
-    # y alta). Sin la bandera solo se BUSCA: aqui teclea una persona y
-    # una errata no debe abrirle una categoria nueva al sistema. Con
-    # `categoria_nueva` el formulario dijo que no encontro la suya y
-    # pide crearla — ahi si, validada al momento en `_categoria_nueva`.
-    # El importador la crea siempre, porque el nombre viene de OSM.
-    categoria = None
-    if not motivos and _booleano(cuerpo.get('categoria_nueva')):
-        if not datos['categoria']:
-            motivos.append(
-                '"categoria" tiene que tener nombre para crear una '
-                'categoria.'
-            )
-        else:
-            categoria, error = _categoria_nueva(datos['categoria'])
-            if error:
-                motivos.append(error)
-    elif not motivos and datos['categoria']:
-        categoria = Category.objects.filter(
-            name__iexact=datos['categoria'],
-        ).first()
-
     # Las fotos: mismas reglas que el formulario del admin —Pillow
     # abre el archivo y el modelo corta en 5—. Van DESPUES de resolver
     # la ficha, porque "¿tiene ya foto?" solo se sabe con la ficha a la
-    # mano, y es lo que decide si una foto es obligatoria.
+    # mano, y es lo que decide si una foto es obligatoria. Van ANTES
+    # que la categoria: esta solo nace si el envio entero se va a
+    # aceptar, para no dejar una hoja suelta en la tabla por un envio
+    # que termino rechazado.
     archivos = list(request.FILES.getlist('imagenes'))
     if archivos:
         datos['imagenes'] = [archivo.name for archivo in archivos]
@@ -489,6 +474,37 @@ def levantamiento(request):
                     'Esta ficha no tiene ninguna foto: '
                     'hay que mandar al menos una.'
                 )
+
+    # Se resuelve una sola vez porque la usan los DOS caminos (completar
+    # y alta). Sin la bandera solo se BUSCA: aqui teclea una persona y
+    # una errata no debe abrirle una categoria nueva al sistema. Con
+    # `categoria_nueva` el formulario dijo que no encontro la suya y
+    # pide crearla — ahi si, validada al momento en `_categoria_nueva`.
+    # El importador la crea siempre, porque el nombre viene de OSM.
+    # El desenlace viaja en la respuesta (`categoria_creada` /
+    # `categoria_reusada`): sin eso el formulario no tiene nada con que
+    # confirmarle a la persona si su categoria salio o no.
+    categoria = None
+    categoria_creada = None
+    categoria_reusada = None
+    if not motivos and _booleano(cuerpo.get('categoria_nueva')):
+        if not datos['categoria']:
+            motivos.append(
+                '"categoria" tiene que tener nombre para crear una '
+                'categoria.'
+            )
+        else:
+            categoria, error, creada = _categoria_nueva(datos['categoria'])
+            if error:
+                motivos.append(error)
+            elif creada:
+                categoria_creada = categoria.name
+            else:
+                categoria_reusada = categoria.name
+    elif not motivos and datos['categoria']:
+        categoria = Category.objects.filter(
+            name__iexact=datos['categoria'],
+        ).first()
 
     # --------------------- 1. la puerta ------------------------------
     if motivos:
@@ -534,6 +550,8 @@ def levantamiento(request):
             'completado': completado,
             'recibo': envio.id,
             'imagenes': ficha.images.count(),
+            'categoria_creada': categoria_creada,
+            'categoria_reusada': categoria_reusada,
         })
 
     # --------------------- 3. el cruce -------------------------------
@@ -590,6 +608,8 @@ def levantamiento(request):
             'completado': completado,
             'recibo': envio.id,
             'imagenes': existente.images.count(),
+            'categoria_creada': categoria_creada,
+            'categoria_reusada': categoria_reusada,
         })
 
     # ------------------- 4. entrar y publicar ------------------------
@@ -611,6 +631,8 @@ def levantamiento(request):
     )
     return Response(
         {'estado': estado, 'motivos': [], 'faltan': faltan,
-         'recibo': envio.id, 'imagenes': negocio.images.count()},
+         'recibo': envio.id, 'imagenes': negocio.images.count(),
+         'categoria_creada': categoria_creada,
+         'categoria_reusada': categoria_reusada},
         status=status.HTTP_201_CREATED,
     )

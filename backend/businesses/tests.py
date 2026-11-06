@@ -2167,7 +2167,8 @@ class CanalDeEnvioTests(TestCase):
 
     def test_con_la_bandera_se_crea_la_categoria_en_el_momento(self):
         """Validacion inmediata: el formulario no encontro la suya, la
-        pide crear y el servidor la valida y la da de alta en el envio."""
+        pide crear y el servidor la valida y la da de alta en el envio.
+        La respuesta lo dice, para que el formulario pueda confirmarlo."""
         response = self.enviar(
             categoria='Panaderia Nueva', categoria_nueva=True,
         )
@@ -2176,15 +2177,20 @@ class CanalDeEnvioTests(TestCase):
         creada = Category.objects.get(name='Panaderia Nueva')
         self.assertEqual(Business.objects.get().category, creada)
         self.assertNotIn('categoria', response.data['faltan'])
+        self.assertEqual(response.data['categoria_creada'], 'Panaderia Nueva')
+        self.assertIsNone(response.data['categoria_reusada'])
 
     def test_la_categoria_nueva_no_se_duplica_si_ya_esta(self):
         """La dedupe es sin distinguir mayusculas: 'PANADERIAS' es la
-        'Panaderias' que ya esta, no una segunda."""
+        'Panaderias' que ya esta, no una segunda. Y la respuesta lo
+        cuenta como reusada, no como creada: no se creo nada."""
         response = self.enviar(categoria='PANADERIAS', categoria_nueva=True)
 
         self.assertEqual(response.status_code, 201, response.content)
         self.assertEqual(Category.objects.count(), 1)
         self.assertEqual(Business.objects.get().category, self.category)
+        self.assertEqual(response.data['categoria_reusada'], 'Panaderias')
+        self.assertIsNone(response.data['categoria_creada'])
 
     def test_si_el_slug_ya_es_de_otra_se_reutiliza(self):
         """'Panaderias!' da el mismo slug que 'Panaderias': crearla
@@ -2194,6 +2200,7 @@ class CanalDeEnvioTests(TestCase):
         self.assertEqual(response.status_code, 201, response.content)
         self.assertEqual(Category.objects.count(), 1)
         self.assertEqual(Business.objects.get().category, self.category)
+        self.assertEqual(response.data['categoria_reusada'], 'Panaderias')
 
     def test_crear_categoria_sin_nombre_se_rechaza(self):
         response = self.enviar(categoria='', categoria_nueva=True)
@@ -2203,6 +2210,20 @@ class CanalDeEnvioTests(TestCase):
             'categoria', ' '.join(response.data['motivos']).lower(),
         )
         # Solo la del setup: nada se creo.
+        self.assertEqual(Category.objects.count(), 1)
+
+    def test_la_categoria_no_se_crea_si_el_envio_se_rechaza(self):
+        """La categoria solo nace con un envio aceptado: si el resto
+        falla —ahi, sin foto— no queda una hoja suelta en la tabla de
+        lo que nunca llego a ser ficha, y el rechazo no promete nada."""
+        response = self.enviar(
+            categoria='Panaderia Nueva', categoria_nueva=True, fotos=0,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(
+            Category.objects.filter(name='Panaderia Nueva').exists(),
+        )
         self.assertEqual(Category.objects.count(), 1)
 
     def test_un_pendiente_del_canal_aparece_en_el_reporte(self):

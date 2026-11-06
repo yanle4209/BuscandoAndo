@@ -355,6 +355,27 @@ export default function Levantamiento() {
     }
   };
 
+  // La API pagina (12 por hoja): con solo la primera, el desplegable
+  // esconde categorias reales — y quien teclea una que existe en otra
+  // hoja no la encuentra, el servidor la reutiliza en silencio y queda
+  // con la sensacion de que "no la creo". Se recorren TODAS las hojas
+  // hasta que `next` venga vacio.
+  const cargarCategorias = async () => {
+    const todas = [];
+    let pagina = null;
+    do {
+      const { data } = await api.get(
+        '/categories/', pagina ? { params: { page: pagina } } : {},
+      );
+      const hoja = data.results || data;
+      if (Array.isArray(hoja)) todas.push(...hoja);
+      pagina = data.next
+        ? new URL(data.next, window.location.origin).searchParams.get('page')
+        : null;
+    } while (pagina);
+    setCategorias(todas);
+  };
+
   // El token y las dos listas que rellenan el formulario. Sin token no se
   // puede probar nada, por eso lo primero que se pide.
   useEffect(() => {
@@ -373,9 +394,7 @@ export default function Levantamiento() {
     api.get('/cabeceras/')
       .then(({ data }) => setCabeceras(Array.isArray(data) ? data : []))
       .catch(() => setCabeceras([]));
-    api.get('/categories/')
-      .then(({ data }) => setCategorias(data.results || data))
-      .catch(() => setCategorias([]));
+    cargarCategorias().catch(() => setCategorias([]));
   }, []);
 
   const guardarToken = (valor) => {
@@ -535,6 +554,8 @@ export default function Levantamiento() {
         motivos: data.motivos || [],
         faltan: data.faltan || [],
         completado: data.completado || [],
+        categoriaCreada: data.categoria_creada || null,
+        categoriaReusada: data.categoria_reusada || null,
       });
       // Se pone verde: si el servidor ya no le debe nada a esta ficha
       // (faltan vacio), queda registrada como hecha. El backend la saca
@@ -549,16 +570,20 @@ export default function Levantamiento() {
             municipio: cabecera ? cabecera.municipio : '',
           }]));
       }
-      // La categoria nueva ya quedo creada en el servidor: el
-      // desplegable se entera recargando la lista.
-      if (creandoCategoria) {
-        api.get('/categories/')
-          .then(({ data: cats }) => setCategorias(cats.results || cats))
-          .catch(() => {});
+      // La categoria quedo resuelta en el servidor: el desplegable se
+      // entera recargando TODAS las hojas (estaba solo con la primera)
+      // y, ademas, se queda con esa categoria elegida — ahi esta la
+      // confirmacion visible de que existia o de que acaba de nacer.
+      const categoriaServidor = data.categoria_creada || data.categoria_reusada;
+      if (categoriaServidor) {
+        await cargarCategorias().catch(() => {});
       }
       // Listo para el siguiente: solo se borra la ficha, no el token ni
       // el municipio, que son lo que se repite en una ronda de campo.
       limpiarFicha();
+      if (categoriaServidor) {
+        setDatos((d) => ({ ...d, categoria: categoriaServidor }));
+      }
     } catch (err) {
       const status = err.response?.status;
       const data = err.response?.data || {};
@@ -844,8 +869,21 @@ export default function Levantamiento() {
               )}
 
               {reporte.fila.total > 0 && reporte.fila.con_pendientes > 0 && (
-                <button type="button" className="lev-btn-ghost" onClick={verReporte}>
-                  {reporte.detalle ? 'Actualizar' : `Ver las ${reporte.fila.con_pendientes} que le falta algo`}
+                <button
+                  type="button"
+                  className="lev-btn-ghost"
+                  onClick={verReporte}
+                  // Sin esta senal, el clic se pierde: la lista vieja se
+                  // conserva mientras llega la nueva (para que no
+                  // parpadee) y si no cambia nada parece que el boton
+                  // no hizo nada.
+                  disabled={reporte.cargando}
+                >
+                  {reporte.cargando
+                    ? 'Actualizando…'
+                    : reporte.detalle
+                      ? 'Actualizar'
+                      : `Ver las ${reporte.fila.con_pendientes} que le falta algo`}
                 </button>
               )}
 
@@ -1247,6 +1285,22 @@ function Resultado({ r }) {
   return (
     <div className={`lev-resultado ${titulo[1]}`}>
       <h2>{titulo[0]}</h2>
+
+      {/* La confirmacion de la categoria: es lo unico que distingue
+          "se creo" de "ya existia" — sin esto, quien pide una nueva
+          no tiene forma de saber que hizo el servidor. */}
+      {r.categoriaCreada && (
+        <p>
+          Se creó la categoría <strong>{r.categoriaCreada}</strong> y ya
+          aparece en el desplegable.
+        </p>
+      )}
+      {r.categoriaReusada && (
+        <p>
+          La categoría <strong>{r.categoriaReusada}</strong> ya existía: se
+          usó esa y no se creó otra.
+        </p>
+      )}
 
       {r.motivos?.length > 0 && (
         <ul className="lev-lista">
