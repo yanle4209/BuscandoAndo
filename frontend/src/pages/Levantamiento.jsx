@@ -582,6 +582,12 @@ export default function Levantamiento() {
           'Content-Type': 'multipart/form-data',
         },
       });
+      // Verde cuando el servidor dio la ficha por terminada: PUBLICADA
+      // —entonces el backend la saca de la lista en el refresco de
+      // abajo— o ya sin nada que completar. Aqui se conserva para que
+      // la fila no desaparezca sino que CAMBIE DE COLOR; al volver a
+      // entrar, la publicada ya no aparece.
+      const quedoPublicada = data.estado === 'publicado';
       setResultado({
         tipo: data.estado,
         motivos: data.motivos || [],
@@ -589,12 +595,9 @@ export default function Levantamiento() {
         completado: data.completado || [],
         categoriaCreada: data.categoria_creada || null,
         categoriaReusada: data.categoria_reusada || null,
+        verde: idFicha !== null && quedoPublicada,
       });
-      // Se pone verde: si el servidor ya no le debe nada a esta ficha
-      // (faltan vacio), queda registrada como hecha. El backend la saca
-      // del reporte en el refresco de abajo; aqui se conserva para que
-      // la fila no desaparezca sino que CAMBIE DE COLOR.
-      if (idFicha !== null && (data.faltan || []).length === 0) {
+      if (idFicha !== null && quedoPublicada) {
         setHechas((h) => (h.some((x) => x.id === idFicha)
           ? h
           : [...h, {
@@ -1348,6 +1351,17 @@ function Resultado({ r }) {
   const faltan = (r.faltan || []).map((c) => ETIQUETAS[c] || c);
   const completado = (r.completado || []).map((c) => COMPLETADOS[c] || c);
 
+  // El cierre de la nota tiene que ser cierto caso por caso: la
+  // PUBLICADA ya no vuelve a la lista de pendientes —aunque le falten
+  // extras, el backend la saca en el refresco—; la que sigue en
+  // revision sigue ahi (lo dice su propio renglon de arriba), y el
+  // verde solo se promete si el servidor acabo publicandola.
+  const cierre = r.tipo === 'publicado'
+    ? ': la ficha publicada ya no sale en la lista de pendientes'
+      + (faltan.length > 0 ? ', aunque le falten extras' : '')
+      + (r.verde ? ', y la que dejaste queda en verde' : '') + '.'
+    : '.';
+
   return (
     <div className={`lev-resultado ${titulo[1]}`}>
       <h2>{titulo[0]}</h2>
@@ -1410,8 +1424,7 @@ function Resultado({ r }) {
       {aceptado && (
         <p className="lev-resultado-nota">
           El reporte de tu municipio <strong>ya se actualizó</strong> con este
-          envío: la lista de fichas está al día —ya no aparece la que acabas de
-          enviar— y queda en verde. Elige la siguiente cuando quieras.
+          envío{cierre} Elige la siguiente cuando quieras.
         </p>
       )}
     </div>

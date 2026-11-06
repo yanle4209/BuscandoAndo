@@ -1043,7 +1043,8 @@ class ReportePendientesTests(TestCase):
             'La Receta', telefono='809-555-1111', extras=True, horario=True,
         )
         # Cumple el trio, pero no horario ni contacto extra: se publica
-        # sola y aun asi sigue siendo un pendiente para quien edita.
+        # sola y entonces YA NO vuelve a la lista de pendientes, aunque
+        # le falten extras — el editor pidio salir de ella.
         cls.sin_extras = cls.crear('Panaderia Sol', telefono='809-555-2222')
         # Sin telefono no hay trio -> queda en revision.
         cls.sin_telefono = cls.crear(
@@ -1141,8 +1142,10 @@ class ReportePendientesTests(TestCase):
         por_nombre = {f['municipio']: f for f in datos}
         self.assertEqual(por_nombre['Moca']['total'], 4)
         self.assertEqual(por_nombre['Santiago']['total'], 1)
-        # 'La Receta' no le falta nada, las otras tres de Moca si.
-        self.assertEqual(por_nombre['Moca']['con_pendientes'], 3)
+        # 'La Receta' esta publicada completa y 'Panaderia Sol' esta
+        # publicada aunque le falten extras: ninguna de las dos es
+        # pendiente. Quedan las dos sin publicar.
+        self.assertEqual(por_nombre['Moca']['con_pendientes'], 2)
         # Dos de Moca y la sin municipio esperan publicacion.
         self.assertEqual(por_nombre['Moca']['en_revision'], 2)
 
@@ -1192,8 +1195,12 @@ class ReportePendientesTests(TestCase):
         datos = self.admin()
 
         self.assertEqual(datos['total'], 4)
-        self.assertEqual(datos['con_pendientes'], 3)
-        self.assertNotIn('La Receta', [f['nombre'] for f in datos['fichas']])
+        # Publicadas con faltans o no, las dos publicadas de Moca salen
+        # de la lista: solo cuentan las que faltan publicar.
+        self.assertEqual(datos['con_pendientes'], 2)
+        nombres = [f['nombre'] for f in datos['fichas']]
+        self.assertNotIn('La Receta', nombres)
+        self.assertNotIn('Panaderia Sol', nombres)
 
     def test_agrupa_por_campo_faltante_y_marca_el_trio(self):
         """§11.1: agrupado por campo. El trio va marcado para que se vea
@@ -1221,20 +1228,29 @@ class ReportePendientesTests(TestCase):
 
         self.assertLess(ultimo_trio, primero_sin_trio)
 
-    def test_las_que_hay_que_publicar_van_primero(self):
-        """§11-j: son dos acciones distintas en el admin — publicar la que
-        nunca cumplio el trio, completar la que ya se publico."""
-        fichas = self.admin()['fichas']
+    def test_una_publicada_con_faltans_no_vuelve_a_la_lista(self):
+        """La regla del editor: si un envio dejo la ficha publicada (ya
+        tiene los requeridos), no vuelve a aparecer aunque le falten
+        extras — y el contador de la fila y la lista dicen lo mismo."""
+        datos = self.admin()
+        nombres = [f['nombre'] for f in datos['fichas']]
 
-        self.assertEqual(fichas[0]['estado'], 'en-revision')
-        self.assertEqual(fichas[-1]['estado'], 'publicado')
+        # Publicada con extras sin completar: fuera.
+        self.assertNotIn('Panaderia Sol', nombres)
+        # Publicada y completa: ya salia fuera, sigue fuera.
+        self.assertNotIn('La Receta', nombres)
+        # Lo que queda es exactamente lo que espera publicarse.
+        self.assertTrue(
+            all(f['estado'] == 'en-revision' for f in datos['fichas']),
+        )
+        self.assertEqual(datos['con_pendientes'], len(datos['fichas']))
 
     def test_trae_la_procedencia(self):
         """§10: lo que viene del servicio entra marcado."""
         por_nombre = {f['nombre']: f for f in self.admin()['fichas']}
 
         self.assertEqual(por_nombre['Taller El Rayo']['procedencia'], 'importado')
-        self.assertEqual(por_nombre['Panaderia Sol']['procedencia'], 'manual')
+        self.assertEqual(por_nombre['Kiosko La Esquina']['procedencia'], 'manual')
 
     def test_un_municipio_del_padron_sin_fichas_da_ceros(self):
         """§11.1 + lo decidido para los 158: un municipio todavia sin
@@ -1325,7 +1341,8 @@ class ReportePendientesTests(TestCase):
 
         self.assertEqual([f['municipio'] for f in datos], ['Moca'])
         self.assertEqual(datos[0]['total'], 4)
-        self.assertEqual(datos[0]['con_pendientes'], 3)
+        # Solo las dos sin publicar: las publicadas ya no cuentan.
+        self.assertEqual(datos[0]['con_pendientes'], 2)
 
     def test_el_reporte_le_dice_quien_firma(self):
         """La tarjeta «Tu firma» enseña el nombre del colaborador al que
@@ -2299,6 +2316,22 @@ class CanalDeEnvioTests(TestCase):
         self.assertEqual(response.status_code, 200)
         por_nombre = {f['nombre']: f for f in response.data['fichas']}
         self.assertEqual(por_nombre['Pan del Dia']['estado'], 'en-revision')
+
+    def test_un_envio_que_publica_no_deja_pendiente(self):
+        """La otra mitad del circuito: si el envio trae los requeridos,
+        la ficha se publica y **no entra** en la lista de pendientes,
+        aunque le falten extras opcionales — asi lo pidio el editor."""
+        self.enviar()
+        User = get_user_model()
+        self.client.force_login(
+            User.objects.create_superuser('admin', 'admin@example.com', 'x')
+        )
+
+        response = self.client.get(PENDIENTES_URL, {'municipio': 'Moca'})
+
+        nombres = [f['nombre'] for f in response.data['fichas']]
+        self.assertNotIn('Pan del Dia', nombres)
+        self.assertEqual(response.data['con_pendientes'], 0)
 
     # ------------------------- 2. el cruce -----------------------------
     def test_un_duplicado_no_crea_una_segunda_ficha(self):

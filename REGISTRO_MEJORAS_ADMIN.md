@@ -408,3 +408,50 @@ template:
     un número malo), techo de 5, y alta con
     `telefono='809-555-1111; 809-555-2222'` → `contact.phone`
     entero + publicado.
+- **El levantamiento: una ficha publicada seguía saliendo en la
+  lista de pendientes** — **resuelto y probado** (5/nov, **298
+  tests**). Regla que pidió el editor: si al mandar una
+  actualización el sistema ya deja la ficha actualizada y
+  publicada, no tiene por qué seguir apareciendo en la lista,
+  **aunque le falte algún campo**: si ya están los requeridos, no
+  hay necesidad que sigan apareciendo. El detalle de
+  `/api/pendientes/?municipio=` metía en `fichas` toda ficha con
+  campos faltantes, **publicadas incluidas** (las ordenaba al
+  final para «completarlas»), así que un envío que publicaba
+  dejaba la ficha en el desplegable «Negocio a completar» y, al
+  recargar, otra vez como pendiente.
+  - **Servidor** (`businesses/views.py`): *pendiente = no
+    publicado*. El detalle (`fichas`), su `con_pendientes`, el
+    desglose `por_campo` y el contador `con_pendientes` de cada
+    fila del listado se calculan **solo sobre fichas sin
+    publicar**, de modo que fila ⇒ botón ⇒ lista ⇒ chips dicen
+    exactamente lo mismo. `en_revision` sigue contando todo lo no
+    publicado. Lo publicado con extras pendientes ya no aparece
+    en ningún sitio del reporte.
+  - **Navegador** (`Levantamiento.jsx`): la fila verde de
+    confirmación de sesión se marca ahora cuando el envío deja la
+    ficha **publicada** (antes solo si no faltaba nada: la que se
+    publicaba con extras ni se ponía verde ni salía de la lista);
+    la nota de éxito deja de prometer a ciegas — para la
+    publicada dice «ya no sale en la lista de pendientes, aunque
+    le falten extras, y la que dejaste queda en verde», y los
+    envíos que siguen en revisión solo dicen que el reporte se
+    actualizó (el renglón de arriba ya explica que la ficha
+    sigue ahí).
+  - Verificado en el navegador (5/nov): Moca con 148 fichas y
+    111 pendientes; se abrió «Academia de las Fuerzas Armadas»
+    (le faltaba el teléfono), se puso un número → «✓ Aceptado y
+    publicado» con «Todavía le falta: dirección, whatsapp…» → la
+    ficha salió **sola** del desplegable, la fila quedó en
+    verde, el resumen pasó a 110/110 y los chips a 110. **Al
+    recargar**: ni select ni fila — borrada del todo. Datos
+    restaurados (la ficha 44 volvió a `en-revision` sin teléfono
+    ni foto) → **16.287 fichas**.
+  - Tests: **+1** → **298 en verde**: circuito completo
+    `test_un_envio_que_publica_no_deja_pendiente` (envío →
+    reporte); se reescribió
+    `test_las_que_hay_que_publicar_van_primero` →
+    `test_una_publicada_con_faltans_no_vuelve_a_la_lista` (la
+    regla vieja estaba al revés: la publicada iba la última
+    *dentro* de la lista) y los contadores que pasaban de 3 a 2
+    en Moca (fila y detalle).

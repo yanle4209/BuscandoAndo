@@ -469,12 +469,22 @@ def _provincia_de(grupo):
 
 
 def _fila(nombre, grupo, provincia=''):
-    """Una fila del listado: el trabajo que hay en un municipio."""
+    """Una fila del listado: el trabajo que hay en un municipio.
+
+    ``con_pendientes`` cuenta exactamente lo que luego sale en el
+    detalle: lo que todavia **no esta publicado** y le falta algo. Lo
+    publicado —aunque le queden extras— ya no es pendiente y no debe
+    contar, o la fila promete N y la lista entrega M.
+    """
+    pendientes = [
+        b for b in grupo
+        if b.publication_status.slug != 'publicado' and faltantes_de(b)
+    ]
     return {
         'municipio': nombre,
         'provincia': provincia,
         'total': len(grupo),
-        'con_pendientes': sum(1 for b in grupo if faltantes_de(b)),
+        'con_pendientes': len(pendientes),
         'en_revision': sum(
             1 for b in grupo if b.publication_status.slug != 'publicado'
         ),
@@ -594,6 +604,11 @@ def pendientes(request):
     municipios del padron** —con cuantas le falta algo y cuantas esperan
     publicacion— para elegir donde trabajar; con el parametro, el detalle
     de ese municipio, agrupado por campo faltante.
+
+    **Pendiente = no publicado.** Cuando un envio deja la ficha
+    publicada, esta sale sola de la lista —fila, contador, desglose y
+    detalle— aunque le falten extras opcionales: los requeridos ya estan
+    y al editor no le queda nada que hacer aqui.
 
     Sale de lo ya decidido y **no guarda nada nuevo**: el municipio lo da
     la ubicacion de cada ficha, la cabecera viene del CSV de la seccion 9
@@ -758,9 +773,16 @@ def pendientes(request):
         provincia = en_padron['provincia']
         cab = en_padron
 
-    con_faltantes = [
+    # La lista es lo que **falta publicar**. Si un envio ya dejo la ficha
+    # publicada (tiene los requeridos), sale sola de aqui aunque le
+    # falten extras: el editor pidio que no siga apareciendo, y lo mismo
+    # se aplica al desglose por campo y al contador de la fila, para que
+    # el numero y la lista digan lo mismo.
+    pendientes = [
         (b, faltantes_de(b)) for b in grupo
+        if b.publication_status.slug != 'publicado'
     ]
+    pendientes = [(b, faltan) for b, faltan in pendientes if faltan]
     fichas = [
         {
             'id': b.id,
@@ -775,13 +797,11 @@ def pendientes(request):
                     if getattr(b, 'location', None) else None),
             'faltan': faltan,
         }
-        for b, faltan in con_faltantes if faltan
+        for b, faltan in pendientes
     ]
-    # Las no publicadas primero: son las que hay que PUBLICAR (accion 2 de
-    # §11-j) y solo se diferencian de las demas en un clic. Las publicadas,
-    # completar (accion 1).
-    fichas.sort(key=lambda f: (f['estado'] == 'publicado',
-                               (f['nombre'] or '').casefold()))
+    # Ninguna es publicada ya, pero por nombre para que NADA se mueva de
+    # sitio al completarse: una confirmacion que salta no se lee.
+    fichas.sort(key=lambda f: (f['nombre'] or '').casefold())
 
     return Response({
         'municipio': real,
@@ -791,6 +811,6 @@ def pendientes(request):
         'total': len(grupo),
         'con_pendientes': len(fichas),
         'campos': ETIQUETAS_PENDIENTES,
-        'por_campo': contar_pendientes(grupo),
+        'por_campo': contar_pendientes([b for b, _ in pendientes]),
         'fichas': fichas,
     })
