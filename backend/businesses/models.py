@@ -1,5 +1,6 @@
 import secrets
 
+from django.conf import settings
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -511,3 +512,59 @@ class Envio(models.Model):
 
     def __str__(self):
         return f'{self.get_estado_display()} · {self.colaborador.nombre}'
+
+
+class Pospuesto(models.Model):
+    """Una ficha que el editor decidio dejar aparte (los «pospuestos»).
+
+    La decision es SUYA, no del sistema: no toca la ficha ni su
+    publicacion, solo la saca de SUS listas de trabajo para que el
+    reporte diga lo que esta dispuesto a hacer — hay negocios que no
+    desea completar o que no se pueden completar, y estorbarle en la
+    lista no ayuda.
+
+    Es por DUENO: cada colaborador (o el admin) tiene las suyas, porque
+    lo que uno pospone no le estorba al otro. No se guarda el municipio
+    —sale de la propia ficha— ni el estado: el reporte lo recalcula con
+    ``particionar`` en cada lectura.
+    """
+
+    negocio = models.ForeignKey(
+        Business, on_delete=models.CASCADE, related_name='pospuestos',
+        verbose_name='Negocio',
+    )
+    colaborador = models.ForeignKey(
+        Colaborador, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='pospuestos', verbose_name='Colaborador',
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True,
+        blank=True, related_name='pospuestos', verbose_name='Usuario',
+    )
+    creado_el = models.DateTimeField(
+        auto_now_add=True, verbose_name='Creado el',
+    )
+
+    class Meta:
+        verbose_name = 'Pospuesto'
+        verbose_name_plural = 'Pospuestos'
+        ordering = ['negocio__name']
+        # Una sola fila por ficha y por dueno: con los dos UNIQUE de
+        # abajo (y su condition) la base se encarga, aunque el codigo
+        # use get_or_create.
+        constraints = [
+            models.UniqueConstraint(
+                fields=['negocio', 'colaborador'],
+                condition=models.Q(colaborador__isnull=False),
+                name='pospuesto_uno_por_colaborador',
+            ),
+            models.UniqueConstraint(
+                fields=['negocio', 'usuario'],
+                condition=models.Q(usuario__isnull=False),
+                name='pospuesto_uno_por_usuario',
+            ),
+        ]
+
+    def __str__(self):
+        quien = self.colaborador or self.usuario
+        return f'{self.negocio.name} — pospuesto por {quien}'

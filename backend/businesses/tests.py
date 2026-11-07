@@ -40,7 +40,7 @@ from business_contacts.models import BusinessContact
 from business_hours.models import BusinessHours
 from . import geografia, osm, portar, validacion
 from .levantamiento import LIMITE_ENVIOS_POR_MINUTO, _ip
-from .models import Business, Correction, Colaborador, Envio, SlugAntiguo
+from .models import Business, Correction, Colaborador, Envio, Pospuesto, SlugAntiguo
 from .serializers import BusinessListSerializer, compute_operational_status
 
 BUSINESSES_URL = '/api/businesses/'
@@ -48,6 +48,7 @@ FEATURED_BY_SEARCH_URL = '/api/businesses/featured-by-search/'
 CORRECTIONS_URL = '/api/corrections/'
 CABECERAS_URL = '/api/cabeceras/'
 PENDIENTES_URL = '/api/pendientes/'
+POSPUESTO_URL = '/api/pospuesto/'
 LEVANTAMIENTO_URL = '/api/levantamiento/'
 
 
@@ -1528,6 +1529,342 @@ class ReportePendientesTests(TestCase):
 
         self.assertTrue(pendientes.cumple_obligatorios(self.sin_extras))
         self.assertIn('horario', pendientes.faltantes_de(self.sin_extras))
+
+
+class FiltroYPospuestosTests(TestCase):
+    """El reporte, categoria a categoria y con sus pospuestos.
+
+    Dos cosas que pidio el editor para poder TRABAJAR con la lista en
+    la mano:
+
+    1. filtrar por categoria —«si me apetece solo trabajar las
+       escuelas, las selecciono y trabajo con estas»— sin que el
+       resumen, los chips ni el desglose mientan;
+    2. posponer los negocios que no desea completar —o que no se
+       pueden: eso es indiferente—: salen de sus listas a la de
+       «pospuestos», guardadas en el servidor por dueno, para
+       retomarlas cuando quiera.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado',
+        )
+        cls.en_revision = PublicationStatus.objects.create(
+            name='En Revision', slug='en-revision',
+        )
+        cls.restaurantes = Category.objects.create(
+            name='Restaurantes', slug='restaurantes',
+        )
+        cls.escuelas = Category.objects.create(name='Escuelas', slug='escuelas')
+        cls.op_status = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto',
+        )
+
+        # Dos en cada categoria: al filtrar, cada lista se queda SOLO
+        # con las suyas. Publicada sin extras -> «publicadas con
+        # faltantes»; sin publicar -> «en revision».
+        cls.resto_a = cls.crear('Panaderia Sol', cls.restaurantes)
+        cls.resto_b = cls.crear(
+            'Taller El Rayo', cls.restaurantes, publicada=False,
+        )
+        cls.cole_a = cls.crear('Escuela Central', cls.escuelas)
+        cls.cole_b = cls.crear(
+            'Colegio San Juan', cls.escuelas, publicada=False,
+        )
+        # Sin categoria: tiene su propio casillero en el filtro.
+        cls.sin_cat = cls.crear('Puesto Ambulante', None, publicada=False)
+        # Completa: no sale en ninguna lista ni en ningun filtro.
+        cls.completa = cls.crear(
+            'La Receta', cls.restaurantes, extras=True, horario=True,
+        )
+
+    @classmethod
+    def crear(cls, nombre, categoria, *, publicada=True, extras=False,
+              horario=False):
+        biz = Business.objects.create(
+            name=nombre,
+            description='Descripcion de %s' % nombre,
+            category=categoria,
+            publication_status=(
+                cls.publicado if publicada else cls.en_revision
+            ),
+            operational_status=cls.op_status,
+            procedencia='manual',
+        )
+        BusinessLocation.objects.create(
+            business=biz, street='Calle 1', municipality='Moca',
+            province='Espaillat', latitude=MOCA_LAT, longitude=MOCA_LNG,
+        )
+        contacto = {'phone': '809-555-0000'}
+        if extras:
+            contacto = {
+                'phone': '809-555-0000',
+                'whatsapp': '+18095550000',
+                'email': 'hola@example.com',
+                'website': 'https://example.com',
+            }
+        BusinessContact.objects.create(business=biz, **contacto)
+        if horario:
+            BusinessHours.objects.create(
+                business=biz, day='Lunes',
+                open_time=datetime.time(8, 0),
+                close_time=datetime.time(17, 0),
+            )
+        BusinessImage.objects.create(business=biz, image=_foto())
+        return biz
+
+    def loguear_admin(self):
+        User = get_user_model()
+        admin, _ = User.objects.get_or_create(
+            username='admin',
+            defaults={
+                'email': 'admin@example.com',
+                'is_staff': True, 'is_superuser': True,
+            },
+        )
+        self.client.force_login(admin)
+
+    def detalle(self, **params):
+        """El detalle de Moca como lo ve el admin, con sus filtros."""
+        self.loguear_admin()
+        return self.client.get(
+            PENDIENTES_URL, {'municipio': 'Moca', **params},
+        ).json()
+
+    def detalle_token(self, token, **params):
+        """El mismo detalle con la vista DEL DUENO: su token, sus
+        pospuestos (posponer es por dueno)."""
+        return self.client.get(
+            PENDIENTES_URL,
+            {'municipio': 'Moca', **params},
+            headers={'X-Colaborador-Token': token},
+        ).json()
+
+    def fila(self):
+        """El renglon de Moca del listado, como lo ve el admin."""
+        self.loguear_admin()
+        filas = self.client.get(PENDIENTES_URL).json()
+        return next(f for f in filas if f['municipio'] == 'Moca')
+
+    def colaborador(self, municipio='Moca'):
+        return Colaborador.objects.create(
+            nombre='Pedro', municipio=municipio, activo=True,
+        )
+
+    def posponer(self, ficha, pospuesto=True, token=None):
+        """El gesto del navegador: JSON, igual que lo manda axios."""
+        encabezados = {'X-Colaborador-Token': token} if token else {}
+        return self.client.post(
+            POSPUESTO_URL,
+            json.dumps({'ficha': ficha, 'pospuesto': pospuesto}),
+            content_type='application/json',
+            headers=encabezados,
+        )
+
+    # --------------------------- el filtro ----------------------------
+    def test_el_filtro_de_categoria_solo_devuelve_las_suyas(self):
+        datos = self.detalle(categoria='escuelas')
+
+        self.assertEqual(
+            [f['nombre'] for f in datos['fichas']], ['Colegio San Juan'],
+        )
+        self.assertEqual(
+            [f['nombre'] for f in datos['publicadas']], ['Escuela Central'],
+        )
+        self.assertEqual(datos['total'], 2)
+
+    def test_sin_filtro_siguen_estando_todas(self):
+        """El filtro es una vista, no un guardado: sin parametro, el
+        reporte es el de siempre."""
+        datos = self.detalle()
+
+        self.assertEqual(len(datos['fichas']), 3)
+        self.assertEqual(len(datos['publicadas']), 2)
+        self.assertEqual(datos['total'], 6)
+
+    def test_el_desglose_de_categorias_es_del_mismo_reparto(self):
+        """El numero del desplegable y el de la lista tienen que ser
+        el mismo: salen del mismo reparto."""
+        datos = self.detalle()
+
+        por_slug = {c['slug']: c for c in datos['categorias']}
+        self.assertEqual(
+            {s: (c['con_revision'], c['con_publicadas'])
+             for s, c in por_slug.items()},
+            {
+                'restaurantes': (1, 1),
+                'escuelas': (1, 1),
+                'sin-categoria': (1, 0),
+            },
+        )
+        self.assertEqual(por_slug['escuelas']['nombre'], 'Escuelas')
+        # La completa no cuenta: no es trabajo de nadie.
+        self.assertEqual(sum(c['con_revision'] + c['con_publicadas']
+                             for c in datos['categorias']), 5)
+
+    def test_sin_categoria_tiene_su_casillero(self):
+        datos = self.detalle(categoria='sin-categoria')
+
+        self.assertEqual(
+            [f['nombre'] for f in datos['fichas']], ['Puesto Ambulante'],
+        )
+        self.assertEqual(datos['publicadas'], [])
+        self.assertEqual(datos['total'], 1)
+
+    def test_el_resumen_con_filtro_cuenta_lo_de_la_categoria(self):
+        """El «esperando publicarse» del resumen es el de la categoria
+        elegida, no el del municipio entero."""
+        sin_filtro = self.detalle()
+        con_filtro = self.detalle(categoria='escuelas')
+
+        self.assertEqual(sin_filtro['en_revision'], 3)
+        self.assertEqual(con_filtro['en_revision'], 1)
+
+    def test_los_chips_con_filtro_solo_cuentan_las_suyas(self):
+        """«Por campo faltante» mide la categoria: sin filtro hay 5
+        fichas sin horario, con el de escuelas, solo 2."""
+        sin_filtro = self.detalle()
+        con_filtro = self.detalle(categoria='escuelas')
+
+        def horario(datos):
+            return next(
+                c['cantidad'] for c in datos['por_campo']
+                if c['campo'] == 'horario'
+            )
+
+        self.assertEqual(horario(sin_filtro), 5)
+        self.assertEqual(horario(con_filtro), 2)
+
+    # -------------------------- los pospuestos ------------------------
+    def test_se_puede_posponer_una_ficha_y_sale_de_sus_listas(self):
+        self.loguear_admin()
+        respuesta = self.posponer(self.resto_b.id)
+
+        self.assertEqual(respuesta.status_code, 200)
+        datos = self.detalle()
+        self.assertNotIn(
+            'Taller El Rayo', [f['nombre'] for f in datos['fichas']],
+        )
+        self.assertEqual(
+            [f['nombre'] for f in datos['pospuestos']], ['Taller El Rayo'],
+        )
+        # Y la fila del listado dice lo mismo que la lista.
+        self.assertEqual(datos['con_revision'], 2)
+        renglon = self.fila()
+        self.assertEqual(renglon['con_revision'], 2)
+        self.assertEqual(renglon['con_pospuestos'], 1)
+        self.assertEqual(renglon['total'], 6)
+
+    def test_retomar_la_devuelve_a_su_lista(self):
+        self.loguear_admin()
+        self.posponer(self.resto_b.id)
+        self.posponer(self.resto_b.id, pospuesto=False)
+
+        datos = self.detalle()
+        self.assertIn(
+            'Taller El Rayo', [f['nombre'] for f in datos['fichas']],
+        )
+        self.assertEqual(datos['pospuestos'], [])
+        self.assertEqual(self.fila()['con_pospuestos'], 0)
+
+    def test_posponer_es_por_dueno(self):
+        """Lo que uno pospone no le estorba al otro: cada uno tiene
+        las suyas."""
+        token = self.colaborador().token
+        self.posponer(self.resto_b.id, token=token)
+
+        # Pedro, con SU lista, la ve pospuesta y fuera de revision.
+        suyo = self.client.get(
+            PENDIENTES_URL,
+            {'municipio': 'Moca'},
+            headers={'X-Colaborador-Token': token},
+        ).json()
+        self.assertNotIn(
+            'Taller El Rayo', [f['nombre'] for f in suyo['fichas']],
+        )
+        self.assertEqual(
+            [f['nombre'] for f in suyo['pospuestos']], ['Taller El Rayo'],
+        )
+
+        # El admin, con SU lista, sigue viendola en revision.
+        self.assertIn(
+            'Taller El Rayo',
+            [f['nombre'] for f in self.detalle()['fichas']],
+        )
+
+    def test_un_colaborador_no_pospone_fichas_de_otro_municipio(self):
+        token = self.colaborador('Santiago').token
+
+        respuesta = self.posponer(self.resto_b.id, token=token)
+
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertIn('otro municipio', respuesta.json()['detail'])
+        self.assertIn(
+            'Taller El Rayo',
+            [f['nombre'] for f in self.detalle()['fichas']],
+        )
+
+    def test_posponer_sin_firma_da_403(self):
+        respuesta = self.posponer(self.resto_b.id)
+
+        self.assertEqual(respuesta.status_code, 403)
+
+    def test_un_token_que_no_es_de_nadie_da_401_al_posponer(self):
+        respuesta = self.posponer(self.resto_b.id, token='no-existe')
+
+        self.assertEqual(respuesta.status_code, 401)
+
+    def test_posponer_sin_ficha_pide_la_ficha(self):
+        self.loguear_admin()
+        respuesta = self.posponer('')
+
+        self.assertEqual(respuesta.status_code, 400)
+
+    def test_una_ficha_completada_no_sigue_pospuesta(self):
+        """La que se completo despues de posponerla —o que ya estaba
+        completa— no vuelve a estorbar en la lista de pospuestos."""
+        self.loguear_admin()
+        self.posponer(self.completa.id)
+
+        datos = self.detalle()
+        self.assertEqual(datos['pospuestos'], [])
+        self.assertEqual(self.fila()['con_pospuestos'], 0)
+
+    def test_pospuestos_y_filtro_se_aplican_a_la_misma_vez(self):
+        """Las pospuestas de la categoria elegida salen en SU lista;
+        en las demas, no."""
+        token = self.colaborador().token
+        self.posponer(self.cole_b.id, token=token)
+
+        escuelas = self.detalle_token(token, categoria='escuelas')
+        self.assertEqual(
+            [f['nombre'] for f in escuelas['pospuestos']],
+            ['Colegio San Juan'],
+        )
+        self.assertEqual(escuelas['con_revision'], 0)
+
+        restaurantes = self.detalle_token(token, categoria='restaurantes')
+        self.assertEqual(restaurantes['pospuestos'], [])
+
+    def test_una_categoria_entera_pospuesta_sigue_en_el_desplegable(self):
+        """Si se pospone todo, la categoria no puede desaparecer del
+        desplegable: su valor actual se quedaría sin opciones y el
+        select saldria en blanco."""
+        token = self.colaborador().token
+        self.posponer(self.cole_a.id, token=token)
+        self.posponer(self.cole_b.id, token=token)
+
+        datos = self.detalle_token(token, categoria='escuelas')
+
+        por_slug = {c['slug']: c for c in datos['categorias']}
+        self.assertIn('escuelas', por_slug)
+        self.assertEqual(por_slug['escuelas']['con_revision'], 0)
+        self.assertEqual(por_slug['escuelas']['con_publicadas'], 0)
+        self.assertEqual(datos['fichas'], [])
+        self.assertEqual(datos['publicadas'], [])
+        self.assertEqual(len(datos['pospuestos']), 2)
 
 
 CABECERA_MOCA = {

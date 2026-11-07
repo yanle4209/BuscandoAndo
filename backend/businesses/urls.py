@@ -21,6 +21,9 @@ urlpatterns = [
     # Reporte de pendientes por municipio (DISENO.md 11.1): la ficha de
     # trabajo del editor. Solo staff.
     path('pendientes/', views.pendientes, name='pendientes'),
+    # Posponer/retomar una ficha del reporte: la decision humana de no
+    # completarla, por dueno (colaborador o admin). Mismo candado.
+    path('pospuesto/', views.pospuesto, name='pospuesto'),
     # Canal de envio del levantamiento (DISENO.md 11.5). Sin login: la
     # puerta es el token del colaborador, y quien envia no publica.
     path('levantamiento/', levantamiento, name='levantamiento'),

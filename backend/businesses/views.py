@@ -21,7 +21,7 @@ from .geografia import (
     haversine_distance,
     normalizar,
 )
-from .models import Business, Correction, SlugAntiguo
+from .models import Business, Correction, SlugAntiguo, Pospuesto
 from .serializers import BusinessListSerializer, BusinessDetailSerializer, CorrectionCreateSerializer, CorrectionSerializer
 
 # Las metricas de uso se cuentan dentro de la vista que ya atiende la
@@ -33,6 +33,7 @@ from uso.models import registrar
 # local taparia al importado.
 from .pendientes import (
     ETIQUETAS as ETIQUETAS_PENDIENTES,
+    con_trabajo,
     contar_pendientes,
     faltantes_de,
     particionar,
@@ -469,15 +470,21 @@ def _provincia_de(grupo):
     return ''
 
 
-def _fila(nombre, grupo, provincia=''):
+def _fila(nombre, grupo, provincia='', pospuestos=frozenset()):
     """Una fila del listado: el trabajo que hay en un municipio.
 
     Los DOS contadores cuentan exactamente lo que luego sale en el
     detalle (``particionar``): ``con_revision`` de la lista principal y
     ``con_publicadas`` de la lista aparte. Asi la fila promete N y la
     lista entrega N.
+
+    ``pospuestos`` son los ids que este dueno decidio dejar aparte: se
+    descuentan de los contadores (siguen en ``total``, que son fichas
+    del municipio) para que fila, boton y lista digan lo mismo, y el
+    ``con_pospuestos`` abre el detalle aunque ya no quede nada mas.
     """
-    cubos = particionar(grupo)
+    trabajo = [b for b in grupo if b.id not in pospuestos]
+    cubos = particionar(trabajo)
     return {
         'municipio': nombre,
         'provincia': provincia,
@@ -485,9 +492,60 @@ def _fila(nombre, grupo, provincia=''):
         'con_revision': len(cubos['revision']),
         'con_publicadas': len(cubos['publicadas']),
         'en_revision': sum(
-            1 for b in grupo if b.publication_status.slug != 'publicado'
+            1 for b in trabajo if b.publication_status.slug != 'publicado'
+        ),
+        'con_pospuestos': sum(
+            1 for b in grupo
+            if b.id in pospuestos and con_trabajo(b)
         ),
     }
+
+
+# El casillero de las fichas SIN categoria en el filtro del reporte: un
+# slug vacio no sirve porque tambien es «todas las categorias».
+SIN_CATEGORIA = 'sin-categoria'
+
+
+def _es_de_categoria(biz, categoria):
+    """Pasa el filtro del desplegable (``?categoria=``). Vacio = todo."""
+    if not categoria:
+        return True
+    if categoria == SIN_CATEGORIA:
+        return biz.category_id is None
+    return biz.category_id is not None and biz.category.slug == categoria
+
+
+def _solo_categoria(cubos, categoria):
+    """El mismo reparto, con el filtro aplicado a los tres cubos."""
+    if not categoria:
+        return cubos
+    return {
+        clave: [par for par in lista if _es_de_categoria(par[0], categoria)]
+        for clave, lista in cubos.items()
+    }
+
+
+def _categorias_de(cubos):
+    """Lo que hay que tocar, categoria a categoria, para el filtro.
+
+    El desglose sale del MISMO reparto que las listas: asi el numero
+    del desplegable y el de la lista son siempre el mismo. Solo las
+    categorias con trabajo —las vacias no estorban en el desplegable—.
+    """
+    conteo = {}
+    for clave, campo in (('revision', 'con_revision'),
+                         ('publicadas', 'con_publicadas')):
+        for biz, _ in cubos[clave]:
+            slug = biz.category.slug if biz.category_id else SIN_CATEGORIA
+            fila = conteo.setdefault(slug, {
+                'slug': slug,
+                'nombre': (biz.category.name if biz.category_id
+                           else '(sin categoría)'),
+                'con_revision': 0,
+                'con_publicadas': 0,
+            })
+            fila[campo] += 1
+    return sorted(conteo.values(), key=lambda c: c['nombre'].casefold())
 
 
 def _le_toca(colaborador, municipio):
@@ -499,6 +557,62 @@ def _le_toca(colaborador, municipio):
     """
     asignado = (colaborador.municipio or '').strip()
     return bool(asignado) and normalizar(asignado) == normalizar(municipio)
+
+
+def _acceso_reporte(request):
+    """Quien puede leer o mover el reporte de §11.1.
+
+    Devuelve ``(colaborador, usuario, error)``: el colaborador que firma
+    con su token, el usuario admin de la sesion (``None`` si no lo es) y
+    la respuesta de error para quien no es ninguno de los dos. La misma
+    puerta para el GET del reporte y el POST de posponer: si cada uno
+    abriera la suya, posponer serviria a quien no puede ni leer.
+
+    El TOKEN manda sobre la sesion: quien lo trae esta declarando «soy
+    este colaborador», y en este mismo navegador puede haber ademas una
+    sesion de admin abierta —sin eso, el navegador se quedaba con el
+    primer municipio de la lista entera (Azua) diciendole al dueño del
+    token que su municipio era ese. Sin token manda la sesion de admin
+    (la lista entera); sin ninguna de las dos, 403.
+    """
+    colaborador = colaborador_de(request)
+
+    if colaborador is None and token_de(request):
+        # Quien manda un token que no vale (o que esta apagado) no es lo
+        # mismo que quien no manda nada: el primero puede arreglarlo.
+        return None, None, Response(
+            {'detail': 'Token de colaborador invalido o inactivo.'},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    usuario = getattr(request, 'user', None)
+    es_admin = bool(
+        usuario is not None and usuario.is_authenticated and usuario.is_staff
+    )
+
+    if colaborador is None and not es_admin:
+        return None, None, Response(
+            {'detail': 'Sesion de administrador o token de colaborador.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    return colaborador, (usuario if es_admin else None), None
+
+
+def _pospuestos_de(colaborador, usuario):
+    """Los ids de las fichas que este dueno decidio dejar aparte.
+
+    Un conjunto para descontarlos de un listado entero —o de las 158
+    filas del padron— sin una consulta por municipio. Quien no es
+    nadie no pospone nada.
+    """
+    if colaborador is not None:
+        base = Pospuesto.objects.filter(colaborador=colaborador)
+    elif usuario is not None:
+        base = Pospuesto.objects.filter(usuario=usuario)
+    else:
+        return frozenset()
+    return frozenset(base.values_list('negocio_id', flat=True))
 
 
 def _para_formulario(biz):
@@ -614,7 +728,15 @@ def pendientes(request):
     obligatorios y aun opcionales sin completar: salen aparte para
     rellenarlas mas adelante, sin estorbar la lista principal.
 
-    Sale de lo ya decidido y **no guarda nada nuevo**: el municipio lo da
+    Con ``?categoria=`` el detalle se limita a esa categoria —su slug,
+    o el casillero ``sin-categoria``— y cada respuesta trae el desglose
+    ``categorias`` para el desplegable, medido con el MISMO reparto que
+    las listas. Los **pospuestos** —lo que el editor decidio no
+    completar— salen de las listas y de los contadores y vuelven en su
+    propia lista ``pospuestos``; el POST ``/api/pospuesto/`` es quien
+    los mueve.
+
+    Este GET **no guarda nada nuevo**: el municipio lo da
     la ubicacion de cada ficha, la cabecera viene del CSV de la seccion 9
     y el circulo, del radio de R1. Por eso no hace falta ampliar el
     serializer de lista con ``hours[]``: el horario se cuenta aqui, en el
@@ -630,36 +752,20 @@ def pendientes(request):
     ``total: 0``, que es exactamente el trabajo que falta.
     """
     municipio = (request.query_params.get('municipio') or '').strip()
+    # El filtro del desplegable: slug de categoria, el casillero de las
+    # sin-categoria, o vacio (= todas).
+    categoria = (request.query_params.get('categoria') or '').strip()
 
     # ---------------------------- quien pregunta ----------------------
-    # El TOKEN manda: quien lo trae esta declarando "soy este
-    # colaborador", y eso va por delante de la sesion. Sin el, manda la
-    # sesion de admin (la lista entera); sin ninguna de las dos, 403.
-    #
-    # Hace falta porque la sesion vive en el MISMO navegador: con el
-    # admin logueado, esta pantalla devolvia los 158 municipios y el
-    # navegador se quedaba con el primero (Azua), diciendole a quien
-    # tenia el token delante que su municipio era Azua.
-    colaborador = colaborador_de(request)
+    # La misma puerta que el POST de posponer (si cada uno abriera la
+    # suya, posponer serviria a quien no puede ni leer).
+    colaborador, usuario, error = _acceso_reporte(request)
+    if error is not None:
+        return error
 
-    if colaborador is None and token_de(request):
-        # Quien manda un token que no vale (o que esta apagado) no es lo
-        # mismo que quien no manda nada: el primero puede arreglarlo.
-        return Response(
-            {'detail': 'Token de colaborador invalido o inactivo.'},
-            status=status.HTTP_401_UNAUTHORIZED,
-        )
-
-    usuario = getattr(request, 'user', None)
-    es_admin = bool(
-        usuario is not None and usuario.is_authenticated and usuario.is_staff
-    )
-
-    if colaborador is None and not es_admin:
-        return Response(
-            {'detail': 'Sesion de administrador o token de colaborador.'},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+    # Los que este dueno dejo aparte: salen de las listas de trabajo y
+    # de los contadores de SU reporte, pero siguen en `total`.
+    pospuestos = _pospuestos_de(colaborador, usuario)
 
     # Una ficha concreta, para POBLAR el formulario: va primero porque
     # conoce su propio municipio y no hace falta que se lo pidan.
@@ -718,7 +824,10 @@ def pendientes(request):
                 en_padron['provincia'] if en_padron
                 else _provincia_de(grupos_por_norma.get(clave, []))
             )
-            fila = _fila(nombre, grupos_por_norma.get(clave, []), provincia)
+            fila = _fila(
+                nombre, grupos_por_norma.get(clave, []), provincia,
+                pospuestos,
+            )
             # Quien firma este renglon. Solo aqui: la lista entera del admin
             # no viene de un token y por lo tanto no trae nombre de nadie.
             # Lo ve unicamente quien ya tiene el token, que es ese
@@ -739,6 +848,7 @@ def pendientes(request):
                     cab['municipio'],
                     grupos_por_norma.get(clave, []),
                     cab['provincia'],
+                    pospuestos,
                 )
             )
 
@@ -747,7 +857,9 @@ def pendientes(request):
         # justo algo que hay que ver.
         for nombre, grupo in grupos.items():
             if normalizar(nombre) not in claves_del_padron:
-                filas.append(_fila(nombre, grupo, _provincia_de(grupo)))
+                filas.append(
+                    _fila(nombre, grupo, _provincia_de(grupo), pospuestos),
+                )
 
         filas.sort(key=lambda f: (f['provincia'].casefold(),
                                   f['municipio'].casefold()))
@@ -785,7 +897,36 @@ def pendientes(request):
     # con todos los obligatorios y solo traen opcionales sin completar.
     # El editor pidio tenerlas aparte, en la misma tarjeta, para
     # rellenarlas mas adelante sin estorbar la lista principal.
-    cubos = particionar(grupo)
+    # Los POSPUESTOS no son trabajo: salen del reparto (siguen en
+    # `total`, que son fichas del municipio) y vuelven en su propia
+    # lista de la misma tarjeta.
+    trabajo = [b for b in grupo if b.id not in pospuestos]
+
+    # Un SOLO reparto: de ahi sale el desglose por categoria del filtro
+    # y, con el filtro aplicado, las dos listas — asi el numero del
+    # desplegable y el de la lista son siempre el mismo.
+    cubos = particionar(trabajo)
+    categorias = _categorias_de(cubos)
+    if categoria and not any(c['slug'] == categoria for c in categorias):
+        # La categoria elegida puede quedarse sin trabajo (todo
+        # completado o pospuesto): el desplegable tiene que seguirla
+        # ofreciendo, o su valor actual desapareceria de las opciones y
+        # el select se quedaria en blanco.
+        nombre = next(
+            (b.category.name for b in grupo
+             if b.category_id and b.category.slug == categoria),
+            None,
+        )
+        if categoria == SIN_CATEGORIA:
+            nombre = '(sin categoría)'
+        categorias.append({
+            'slug': categoria,
+            'nombre': nombre or categoria,
+            'con_revision': 0,
+            'con_publicadas': 0,
+        })
+        categorias.sort(key=lambda c: c['nombre'].casefold())
+    cubos = _solo_categoria(cubos, categoria)
 
     def _detalle_ficha(par):
         b, faltan = par
@@ -810,20 +951,104 @@ def pendientes(request):
     fichas.sort(key=lambda f: (f['nombre'] or '').casefold())
     publicadas.sort(key=lambda f: (f['nombre'] or '').casefold())
 
+    # Los pospuestos, con la MISMA medida de categoria: la tercera
+    # lista de la misma tarjeta. Solo los que todavia deban algo — el
+    # que se completo despues de posponerlo no vuelve a estorbar.
+    pospuestos_fichas = [
+        _detalle_ficha((b, faltantes_de(b)))
+        for b in grupo
+        if (b.id in pospuestos and con_trabajo(b)
+            and _es_de_categoria(b, categoria))
+    ]
+    pospuestos_fichas.sort(key=lambda f: (f['nombre'] or '').casefold())
+
     return Response({
         'municipio': real,
         'provincia': (cab['provincia'] if cab else provincia),
         'cabecera': ({'lat': cab['lat'], 'lng': cab['lng']} if cab else None),
         'radio_km': RADIO_KM,
-        'total': len(grupo),
+        # Las fichas del municipio —o de la categoria si hay filtro—,
+        # pospuestas incluidas: «fichas» es un hecho, no trabajo.
+        'total': (
+            len(grupo) if not categoria
+            else sum(1 for b in grupo if _es_de_categoria(b, categoria))
+        ),
         'con_revision': len(fichas),
         'con_publicadas': len(publicadas),
+        # Lo que espera publicarse de ESTE trabajo (sin pospuestos):
+        # con filtro, es el «esperando publicarse» del resumen.
+        'en_revision': sum(
+            1 for b, _ in cubos['revision']
+            if b.publication_status.slug != 'publicado'
+        ),
+        # Para el desplegable de filtro, siempre.
+        'categorias': categorias,
+        'pospuestos': pospuestos_fichas,
         'campos': ETIQUETAS_PENDIENTES,
-        # El desglose cuenta lo que falta en las DOS listas: es el
-        # trabajo entero del municipio, obligatorios y opcionales.
+        # El desglose cuenta lo que falta en las DOS listas (con el
+        # filtro aplicado): es el trabajo del municipio, obligatorios y
+        # opcionales.
         'por_campo': contar_pendientes(
             [b for b, _ in cubos['revision'] + cubos['publicadas']],
         ),
         'fichas': fichas,
         'publicadas': publicadas,
     })
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def pospuesto(request):
+    """Posponer o retomar una ficha del reporte (DISENO.md seccion 11.1).
+
+    El editor sabe que hay negocios que no desea completar o que no se
+    pueden completar: esto los saca de SUS listas de trabajo a la de
+    «pospuestos», sin tocar la ficha ni su publicacion. Es una decision
+    humana y reversible —«retomar» la devuelve—, y es por DUENO: lo que
+    uno pospone no le estorba al otro.
+
+    Mismo candado que el GET (``_acceso_reporte``): el token manda
+    sobre la sesion y al colaborador solo le tocan fichas de SU
+    municipio (§11-i). Todo lo demas lo recalcula el reporte en su
+    proxima lectura, asi que aqui solo se guarda el gesto.
+    """
+    colaborador, usuario, error = _acceso_reporte(request)
+    if error is not None:
+        return error
+
+    ficha = str(request.data.get('ficha') or '').strip()
+    if not ficha.isdigit():
+        return Response(
+            {'detail': 'Falta la ficha que quieres posponer.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    biz = Business.objects.filter(id=int(ficha)).select_related(
+        'location',
+    ).first()
+    if biz is None:
+        return Response(
+            {'detail': 'No existe esa ficha.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    loc = getattr(biz, 'location', None)
+    municipio = ((loc.municipality if loc else '') or '').strip()
+    municipio = municipio or SIN_MUNICIPIO
+    if colaborador is not None and not _le_toca(colaborador, municipio):
+        return Response(
+            {'detail': 'A este token le toca otro municipio.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    dueno = (
+        {'colaborador': colaborador} if colaborador is not None
+        else {'usuario': usuario}
+    )
+    querido = bool(request.data.get('pospuesto'))
+    if querido:
+        Pospuesto.objects.get_or_create(negocio=biz, **dueno)
+    else:
+        Pospuesto.objects.filter(negocio=biz, **dueno).delete()
+
+    return Response({'ficha': biz.id, 'pospuesto': querido})

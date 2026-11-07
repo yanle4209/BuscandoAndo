@@ -10,7 +10,7 @@ from django.utils import timezone
 from . import geografia
 from .busqueda import BusquedaAdmin
 from .models import (
-    Business, Correction, Colaborador, Envio,
+    Business, Correction, Colaborador, Envio, Pospuesto,
     FEATURED_LIMITS, FEATURED_WEEKS_CHOICES,
 )
 from business_locations.models import BusinessLocation
@@ -780,3 +780,23 @@ class EnvioAdmin(BusquedaAdmin, admin.ModelAdmin):
             return 'Faltan: ' + ', '.join(obj.faltan)
         return '-'
     motivos_cortos.short_description = 'Motivos / faltantes'
+
+
+@admin.register(Pospuesto)
+class PospuestoAdmin(BusquedaAdmin, admin.ModelAdmin):
+    """Lo que un editor decidio dejar aparte: su lista de «pospuestos».
+
+    Solo el gesto —la ficha no cambia—. Se puede quitar desde aqui
+    (retomar) igual que desde la tarjeta del levantamiento.
+    """
+
+    list_display = ['negocio', 'dueno', 'creado_el']
+    list_filter = ['colaborador', 'creado_el']
+    search_fields = [
+        'negocio__name', 'colaborador__nombre', 'usuario__username',
+    ]
+    raw_id_fields = ['negocio']
+
+    def dueno(self, obj):
+        return obj.colaborador or obj.usuario
+    dueno.short_description = 'Quien lo pospuso'

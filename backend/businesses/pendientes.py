@@ -121,6 +121,20 @@ def cumple_obligatorios(biz):
     return not any(campo in faltan for campo in OBLIGATORIOS)
 
 
+def con_trabajo(biz):
+    """True si la ficha todavia le debe algo al reporte.
+
+    Es el complemento del cubo ``completas``: sin publicar, o publicada
+    con algun campo sin completar. Sirve para los POSPUESTOS: una ficha
+    que el editor dejo aparte y que luego se completo (o que ya estaba
+    completa) no puede seguir cobrando hueco en la lista de lo
+    pospuesto.
+    """
+    if biz.publication_status.slug != 'publicado':
+        return True
+    return bool(faltantes_de(biz))
+
+
 def particionar(negocios):
     """Los tres cubos del reporte de §11.1, en una sola pasada.
 
