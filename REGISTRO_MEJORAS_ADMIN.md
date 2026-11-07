@@ -588,3 +588,55 @@ template:
     punto`, `test_se_publica_en_cuanto_cumple_lo_obligatorio`,
     `con_pendientes` → `con_revision`/`con_publicadas`). `oxlint`
     limpio, build + `collectstatic` + runserver reiniciado.
+- **El levantamiento: filtrar por categoría y posponer fichas** —
+  **resuelto y probado** (6/nov, **316 tests**). Dos cosas que pidió
+  el editor para poder TRABAJAR con la lista en la mano: (1)
+  **filtrar por categoría** —«si me apetece solo trabajar las
+  escuelas, pues las selecciono y trabajo con estas»—; (2)
+  **posponer** los negocios que no desea completar o que no se
+  pueden (da igual cuál de los dos motivos): salen de SUS listas a
+  una tercera lista «Pospuestos», guardada en el servidor por
+  dueno, reversible con «Retomar».
+  - **Servidor** (`businesses/`): modelo `Pospuesto` (`negocio` +
+    `colaborador`/`usuario`, únicos en pareja; migración
+    `0013_pospuesto`); `GET /api/pendientes/?categoria=<slug>` con
+    `sin-categoria` para las que no tienen — un solo `particionar()`
+    reparte listas **y** desglose `categorias`, así que el número del
+    desplegable y el de la lista nunca discordar; la categoría
+    elegida se añade al desplegable aunque tenga 0 trabajo (si no,
+    al posponerla entera el `select` saldría en blanco); `pospuestos`
+    solo con las que aún deban algo (`con_trabajo`), `total`
+    absoluto, y `con_revision`/`con_publicadas`/`en_revision`/
+    `por_campo` descuentan pospuestos — la fila del listado gana
+    `con_pospuestos`, que su gate de espera incluye; `POST
+    /api/pospuesto/` `{ficha, pospuesto}` con la misma puerta que el
+    GET (`_acceso_reporte`: el token manda sobre la sesión) y
+    `_le_toca` por municipio — posponer es **por dueno**, lo que uno
+    aparta no le estorba al otro; `PospuestoAdmin` en el panel.
+  - **Navegador** (`Levantamiento.jsx` / `.css`): estado `categoria`
+    (se resetea al salir); desplegable «Categoría» con conteos por
+    opción entre el resumen y las listas — al cambiarlo solo se
+    recarga el DETALLE (el renglón del municipio sigue diciendo lo
+    suyo); resumen con rama «categoría X — N fichas…»; chips, avance
+    y listas miden la categoría; botón «Posponer» en las filas de
+    las dos listas (oculto en la abierta y en las verdes) y lista
+    «Pospuestos» con chip apagado y «Retomar»; los vacíos distinguen
+    municipio / «siguen pospuestas» / categoría; el botón
+    «Actualizar» también espera si solo quedan pospuestos.
+  - **Verificado en el navegador (6/nov)**: desplegable con 14
+    categorías que suman 148; filtrar Escuelas → «Moca (Espaillat) —
+    categoría Escuelas — 35 fichas, 35 en revisión, 0 publicadas con
+    faltantes, 33 esperando publicarse», lista con 35 filas y chips
+    solo de escuelas (Imagen 35 / Teléfono 33); «Posponer» en
+    Academia de Ingles Global → baja a 34 y aparece «Pospuestos»
+    (chip «pospuesta» + «Retomar»), con el resumen en 34;
+    «Retomar» → vuelve a 35 y la lista desaparece; «Todas las
+    categorías» → 148/146/2 de siempre; consola sin errores. Datos
+    restaurados (0 pospuestos, sin filtro).
+  - **Tests**: **+16** → **316 en verde** — clase
+    `FiltroYPospuestosTests`: filtro, desglose, casillero
+    `sin-categoria`, resumen, chips, posponer/retomar, por dueno
+    (admin y colaborador no se pisan), 403/401/400, completa no
+    pospuesta, filtro + pospuestos a la vez y categoría entera
+    pospuesta que sigue en el desplegable. `oxlint` limpio, build +
+    `collectstatic` + migración local + runserver reiniciado.
