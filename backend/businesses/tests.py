@@ -1866,6 +1866,54 @@ class FiltroYPospuestosTests(TestCase):
         self.assertEqual(datos['publicadas'], [])
         self.assertEqual(len(datos['pospuestos']), 2)
 
+    # ---------------------------- CSRF ---------------------------------
+    def test_posponer_con_sesion_de_admin_y_token_csrf(self):
+        """Regresion: el boton Posponer con el admin abierto (CSRF).
+
+        DRF autentica por sesion por defecto: quien tiene la sesion del
+        admin en el MISMO dominio pasa por SessionAuthentication y
+        este exige el token CSRF — sin cabecera, el POST devolvia
+        «CSRF token missing» y el boton no hacia nada (el aviso del
+        navegador lo mostraba). El index reparte la cookie (get_token)
+        y el axios de la SPA la manda en X-CSRFToken; este test es el
+        que falla si eso se quita.
+        """
+        from django.test import Client
+
+        # enforce_csrf_checks=True porque el cliente de pruebas se salta
+        # la validacion de CSRF POR DEFECTO: sin el, el test pasaria
+        # tambien con el codigo roto y no serviria de nada.
+        cliente = Client(enforce_csrf_checks=True)
+        User = get_user_model()
+        cliente.force_login(User.objects.get_or_create(
+            username='admin',
+            defaults={
+                'email': 'admin@example.com',
+                'is_staff': True, 'is_superuser': True,
+            },
+        )[0])
+
+        # La cookie csrftoken guarda el secreto (32, CSRF_SECRET_LENGTH)
+        # y el navegador lo manda tal cual en la cabecera.
+        secreto = 'a' * 32
+        cliente.cookies['csrftoken'] = secreto
+        cuerpo = json.dumps({'ficha': self.resto_b.id, 'pospuesto': True})
+
+        sin = cliente.post(
+            POSPUESTO_URL, cuerpo, content_type='application/json',
+        )
+        self.assertEqual(sin.status_code, 403, sin.content)
+        self.assertIn('CSRF', sin.json()['detail'])
+
+        con = cliente.post(
+            POSPUESTO_URL, cuerpo, content_type='application/json',
+            headers={'X-CSRFToken': secreto},
+        )
+        self.assertEqual(con.status_code, 200, con.content)
+        self.assertTrue(
+            Pospuesto.objects.filter(negocio=self.resto_b).exists(),
+        )
+
 
 CABECERA_MOCA = {
     'municipio': 'Moca',

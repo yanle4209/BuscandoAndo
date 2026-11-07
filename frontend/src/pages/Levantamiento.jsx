@@ -1148,9 +1148,10 @@ export default function Levantamiento() {
                             : `Falta: ${f.restan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
                         </span>
                         {/* Solo lo que aun se puede apartar: la que esta
-                            abierta se esta trabajando y la verde ya se
-                            hizo. */}
-                        {!f.activa && !f.hecha && (
+                            abierta se esta trabajando, la verde ya se
+                            hizo y la que ya esta publicada no se
+                            aparta —los publicados no llevan boton. */}
+                        {!f.activa && !f.hecha && f.estado !== 'publicado' && (
                           <button
                             type="button"
                             className="lev-ficha-posponer"
@@ -1191,16 +1192,6 @@ export default function Levantamiento() {
                                 ? '✓ Completa'
                                 : `Falta: ${f.restan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
                             </span>
-                            {!f.activa && !f.hecha && (
-                              <button
-                                type="button"
-                                className="lev-ficha-posponer"
-                                title="No completar ahora: a la lista de pospuestos"
-                                onClick={() => posponer(f.id, true)}
-                              >
-                                Posponer
-                              </button>
-                            )}
                           </li>
                         ))}
                       </ul>

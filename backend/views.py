@@ -17,6 +17,7 @@ from django.conf import settings
 from django.http import (
     FileResponse, Http404, HttpResponse, HttpResponsePermanentRedirect,
 )
+from django.middleware.csrf import get_token
 
 # ---------------------------------------------------------------------------
 # Rutas del SPA (frontend/src/App.jsx): SOLO estas devuelven index.html.
@@ -298,6 +299,12 @@ def serve_react(request, path=''):
         index = index_path.read_text(encoding='utf-8')
         response = HttpResponse(_inyectar_metas(index, metas),
                                 content_type='text/html; charset=utf-8')
+        # El index.html tambien reparte la cookie csrftoken (get_token):
+        # sin ella, un POST con la sesion del admin abierta en el mismo
+        # dominio cae en el CSRF de DRF con «token missing» — el boton
+        # Posponer le fallo a cualquiera probando con el admin dentro.
+        # El axios de la SPA lee la cookie y la manda en X-CSRFToken.
+        get_token(request)
         # El index.html es el que decide que bundle se carga, y sin
         # Cache-Control el navegador aplicaba cache heuristica: se
         # quedaba con el HTML viejo y con el JS viejo, y los deploys no

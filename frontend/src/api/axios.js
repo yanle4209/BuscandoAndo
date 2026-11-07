@@ -21,4 +21,23 @@ const api = axios.create({
   },
 });
 
+// DRF exige el token CSRF en los POST de quien trae la sesion del
+// admin abierta en el mismo dominio (SessionAuthentication): sin esta
+// cabecera, «Posponer» respondia 403 «CSRF token missing» y el boton
+// no hacia nada. El index de Django reparte la cookie csrftoken y aqui
+// se copia en cada peticion — para quien entra con token de
+// colaborador (sin sesion) no hace falta y no estorba.
+function csrfDeCookie() {
+  const pareja = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/);
+  return pareja ? decodeURIComponent(pareja[1]) : null;
+}
+
+api.interceptors.request.use((config) => {
+  const token = csrfDeCookie();
+  if (token) {
+    config.headers.set('X-CSRFToken', token);
+  }
+  return config;
+});
+
 export default api;

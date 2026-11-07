@@ -589,7 +589,7 @@ template:
     `con_pendientes` → `con_revision`/`con_publicadas`). `oxlint`
     limpio, build + `collectstatic` + runserver reiniciado.
 - **El levantamiento: filtrar por categoría y posponer fichas** —
-  **resuelto y probado** (6/nov, **316 tests**). Dos cosas que pidió
+  **resuelto y probado** (6/nov, **317 tests**). Dos cosas que pidió
   el editor para poder TRABAJAR con la lista en la mano: (1)
   **filtrar por categoría** —«si me apetece solo trabajar las
   escuelas, pues las selecciono y trabajo con estas»—; (2)
@@ -619,7 +619,8 @@ template:
     recarga el DETALLE (el renglón del municipio sigue diciendo lo
     suyo); resumen con rama «categoría X — N fichas…»; chips, avance
     y listas miden la categoría; botón «Posponer» en las filas de
-    las dos listas (oculto en la abierta y en las verdes) y lista
+    las dos listas (oculto en la abierta, en las verdes y en las
+    publicadas: los publicados no llevan botón) y lista
     «Pospuestos» con chip apagado y «Retomar»; los vacíos distinguen
     municipio / «siguen pospuestas» / categoría; el botón
     «Actualizar» también espera si solo quedan pospuestos.
@@ -633,10 +634,27 @@ template:
     «Retomar» → vuelve a 35 y la lista desaparece; «Todas las
     categorías» → 148/146/2 de siempre; consola sin errores. Datos
     restaurados (0 pospuestos, sin filtro).
-  - **Tests**: **+16** → **316 en verde** — clase
+  - **Arreglo posterior (6/nov): «Posponer» no hacía nada con el
+    admin abierto** — con la sesión de `/admin/` en el mismo dominio,
+    DRF (autenticación de sesión por defecto) rechazaba el POST con
+    `403 CSRF Failed: CSRF token missing`: el axios no mandaba el
+    token y el index no repartía la cookie. Arreglado en dos sitios:
+    `serve_react` llama a `get_token()` al servir el index (reparte
+    la cookie `csrftoken`) y `api/axios.js` la copia en cada
+    petición como cabecera `X-CSRFToken` — con token de colaborador
+    y sin sesión no hace falta y no estorba. Además las fichas
+    **publicadas** ya no llevan «Posponer» (ni en «Publicadas con
+    faltantes» ni en las publicadas de «En revisión»). Verificado
+    con sesión de admin + token en el navegador: el POST sale con
+    `x-csrftoken` y responde 200 (la ficha baja a «Pospuestos» y
+    «Retomar» la devuelve); publicadas sin botón (0 de 2 y 0 de 37);
+    consola limpia.
+  - **Tests**: **+17** → **317 en verde** — clase
     `FiltroYPospuestosTests`: filtro, desglose, casillero
     `sin-categoria`, resumen, chips, posponer/retomar, por dueno
     (admin y colaborador no se pisan), 403/401/400, completa no
-    pospuesta, filtro + pospuestos a la vez y categoría entera
-    pospuesta que sigue en el desplegable. `oxlint` limpio, build +
-    `collectstatic` + migración local + runserver reiniciado.
+    pospuesta, filtro + pospuestos a la vez, categoría entera
+    pospuesta que sigue en el desplegable y regresión CSRF del botón
+    (sesión de admin: 403 sin la cabecera, 200 con ella).
+    `oxlint` limpio, build + `collectstatic` + migración local +
+    runserver reiniciado.
