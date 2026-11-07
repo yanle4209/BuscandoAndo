@@ -201,6 +201,11 @@ export default function Levantamiento() {
     fila: null, detalle: null, aviso: null, cargando: false,
   });
 
+  // El filtro de categoria de la tarjeta ('' = todas): solo cambia el
+  // DETALLE —listas, chips y desglose—; el renglon del municipio sigue
+  // siendo el suyo y, con filtro, el resumen cuenta lo de la categoria.
+  const [categoria, setCategoria] = useState('');
+
   // Las fichas que YA no le deben nada en ESTA sesion. El backend solo
   // manda lo que falta —revision y publicadas con faltantes—, y sin este
   // registro la fila se borraria en vez de ponerse verde: es la
@@ -222,10 +227,11 @@ export default function Levantamiento() {
       return;
     }
     const fila = data[0] || null;
-    // Dos listas en la tarjeta: hay trabajo mientras quede ALGO en
-    // revision o algo publicado con faltantes.
+    // Dos listas mas la de pospuestos: hay trabajo mientras quede
+    // ALGO en revision, algo publicado con faltantes o algo pospuesto.
     const espera = Boolean(fila)
-      && (fila.con_revision > 0 || fila.con_publicadas > 0);
+      && (fila.con_revision > 0 || fila.con_publicadas > 0
+        || fila.con_pospuestos > 0);
     // El detalle anterior se conserva mientras llega el nuevo: sin eso la
     // lista parpadearia vacia con cada envio y se perdia justo la
     // confirmacion que el colaborador acaba de ganarse. Solo si sigue
@@ -244,7 +250,10 @@ export default function Levantamiento() {
     if (!espera) return;
     try {
       const r = await api.get('/pendientes/', {
-        params: { municipio: fila.municipio },
+        params: {
+          municipio: fila.municipio,
+          ...(categoria ? { categoria } : {}),
+        },
         headers: { 'X-Colaborador-Token': t },
       });
       if (vivo()) {
@@ -292,6 +301,53 @@ export default function Levantamiento() {
       aviso: 'No se pudo leer el reporte.',
       cargando: false,
     })));
+  };
+
+  // El filtro de categoria: solo cambia el DETALLE (listas, chips y
+  // desglose), asi que se pide otra vez con el slug nuevo sin tocar el
+  // renglon. Las demas cargas —envio, refresco, posponer— reusan la
+  // categoria abierta.
+  const cambiarCategoria = async (cat) => {
+    setCategoria(cat);
+    const fila = reporte.fila;
+    if (!fila) return;
+    const t = token.trim();
+    setReporte((x) => ({ ...x, cargando: true }));
+    try {
+      const r = await api.get('/pendientes/', {
+        params: {
+          municipio: fila.municipio,
+          ...(cat ? { categoria: cat } : {}),
+        },
+        headers: { 'X-Colaborador-Token': t },
+      });
+      setReporte((x) => (x.fila === fila
+        ? { ...x, detalle: r.data, cargando: false }
+        : x));
+    } catch {
+      setReporte((x) => ({ ...x, cargando: false }));
+    }
+  };
+
+  // Posponer/retomar: el gesto de «esta no la voy a completar» —o no
+  // se puede, que da igual—. El servidor lo guarda por dueno y el
+  // reporte entero se relee, para que listas, chips y contadores
+  // digan siempre lo mismo.
+  const posponer = async (id, valor) => {
+    const t = token.trim();
+    try {
+      await api.post(
+        '/pospuesto/',
+        { ficha: id, pospuesto: valor },
+        { headers: { 'X-Colaborador-Token': t } },
+      );
+      await cargarReporte(t);
+    } catch (err) {
+      setReporte((x) => ({
+        ...x,
+        aviso: err.response?.data?.detail || 'No se pudo actualizar la lista.',
+      }));
+    }
   };
 
   // Una ficha concreta del reporte -> el formulario ya rellenado. El
@@ -451,6 +507,7 @@ export default function Levantamiento() {
   const salir = () => {
     limpiarFicha();
     setReporte({ fila: null, detalle: null, aviso: null, cargando: false });
+    setCategoria('');
     setHechas([]);
     setResultado(null);
     setErrorAcceso(null);
@@ -774,6 +831,20 @@ export default function Levantamiento() {
     ? Math.round((listasAhora / avanceTotal) * 100)
     : 0;
 
+  // El resumen: sin filtro, el renglon del municipio; con filtro, lo
+  // que hay en la categoria elegida — el renglon no sabe de filtros.
+  const nombreCategoria = reporte.detalle
+    ? (reporte.detalle.categorias || [])
+      .find((c) => c.slug === categoria)?.nombre
+    : null;
+  const resumenCategoria = reporte.detalle
+    ? `${reporte.detalle.total} ficha${reporte.detalle.total !== 1 ? 's' : ''}`
+      + `, ${reporte.detalle.con_revision} en revisión`
+      + `, ${reporte.detalle.con_publicadas} publicada${reporte.detalle.con_publicadas !== 1 ? 's' : ''}`
+        + ' con faltantes'
+      + `, ${reporte.detalle.en_revision} esperando publicarse.`
+    : '';
+
   const claseFila = (f) => {
     let base = 'lev-ficha--curso';
     if (f.restan.length === 0) base = 'lev-ficha--hecha';
@@ -860,7 +931,8 @@ export default function Levantamiento() {
         <strong>nombre, dirección, teléfono, imagen y punto</strong>. Si falta alguno no se
         descarta: queda en la lista de revisión para que lo completen. Lo demás (horario,
         WhatsApp, web…) se puede rellenar más adelante: esas fichas van en la lista aparte de
-        publicadas con faltantes.
+        publicadas con faltantes. Puedes <strong>filtrar por categoría</strong> para trabajar
+        solo con unas fichas y <strong>posponer</strong> las que no vayas a completar.
       </p>
 
       <form
@@ -914,23 +986,59 @@ export default function Levantamiento() {
                 {' — '}
                 {reporte.fila.total === 0
                   ? 'todavía no hay fichas aquí.'
-                  : `${reporte.fila.total} ficha${reporte.fila.total !== 1 ? 's' : ''}`
-                    + `, ${reporte.fila.con_revision} en revisión`
-                    + `, ${reporte.fila.con_publicadas} publicada${reporte.fila.con_publicadas !== 1 ? 's' : ''}`
-                      + ' con faltantes'
-                    + `, ${reporte.fila.en_revision} esperando publicarse.`}
+                  : categoria && reporte.detalle
+                    ? `categoría ${nombreCategoria || categoria} — ${resumenCategoria}`
+                    : `${reporte.fila.total} ficha${reporte.fila.total !== 1 ? 's' : ''}`
+                      + `, ${reporte.fila.con_revision} en revisión`
+                      + `, ${reporte.fila.con_publicadas} publicada${reporte.fila.con_publicadas !== 1 ? 's' : ''}`
+                        + ' con faltantes'
+                      + `, ${reporte.fila.en_revision} esperando publicarse.`}
               </p>
 
+              {/* El filtro de categoria: solo cambia el detalle —
+                  listas, chips y desglose—; el renglon de arriba sigue
+                  siendo el del municipio entero, y con filtro el
+                  resumen cuenta lo de la categoria. */}
+              {reporte.detalle && (reporte.detalle.categorias || []).length > 0 && (
+                <div className="lev-field lev-filtro">
+                  <label htmlFor="lev-categoria">Categoría</label>
+                  <select
+                    id="lev-categoria"
+                    value={categoria}
+                    onChange={(e) => cambiarCategoria(e.target.value)}
+                  >
+                    <option value="">Todas las categorías</option>
+                    {(reporte.detalle.categorias || []).map((c) => (
+                      <option key={c.slug} value={c.slug}>
+                        {c.nombre} ({c.con_revision + c.con_publicadas})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Sin nada pendiente el reporte NO desaparece: se
-                  explica. En cuanto las DOS listas quedan vacias —todo
-                  publicado y sin faltantes— el vacio tiene que decirlo
-                  en la cara, o la seccion parece rota. */}
-              {reporte.fila.total > 0
+                  explica. Con categoria, el vacio es de la categoria;
+                  sin ella, el del municipio — contando los pospuestos,
+                  que no son «todo completo» sino «nada de lo mio». */}
+              {!categoria && reporte.fila.total > 0
                 && reporte.fila.con_revision === 0
                 && reporte.fila.con_publicadas === 0 && (
                 <p className="lev-vacio">
-                  ✓ Todo completo en tu municipio: no hay ninguna ficha esperando
-                  publicarse ni publicadas con faltantes.
+                  {reporte.fila.con_pospuestos > 0
+                    ? `✓ No queda nada en tu lista de trabajo: ${reporte.fila.con_pospuestos} pospuesta${reporte.fila.con_pospuestos !== 1 ? 's' : ''} siguen aparte.`
+                    : '✓ Todo completo en tu municipio: no hay ninguna ficha esperando publicarse ni publicadas con faltantes.'}
+                </p>
+              )}
+
+              {categoria && reporte.detalle
+                && reporte.detalle.fichas.length === 0
+                && (reporte.detalle.publicadas || []).length === 0 && (
+                <p className="lev-vacio">
+                  ✓ No queda nada pendiente en esta categoría
+                  {(reporte.detalle.pospuestos || []).length > 0
+                    ? `: las ${reporte.detalle.pospuestos.length} que quedan están pospuestas.`
+                    : '.'}
                 </p>
               )}
 
@@ -965,7 +1073,8 @@ export default function Levantamiento() {
                 </div>
               )}
 
-              {(reporte.fila.con_revision > 0 || reporte.fila.con_publicadas > 0) && (
+              {(reporte.fila.con_revision > 0 || reporte.fila.con_publicadas > 0
+                || reporte.fila.con_pospuestos > 0) && (
                 <button
                   type="button"
                   className="lev-btn-ghost"
@@ -1038,6 +1147,19 @@ export default function Levantamiento() {
                             ? (f.hecha ? '✓ Sin nada pendiente' : '✓ Lista para enviar')
                             : `Falta: ${f.restan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
                         </span>
+                        {/* Solo lo que aun se puede apartar: la que esta
+                            abierta se esta trabajando y la verde ya se
+                            hizo. */}
+                        {!f.activa && !f.hecha && (
+                          <button
+                            type="button"
+                            className="lev-ficha-posponer"
+                            title="No completar ahora: a la lista de pospuestos"
+                            onClick={() => posponer(f.id, true)}
+                          >
+                            Posponer
+                          </button>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -1069,6 +1191,49 @@ export default function Levantamiento() {
                                 ? '✓ Completa'
                                 : `Falta: ${f.restan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
                             </span>
+                            {!f.activa && !f.hecha && (
+                              <button
+                                type="button"
+                                className="lev-ficha-posponer"
+                                title="No completar ahora: a la lista de pospuestos"
+                                onClick={() => posponer(f.id, true)}
+                              >
+                                Posponer
+                              </button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+
+                  {/* La tercera lista: lo que el editor decidio no
+                      completar. Sale de las dos de arriba y de todos
+                      los contadores; «Retomar» la devuelve. */}
+                  {(reporte.detalle?.pospuestos || []).length > 0 && (
+                    <>
+                      <h3>Pospuestos</h3>
+                      <p className="lev-pospuestos-nota">
+                        Los que decidiste no completar ahora: no cuentan como pendientes.
+                      </p>
+                      <ul className="lev-fichas lev-fichas--pospuestos">
+                        {(reporte.detalle.pospuestos || []).map((f) => (
+                          <li key={f.id} className="lev-ficha lev-ficha--pospuesto">
+                            <span className="lev-ficha-nombre">{f.nombre}</span>
+                            <span className="lev-ficha-estado pospuesto">pospuesta</span>
+                            <span className="lev-ficha-falta">
+                              {f.faltan.length === 0
+                                ? '✓ Lista para enviar'
+                                : `Falta: ${f.faltan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
+                            </span>
+                            <button
+                              type="button"
+                              className="lev-ficha-posponer lev-ficha-retomar"
+                              title="Volver a la lista de trabajo"
+                              onClick={() => posponer(f.id, false)}
+                            >
+                              Retomar
+                            </button>
                           </li>
                         ))}
                       </ul>

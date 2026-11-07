@@ -887,6 +887,73 @@
   color: #1a512d;
 }
 
+/* -------------------- posponer y retomar --------------------------
+   El gesto de «esta no la voy a completar —o no se puede—». Al final
+   de la fila, discreto: el nombre sigue mandando y el color no dice
+   nada (no es ni rojo ni verde: es una decision, no un estado). */
+.lev-ficha-posponer {
+  align-self: flex-start;
+  margin-top: 2px;
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.lev-ficha-posponer:hover {
+  border-color: var(--yellow);
+  color: var(--ink);
+}
+
+.lev-ficha-posponer:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+.lev-ficha-retomar {
+  border-color: rgba(135, 179, 50, 0.7);
+  color: #1a512d;
+}
+
+.lev-ficha-retomar:hover {
+  border-color: #87b332;
+  color: #1a512d;
+}
+
+/* La fila pospuesta: apagada —ya no es trabajo pendiente— pero
+   legible, porque se va a retomar. */
+.lev-fichas li.lev-ficha--pospuesto {
+  border-left-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.lev-fichas li.lev-ficha--pospuesto .lev-ficha-nombre {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.lev-ficha-estado.pospuesto {
+  background: rgba(100, 116, 139, 0.16);
+  color: #475569;
+}
+
+.lev-pospuestos-nota {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: -2px 0 8px;
+}
+
+/* El filtro de categoria, entre el resumen y las listas: hereda los
+   campos (.lev-field) y solo acota su hueco para que el desplegable
+   no se estire de borde a borde. */
+.lev-filtro {
+  max-width: 340px;
+}
+
 /* ===================== el reporte al lado ===========================
    Con token, la tarjeta del reporte pasa a su propia columna a la
    derecha del formulario (grid-template-areas). Sin ancho suficiente —
