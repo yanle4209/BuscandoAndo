@@ -22,6 +22,7 @@ from .geografia import (
     normalizar,
 )
 from .models import Business, Correction, SlugAntiguo, Pospuesto
+from business_locations.models import BusinessLocation
 from .serializers import BusinessListSerializer, BusinessDetailSerializer, CorrectionCreateSerializer, CorrectionSerializer
 
 # Las metricas de uso se cuentan dentro de la vista que ya atiende la
@@ -711,6 +712,30 @@ def _una_ficha(colaborador, ficha_id):
     return Response(_para_formulario(ficha))
 
 
+def _variantes_de(nombre):
+    """Los nombres guardados en la base que SON este municipio.
+
+    El cruce del reporte es por ``normalizar`` —"Baní" y "Bani" son el
+    mismo sitio—, y esa regla vive en Python. Aqui se aplica la MISMA
+    regla a la lista corta de municipios distintos que hay en la base
+    (un ``DISTINCT`` sobre la columna, que desde la migracion de indices
+    es una pasada por el indice) para poder filtrar en SQL: el grupo que
+    queda es exactamente el que despues se agruparia, pero sin traer las
+    16 mil fichas del pais para quedarse con las de un municipio.
+    """
+    objetivo = normalizar(nombre)
+    if not objetivo:
+        return []
+    guardados = (
+        BusinessLocation.objects
+        .exclude(municipality__isnull=True)
+        .exclude(municipality='')
+        .values_list('municipality', flat=True)
+        .distinct()
+    )
+    return [m for m in guardados if normalizar(m) == objetivo]
+
+
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def pendientes(request):
@@ -782,6 +807,25 @@ def pendientes(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
+    # El reporte de UN municipio no necesita las 16 mil fichas del pais:
+    # ni el renglon del token ni el detalle se fijan en otra. Antes se
+    # cargaba TODO y se agrupaba en Python para quedarse con un grupo
+    # (~2 s por peticion en local; en produccion el gesto de posponer
+    # —tres peticiones— se comia unos 15 s). Solo la lista entera del
+    # padron (admin, sin municipio) sigue necesitando el escaneo
+    # completo. `None` = sin acotar.
+    alcance = None
+    if municipio:
+        # "(sin municipio)" es el grupo de las fichas SIN ubicacion:
+        # no se acota para no cambiar el significado de ese parametro.
+        if normalizar(municipio) != normalizar(SIN_MUNICIPIO):
+            alcance = _variantes_de(municipio)
+    elif colaborador is not None:
+        # El renglon: solo las fichas de SU municipio. Sin municipio
+        # asignado el alcance queda vacio y mas abajo se devuelve el
+        # 400 de siempre, sin haber cargado nada.
+        alcance = _variantes_de(colaborador.municipio)
+
     negocios = (
         Business.objects
         .select_related('location', 'contact', 'category', 'publication_status')
@@ -789,6 +833,10 @@ def pendientes(request):
         # mira: sin precargar, una consulta por ficha.
         .prefetch_related('hours', 'images')
     )
+    if alcance is not None:
+        # INNER JOIN: las fichas sin ubicacion no son de NINGUN
+        # municipio, asi que no pertenecian al grupo pedido tampoco.
+        negocios = negocios.filter(location__municipality__in=alcance)
 
     grupos = {}
     indice = {}
