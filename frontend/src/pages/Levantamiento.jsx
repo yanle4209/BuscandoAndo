@@ -212,11 +212,32 @@ export default function Levantamiento() {
   // confirmacion del trabajo hecho, no un dato del servidor.
   const [hechas, setHechas] = useState([]);
 
-  // Una sola carga, usada al validar el token y al refrescar: primero la
-  // fila del municipio y, si tiene pendientes, el detalle. El detalle va
-  // SOLO, sin esperar un clic: el token ya se validó, y eso es lo que
-  // hace que el reporte aparezca de inmediato.
+  // Una sola carga, usada al validar el token y al refrescar: la fila
+  // del municipio y, si tiene pendientes, el detalle — juntos en
+  // paralelo desde la segunda carga en adelante (ver dentro). El
+  // detalle va SOLO, sin esperar un clic: el token ya se validó, y eso
+  // es lo que hace que el reporte aparezca de inmediato.
   const cargarReporte = async (t, vivo = () => true) => {
+    // Si el municipio ya se conoce —toda carga menos la primera—, el
+    // detalle del reporte sale EN PARALELO con el resumen: el
+    // municipio lo fija el token y el navegador ya lo trae de la carga
+    // anterior, no hace falta esperar a que el resumen lo traiga.
+    // Encadenados, las dos idas y vuelta se pagaban una detras de
+    // otra (~1,2 s); juntas solo se espera la mas larga (~0,75 s) — y
+    // eso es lo que tarda un envio en reflejarse en las listas. Si el
+    // paralelo no sirve —fallo, o un municipio distinto del que trae
+    // ahora el resumen—, se pide otra vez encadenado, como siempre.
+    const municipioVisto = reporte.fila ? reporte.fila.municipio : null;
+    const detalleParalelo = municipioVisto
+      ? api.get('/pendientes/', {
+          params: {
+            municipio: municipioVisto,
+            ...(categoria ? { categoria } : {}),
+          },
+          headers: { 'X-Colaborador-Token': t },
+        }).then((r) => ({ ok: true, data: r.data })).catch(() => ({ ok: false }))
+      : null;
+
     const { data } = await api.get('/pendientes/', {
       headers: { 'X-Colaborador-Token': t },
     });
@@ -248,6 +269,19 @@ export default function Levantamiento() {
       }));
     }
     if (!espera) return;
+    if (detalleParalelo) {
+      const paralelo = await detalleParalelo;
+      if (paralelo.ok && normal(paralelo.data.municipio) === normal(fila.municipio)) {
+        if (vivo()) {
+          setReporte((x) => (x.fila === fila
+            ? { ...x, detalle: paralelo.data, cargando: false }
+            : x));
+        }
+        return;
+      }
+      // No sirvio: el encadenado de abajo lo repite con el municipio
+      // del resumen recien llegado.
+    }
     try {
       const r = await api.get('/pendientes/', {
         params: {

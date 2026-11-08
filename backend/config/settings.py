@@ -100,6 +100,17 @@ USE_POSTGRES = env_bool('USE_POSTGRES', False)
 
 if USE_POSTGRES:
     DATABASE_URL = env('DATABASE_URL', '')
+    # La conexion se reutiliza 60 s en vez de abrir una NUEVA
+    # —TCP, TLS y autenticacion— en CADA peticion: en produccion
+    # eso son ~50-100 ms de mas por llamada, en todo el sitio
+    # (admin, reporte, envios). Con el health check, si el servidor
+    # de BD cerro la conexion mientras estuvo quieta, Django lo
+    # nota al reusarla y reconecta solo, sin reventar la peticion.
+    # Las dos ramas de Postgres de abajo la comparten.
+    _conexion_reutilizable = {
+        'CONN_MAX_AGE': 60,
+        'CONN_HEALTH_CHECKS': True,
+    }
     if DATABASE_URL:
         import urllib.parse
         url = urllib.parse.urlparse(DATABASE_URL)
@@ -117,6 +128,7 @@ if USE_POSTGRES:
                 'HOST': url.hostname,
                 'PORT': url.port or 5432,
                 'OPTIONS': opciones,
+                **_conexion_reutilizable,
             }
         }
     else:
@@ -128,6 +140,10 @@ if USE_POSTGRES:
                 'PASSWORD': env('DB_PASSWORD', 'postgres'),
                 'HOST': env('DB_HOST', 'localhost'),
                 'PORT': env('DB_PORT', '5432'),
+                # Mismo tratamiento de conexion que la rama de
+                # DATABASE_URL: las dos son Postgres y las dos pagan
+                # apertura por peticion si no se les dice lo contrario.
+                **_conexion_reutilizable,
             }
         }
 else:

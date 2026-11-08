@@ -5,8 +5,9 @@ Dos cosas distintas que viven en la misma carpeta:
 
 * ``GET /api/health/`` (config/tests.py, HealthCheckTests): lo que
   protegemos NO es solo "que devuelva 200", sino las tres decisiones
-  de diseno de ``config/health.py``: responde sin tocar la BD (para
-  que una BD lenta no reinicie el servicio en bucle), no se cachea
+  de diseno de ``config/health.py``: toca la BD para mantenerla
+  despierta pero el codigo de estado solo habla del proceso (una BD
+  caida no puede reiniciar el servicio en bucle), no se cachea
   (porque delante hay un CDN) y expone el SHA del commit (para saber
   que codigo hay en produccion).
 
@@ -107,17 +108,34 @@ class HealthCheckTests(TestCase):
         self.assertEqual(response.json()['commit'], 'local')
         self.assertEqual(current_commit(), 'local')
 
-    def test_no_consulta_la_base_de_datos(self):
-        """Garantiza la decision 1 de health.py.
+    def test_consulta_la_base_para_mantenerla_despierta(self):
+        """Garantiza la decision 1 de health.py: SI toca la BD.
 
-        Si el health check hiciera queries, Render reiniciaria el
-        servicio cada vez que la BD fuera lenta: exactamente al reves
-        de lo que queremos.
+        El ``SELECT 1`` es lo que impide que la BD se suspenda a los
+        pocos minutos de quietud: sin el, el primer envio tras la
+        pausa paga el despertar (~0,8 s medidos en produccion).
         """
         with CaptureQueriesContext(connection) as queries:
-            self.client.get(URL)
+            respuesta = self.client.get(URL)
 
-        self.assertEqual(len(queries.captured_queries), 0)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertGreaterEqual(len(queries.captured_queries), 1)
+        self.assertEqual(respuesta.json()['db'], 'ok')
+
+    def test_sigue_en_200_si_la_base_cae(self):
+        """La otra mitad de la decision 1: el estado NO depende de la BD.
+
+        Si el health se pusiera rojo con la BD caida, Render
+        reiniciaria el servicio en bucle —la leccion del incidente
+        del 20/oct—. El fallo viaja en el cuerpo, jamas en el 5xx.
+        """
+        with mock.patch('config.health.connection') as conexion:
+            conexion.cursor.side_effect = RuntimeError('cayo la base')
+            respuesta = self.client.get(URL)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json()['status'], 'ok')
+        self.assertTrue(respuesta.json()['db'].startswith('error'))
 
     def test_lleva_marca_de_tiempo(self):
         """Sirve para confirmar que la respuesta es de AHORA (y no del
