@@ -2,6 +2,7 @@ from datetime import date
 
 from django.contrib import admin
 from django import forms
+from django.core.cache import cache
 from django.db import models
 from django.urls import reverse
 from django.utils.html import format_html
@@ -18,6 +19,7 @@ from business_contacts.models import BusinessContact
 from business_hours.admin import BusinessHoursInline
 from business_images.admin import BusinessImageInline
 from categories.models import Category
+from publication_status.models import PublicationStatus
 
 
 class BusinessLocationInline(admin.StackedInline):
@@ -184,8 +186,19 @@ class MunicipioPorProvincia(admin.SimpleListFilter):
             return queryset
         return queryset.filter(location__municipality=municipio)
 
+    # Arbol de provincias-municipios cacheado 60 s: son datos que casi
+    # nunca cambian, pero la consulta (un DISTINCT sobre BusinessLocation)
+    # se pagaba en CADA carga del listado. Si el editor acaba de crear
+    # una ficha con un municipio fuera del padron, tarda como mucho un
+    # minuto en aparecer en el filtro —nunca en los resultados—.
+    CLAVE_ARBOL = 'admin:arbol-municipios'
+    TTL_ARBOL = 60
+
     def _arbol(self):
         """Provincia y municipio aplanados, con la provincia primero."""
+        items = cache.get(self.CLAVE_ARBOL)
+        if items is not None:
+            return items
         padron = {c['municipio']: c['provincia']
                   for c in geografia.cabeceras()}
         en_bd = set(
@@ -208,6 +221,7 @@ class MunicipioPorProvincia(admin.SimpleListFilter):
             items.append((True, provincia))
             items.extend((False, municipio)
                          for municipio in sorted(grupos[provincia]))
+        cache.set(self.CLAVE_ARBOL, items, self.TTL_ARBOL)
         return items
 
     def choices(self, changelist):
@@ -302,6 +316,7 @@ class CategoriaDesplegable(admin.SimpleListFilter):
         forma de quitar el filtro.
         """
         elegido = (self.value() or '').strip()
+        categorias, hay_sin = self._datos()
         opciones = [{
             'valor': '',
             'selected': not elegido,
@@ -309,17 +324,15 @@ class CategoriaDesplegable(admin.SimpleListFilter):
                 remove=[self.parameter_name]),
             'display': 'Todas las categorias',
         }]
-        for categoria in Category.objects.all().order_by('name'):
-            # str() antepone ya el padre si alguna vez se usa la
-            # jerarquia ("Escuelas → Universidades").
+        for pk, nombre in categorias:
             opciones.append({
-                'valor': str(categoria.pk),
-                'selected': elegido == str(categoria.pk),
+                'valor': str(pk),
+                'selected': elegido == str(pk),
                 'query_string': changelist.get_query_string(
-                    {self.parameter_name: categoria.pk}),
-                'display': str(categoria),
+                    {self.parameter_name: pk}),
+                'display': nombre,
             })
-        if Business.objects.filter(category__isnull=True).exists():
+        if hay_sin:
             opciones.append({
                 'valor': self.SIN_CATEGORIA,
                 'selected': elegido == self.SIN_CATEGORIA,
@@ -328,6 +341,28 @@ class CategoriaDesplegable(admin.SimpleListFilter):
                 'display': 'Sin categoria',
             })
         return opciones
+
+    # Dos consultas por carga —el listado de categorias y el «existe
+    # alguna ficha sin categoria»— que se repiten sin mas en cada visita.
+    # Se guardan 60 s: las categorias las crea el editor y las fichas
+    # sin categoria casi no aparecen ni desaparecen. Lo que NUNCA se
+    # cachea aqui es el resultado del filtro: un cambio de categoria se
+    # ve al instante en las filas.
+    CLAVE_CATEGORIAS = 'admin:filtro-categorias'
+    TTL_CATEGORIAS = 60
+
+    def _datos(self):
+        datos = cache.get(self.CLAVE_CATEGORIAS)
+        if datos is not None:
+            return datos
+        # str() antepone ya el padre si alguna vez se usa la jerarquia
+        # ("Escuelas → Universidades").
+        categorias = [(c.pk, str(c))
+                      for c in Category.objects.all().order_by('name')]
+        hay_sin = Business.objects.filter(category__isnull=True).exists()
+        datos = (categorias, hay_sin)
+        cache.set(self.CLAVE_CATEGORIAS, datos, self.TTL_CATEGORIAS)
+        return datos
 
 
 @admin.register(Business)
@@ -361,6 +396,14 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
     list_editable = ['publication_status', 'is_featured', 'featured_tier']
     list_per_page = 25
     ordering = ['-is_featured', '-created_at']
+    # Sin esto cada fila del listado abria sus PROPIAS queries para la
+    # categoria, el estado operativo, el estado de publicacion y la
+    # ubicacion: 25 filas = ~76 queries por carga (114 en total). Aqui
+    # Django trae las cuatro en la misma consulta (la ubicacion es una
+    # relacion inversa, pero select_related la sigue igual: LEFT JOIN).
+    list_select_related = (
+        'category', 'publication_status', 'operational_status', 'location',
+    )
     readonly_fields = ['created_at', 'updated_at', 'get_featured_stats', 'featured_start_date', 'featured_end_date']
 
     inlines = [
@@ -404,6 +447,27 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
             'all': ('admin/css/forms.css',)
         }
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """El desplegable de estado, montado UNA vez por carga.
+
+        `list_editable` pinta un `<select>` por fila, y cada fila copia
+        el formulario —con su QuerySet sin evaluar—: 25 filas = 25
+        queries a la tabla de estados ademas de la del filtro. Aqui las
+        opciones se resuelven al construir el formulario y van en la
+        lista ya materializada, que es lo que Django copia sin volver a
+        tocar la base. El queryset del campo no se toca: al GUARDAR, la
+        validacion sigue comprobando contra la base de verdad.
+        """
+        formfield = super().formfield_for_foreignkey(db_field, request,
+                                                     **kwargs)
+        if (db_field.name == 'publication_status'
+                and formfield is not None
+                and getattr(formfield, 'empty_label', None) is not None):
+            opciones = [(ps.pk, str(ps))
+                        for ps in PublicationStatus.objects.all()]
+            formfield.choices = [('', formfield.empty_label)] + opciones
+        return formfield
+
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
         extra_context['import_url'] = reverse('import_json')
@@ -413,9 +477,11 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
         return super().changelist_view(request, extra_context=extra_context)
 
     def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
-        extra_context = extra_context or {}
-        stats = self._get_featured_stats()
-        extra_context['featured_stats'] = stats
+        # Sin los conteos de destacados aqui: change_form.html no usa
+        # `featured_stats` (lo usa el de listado). El bloque que si se
+        # ve en el formulario es el campo de solo lectura
+        # get_featured_stats, que calcula lo suyo con UNA consulta. Antes
+        # se pagaban cinco COUNT dobles en cada carga de edicion.
         return super().changeform_view(request, object_id, form_url, extra_context)
 
     def save_model(self, request, obj, form, change):
@@ -467,14 +533,31 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
                             )
 
     def _get_featured_stats(self):
-        """Get current featured counts per tier per category."""
+        """Get current featured counts per tier per category.
+
+        UNA sola consulta (GROUP BY) en vez de cinco COUNT: cada una de
+        las cinco escaneaba la tabla entera en Postgres, y se pagaban en
+        CADA carga del listado y de la ficha. El total es la suma de los
+        grupos, que es exactamente lo que antes media el quinto COUNT —
+        incluidos los destacados sin nivel, que agrupan en None.
+        """
         stats = {}
+        conteos = dict(
+            Business.objects.filter(is_featured=True)
+            .values_list('featured_tier')
+            .annotate(total=models.Count('id'))
+        )
         for tier, label in Business.FEATURED_TIERS:
-            count = Business.objects.filter(is_featured=True, featured_tier=tier).count()
-            limit = FEATURED_LIMITS[tier]
-            stats[tier] = {'count': count, 'limit': limit, 'label': label}
-        total = Business.objects.filter(is_featured=True).count()
-        stats['total'] = {'count': total, 'limit': 'N/A', 'label': 'Total activos'}
+            stats[tier] = {
+                'count': conteos.get(tier, 0),
+                'limit': FEATURED_LIMITS[tier],
+                'label': label,
+            }
+        stats['total'] = {
+            'count': sum(conteos.values()),
+            'limit': 'N/A',
+            'label': 'Total activos',
+        }
         return stats
 
     def get_featured_stats(self, obj):

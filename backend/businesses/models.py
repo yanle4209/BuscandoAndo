@@ -137,6 +137,21 @@ class Business(models.Model):
         verbose_name = 'Negocio'
         verbose_name_plural = 'Negocios'
         ordering = ['-is_featured', '-created_at']
+        # Tres indices que en SQLite local ni se notan y en Postgres son
+        # la diferencia entre leer el indice y escanear las 16 mil filas:
+        # - (is_featured, featured_tier): los conteos de destacados del
+        #   panel filtran exactamente por esos dos campos.
+        # - (is_featured, created_at): el orden por defecto de la lista
+        #   ('-is_featured', '-created_at') y el sitemap.
+        # - (created_at): el filtro por fecha del panel y los listados
+        #   que solo ordenan por alta.
+        indexes = [
+            models.Index(fields=['is_featured', 'featured_tier'],
+                         name='negocio_destacados_idx'),
+            models.Index(fields=['is_featured', 'created_at'],
+                         name='negocio_orden_lista_idx'),
+            models.Index(fields=['created_at'], name='negocio_creado_idx'),
+        ]
 
     def __str__(self):
         return self.name

@@ -60,6 +60,14 @@ class BusinessLocation(models.Model):
     class Meta:
         verbose_name = 'Ubicacion'
         verbose_name_plural = 'Ubicaciones'
+        # El filtro de municipio del panel y el arbol provincia-municipio
+        # del sidebar hacen un DISTINCT sobre estas 16 mil filas en CADA
+        # carga del listado. Sin indice Postgres lo escanea entero; con
+        # el, lee el indice y listo.
+        indexes = [
+            models.Index(fields=['municipality'],
+                         name='ubicacion_municipio_idx'),
+        ]
 
     def __str__(self):
         return f"{self.business.name} - {self.street}"
