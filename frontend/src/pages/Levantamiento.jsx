@@ -1121,6 +1121,40 @@ export default function Levantamiento() {
                     </>
                   )}
 
+                  {/* La lista de pospuestos va ARRIBA de revision: es
+                      lo primero que el colaborador revisa antes de
+                      empezar —lo que ya decidio no completar— y de ahi
+                      baja a lo que si le toca. «Retomar» la devuelve. */}
+                  {(reporte.detalle?.pospuestos || []).length > 0 && (
+                    <>
+                      <h3>Pospuestos</h3>
+                      <p className="lev-pospuestos-nota">
+                        Los que decidiste no completar ahora: no cuentan como pendientes.
+                      </p>
+                      <ul className="lev-fichas lev-fichas--pospuestos">
+                        {(reporte.detalle.pospuestos || []).map((f) => (
+                          <li key={f.id} className="lev-ficha lev-ficha--pospuesto">
+                            <span className="lev-ficha-nombre">{f.nombre}</span>
+                            <span className="lev-ficha-estado pospuesto">pospuesta</span>
+                            <span className="lev-ficha-falta">
+                              {f.faltan.length === 0
+                                ? '✓ Lista para enviar'
+                                : `Falta: ${f.faltan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
+                            </span>
+                            <button
+                              type="button"
+                              className="lev-ficha-posponer lev-ficha-retomar"
+                              title="Volver a la lista de trabajo"
+                              onClick={() => posponer(f.id, false)}
+                            >
+                              Retomar
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+
                   <h3>En revisión</h3>
 
                   {/* La confirmacion visual: barra + fila que cambia de
@@ -1147,20 +1181,19 @@ export default function Levantamiento() {
                             ? (f.hecha ? '✓ Sin nada pendiente' : '✓ Lista para enviar')
                             : `Falta: ${f.restan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
                         </span>
-                        {/* Solo lo que aun se puede apartar: la que esta
-                            abierta se esta trabajando, la verde ya se
-                            hizo y la que ya esta publicada no se
-                            aparta —los publicados no llevan boton. */}
-                        {!f.activa && !f.hecha && f.estado !== 'publicado' && (
-                          <button
-                            type="button"
-                            className="lev-ficha-posponer"
-                            title="No completar ahora: a la lista de pospuestos"
-                            onClick={() => posponer(f.id, true)}
-                          >
-                            Posponer
-                          </button>
-                        )}
+                        {/* El boton de posponer en CADA ficha de la
+                            lista, al final. El colaborador puede decidir
+                            que no quiere o no puede completarla por
+                            cualquier razon; el gesto es reversible y no
+                            toca la ficha ni su publicacion. */}
+                        <button
+                          type="button"
+                          className="lev-ficha-posponer"
+                          title="No completar ahora: a la lista de pospuestos"
+                          onClick={() => posponer(f.id, true)}
+                        >
+                          Posponer
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -1198,38 +1231,6 @@ export default function Levantamiento() {
                     </>
                   )}
 
-                  {/* La tercera lista: lo que el editor decidio no
-                      completar. Sale de las dos de arriba y de todos
-                      los contadores; «Retomar» la devuelve. */}
-                  {(reporte.detalle?.pospuestos || []).length > 0 && (
-                    <>
-                      <h3>Pospuestos</h3>
-                      <p className="lev-pospuestos-nota">
-                        Los que decidiste no completar ahora: no cuentan como pendientes.
-                      </p>
-                      <ul className="lev-fichas lev-fichas--pospuestos">
-                        {(reporte.detalle.pospuestos || []).map((f) => (
-                          <li key={f.id} className="lev-ficha lev-ficha--pospuesto">
-                            <span className="lev-ficha-nombre">{f.nombre}</span>
-                            <span className="lev-ficha-estado pospuesto">pospuesta</span>
-                            <span className="lev-ficha-falta">
-                              {f.faltan.length === 0
-                                ? '✓ Lista para enviar'
-                                : `Falta: ${f.faltan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
-                            </span>
-                            <button
-                              type="button"
-                              className="lev-ficha-posponer lev-ficha-retomar"
-                              title="Volver a la lista de trabajo"
-                              onClick={() => posponer(f.id, false)}
-                            >
-                              Retomar
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
                 </div>
               )}
             </>
