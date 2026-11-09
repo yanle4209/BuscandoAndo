@@ -93,17 +93,24 @@ def negocios_en_radio(qs, lat, lng, radius_km):
     except (TypeError, ValueError):
         return qs
 
+    # Solo hacen falta el id y las coordenadas. El queryset que llega
+    # trae prefetch de location, contact, hours e images (para pintar las
+    # 12 fichas de la pagina), pero recorrerlo tal cual cargaba esas
+    # relaciones de TODOS los negocios solo para medir el radio: ~0,6 s
+    # medidos en produccion con 738 fichas, y era el coste dominante del
+    # buscador. Mismo patron que ``busqueda.filtrar_por_texto``.
+    filas = qs.prefetch_related(None).values_list(
+        'id', 'location__latitude', 'location__longitude'
+    )
+
     dentro = []
-    for biz in qs:
-        loc = getattr(biz, 'location', None)
-        if loc is None:
-            continue
-        biz_lat = getattr(loc, 'lat', None)
-        biz_lng = getattr(loc, 'lng', None)
+    for biz_id, biz_lat, biz_lng in filas:
         if biz_lat is None or biz_lng is None:
             continue
-        if haversine_distance(user_lat, user_lng, biz_lat, biz_lng) <= radius_km:
-            dentro.append(biz.id)
+        if haversine_distance(
+            user_lat, user_lng, float(biz_lat), float(biz_lng)
+        ) <= radius_km:
+            dentro.append(biz_id)
 
     return qs.filter(id__in=dentro)
 
