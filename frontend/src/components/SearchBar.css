@@ -1,22 +1,73 @@
-/* La barra izquierda es ahora el 22% del viewport (~234px en un
-   portatil): el padding lateral baja de 24 a 12 y el input admite
-   encogerse (min-width: 0) para que la lupa y el boton "Buscar"
-   quepan dentro del wrapper. Las acciones se envuelven (flex-wrap)
-   porque "Filtros" + "Mi ubicacion" ya no caben en una fila. */
+/* Barra en linea bajo la cabecera: municipio, categoria, buscador y GPS.
+   En pantallas anchas todo cabe en una fila; por debajo de 900 px el
+   buscador pasa arriba (order -1) y los selectores se reparten debajo. */
 .search-bar-container {
-  padding: 8px 12px 14px;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
 }
 
+/* ===== SELECTORES ===== */
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-group label {
+  padding-left: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.filter-group select {
+  height: 40px;
+  max-width: 100%;
+  padding: 0 30px 0 10px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filter-group select:focus {
+  border-color: var(--yellow);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.18);
+}
+
+.municipio-group {
+  flex: 0 1 240px;
+  min-width: 170px;
+}
+
+.categoria-group {
+  flex: 0 1 180px;
+  min-width: 140px;
+}
+
+/* ===== BUSCADOR ===== */
 .search-form {
-  width: 100%;
+  flex: 1 1 300px;
+  min-width: 0;
 }
 
 .search-input-wrapper {
   display: flex;
   align-items: center;
+  height: 40px;
   background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   overflow: hidden;
   transition: border-color 0.3s, box-shadow 0.3s;
   animation: searchGlow 2s ease-in-out;
@@ -30,8 +81,6 @@
 @keyframes searchGlow {
   0% { box-shadow: 0 0 0 rgba(251, 191, 36, 0); border-color: var(--border-strong); }
   30% { box-shadow: 0 0 16px rgba(251, 191, 36, 0.45); border-color: var(--yellow); }
-  60% { box-shadow: 0 0 6px rgba(251, 191, 36, 0.2); border-color: var(--border-strong); }
-  80% { box-shadow: 0 0 12px rgba(251, 191, 36, 0.35); border-color: var(--yellow); }
   100% { box-shadow: 0 0 0 rgba(251, 191, 36, 0); border-color: var(--border-strong); }
 }
 
@@ -46,15 +95,15 @@
 .search-input {
   flex: 1;
   /* min-width:auto de un flex item es su ancho minimo de contenido y
-     no deja encoger el input: la lupa y "Buscar" se iban fuera del
-     wrapper. */
+     no deja encoger el input: la lupa y "Buscar" se irian fuera. */
   min-width: 0;
+  height: 100%;
+  padding: 0 12px;
   background: transparent;
   border: none;
   outline: none;
   color: var(--ink);
   font-size: 14px;
-  padding: 10px 12px;
   font-family: var(--font);
 }
 
@@ -62,142 +111,89 @@
   color: #66615a;
 }
 
-/* El aro global :focus-visible (2px de --yellow-ink, marron dorado) se
-   veia FEO aqui: los campos de texto hacen match con :focus-visible
-   tambien con raton, el aro salia 2px fuera de la caja del input y, al
-   tener el wrapper overflow:hidden, se recortaba y quedaba como una
-   barra marron por encima/debajo. Ademas su :focus-visible (0,1,0)
-   iba DESPUES que este outline:none con lo que empataba y ganaba.
-   Con .search-input:focus-visible (0,2,0) manda siempre: el foco ya
-   se senala con el borde amarillo + halo del wrapper (:focus-within),
-   que respeta la caja y su border-radius. */
+/* El aro global :focus-visible (2px de --yellow-ink) se recortaba con
+   el overflow:hidden del wrapper y quedaba como una barra marron.
+   El foco ya se senala con el borde amarillo + halo del wrapper. */
 .search-input:focus-visible {
   outline: none;
 }
 
 .search-btn {
+  height: 100%;
+  padding: 0 20px;
   background: var(--yellow);
-  color: var(--ink);
   border: none;
-  padding: 10px 20px;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
+  color: var(--ink);
   font-family: var(--font);
-  transition: background 0.2s;
+  font-size: 14px;
+  font-weight: 700;
   white-space: nowrap;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
 .search-btn:hover {
   background: var(--yellow-light);
 }
 
-.search-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.filter-toggle,
+/* ===== MI UBICACION ===== */
 .geo-btn {
   display: flex;
   align-items: center;
-  gap: 5px;
-  background: transparent;
-  border: 1px solid var(--border-strong);
-  color: var(--ink-soft);
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: var(--font);
-  transition: all 0.2s;
-}
-
-.filter-toggle:hover,
-.geo-btn:hover {
-  border-color: var(--yellow);
-  color: var(--yellow-ink);
-}
-
-/* "Mi ubicacion" con relleno de marca, igual que "Buscar". Al
-   pulsarlo pasa a blanco: el lienzo tambien es blanco, asi que el
-   filete amarillo es lo que mantiene visible la forma del boton.
-   --ink sobre amarillo da 10,3:1. */
-.geo-btn {
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
   background: var(--yellow);
-  border-color: var(--yellow);
+  border: 1px solid var(--yellow);
+  border-radius: 8px;
   color: var(--ink);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
 }
 
 .geo-btn:hover {
   background: var(--yellow-light);
   border-color: var(--yellow-light);
-  color: var(--ink);
 }
 
 .geo-btn:active {
   background: var(--bg);
   border-color: var(--yellow);
-  color: var(--ink);
 }
 
-.filters-panel {
-  display: flex;
-  gap: 12px;
-  margin-top: 10px;
-  padding: 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+/* ===== RESPONSIVE ===== */
+@media (max-width: 900px) {
+  /* El buscador manda: primera fila a todo el ancho. */
+  .search-form {
+    order: -1;
+    flex-basis: 100%;
+  }
+
+  .municipio-group,
+  .categoria-group {
+    flex: 1 1 150px;
+  }
 }
 
-.filter-group {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+@media (max-width: 560px) {
+  .municipio-group,
+  .categoria-group {
+    flex: 1 1 100%;
+  }
+
+  .geo-btn {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
 }
 
-.filter-group label {
-  font-size: 11px;
-  color: var(--ink-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 600;
-}
-
-.filter-group select,
-.filter-group input[type="text"] {
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  color: var(--ink);
-  padding: 6px 8px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-family: var(--font);
-}
-
-.filter-group select:focus,
-.filter-group input[type="text"]:focus {
-  border-color: var(--yellow);
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.18);
-}
-
-/* El selector de municipio va FUERA del panel de filtros: sin GPS, elegir
-   municipio es obligatorio (R1.1) y tiene que estar a un toque. */
-.municipio-group {
-  margin-top: 10px;
-}
-
-.municipio-group select {
-  cursor: pointer;
-}
-
-.filters-panel .filter-group {
-  min-width: 160px;
+@media (prefers-reduced-motion: reduce) {
+  .search-input-wrapper {
+    animation: none;
+  }
 }

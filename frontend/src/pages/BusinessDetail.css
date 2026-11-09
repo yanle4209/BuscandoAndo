@@ -32,6 +32,21 @@
   color: var(--ink);
 }
 
+/* Galeria: el mismo carrusel de la tarjeta, a lo ancho de la ficha.
+   La tarjeta lo pinta a 140 px; aqui manda el ancho de la columna. */
+.detail-carousel {
+  margin-bottom: 18px;
+}
+
+.detail-carousel .biz-card__images {
+  margin-top: 0;
+}
+
+.detail-carousel .biz-card__images-viewport,
+.detail-carousel .biz-card__images-track img {
+  height: 260px;
+}
+
 .detail-name {
   font-size: 26px;
   font-weight: 800;
@@ -116,6 +131,20 @@
   font-size: 12px;
   color: var(--grey);
   margin-top: 4px;
+}
+
+/* Referencias para llegar a pie: dato del levantamiento; acompaña a la
+   direccion, no la sustituye. */
+.detail-refs {
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+.detail-refs strong {
+  color: var(--grey);
+  font-weight: 600;
 }
 
 /* Contact */

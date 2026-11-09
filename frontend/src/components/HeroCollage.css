@@ -1,0 +1,348 @@
+/* ===== HERO CON COLLAGE (portada tras elegir municipio/GPS) =====
+   Estructura y efectos calcados del grid de referencia (CSS Hero Photo
+   Collage Grid): copy a la izquierda, collage 3x3 a la derecha, velo
+   degradado, pastilla de categoria arriba a la derecha y etiqueta abajo.
+   La paleta es la nuestra: marron, amarillo y tinta. */
+
+.hero-collage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: clamp(24px, 3.4vw, 56px);
+  align-items: center;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 48px) 24px;
+}
+
+/* ===== COPY ===== */
+.hero-collage__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 520px;
+}
+
+.hero-collage__kicker {
+  display: inline-block;
+  width: fit-content;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.18);
+  color: var(--brown);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.hero-collage__title {
+  margin: 0;
+  color: var(--brown);
+  font-size: clamp(2rem, 3.6vw, 3.2rem);
+  font-weight: 900;
+  line-height: 1.03;
+  letter-spacing: -0.03em;
+}
+
+/* El acento en serif italica, como en la referencia, pero con el
+   dorado legible de la marca (--yellow-ink). */
+.hero-collage__title em {
+  color: var(--yellow-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 700;
+}
+
+.hero-collage__lede {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: clamp(0.95rem, 1.1vw, 1.05rem);
+  line-height: 1.55;
+}
+
+.hero-collage__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.hero-collage__cta {
+  padding: 13px 22px;
+  background: var(--brown);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-family: var(--font);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s, color 0.2s;
+}
+
+.hero-collage__cta:hover {
+  background: var(--yellow);
+  color: var(--ink);
+  transform: translateY(-2px);
+}
+
+.hero-collage__cta:focus-visible {
+  outline: 3px solid var(--yellow-ink);
+  outline-offset: 2px;
+}
+
+.hero-collage__nota {
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+/* ===== COLLAGE ===== */
+.hero-collage__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: clamp(8px, 1vw, 14px);
+  aspect-ratio: 1.05 / 1;
+  min-height: clamp(320px, 42vw, 560px);
+}
+
+.hero-collage__tile {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  padding: 12px;
+  background-color: var(--brown);
+  background-position: center;
+  background-size: cover;
+  border: none;
+  border-radius: 14px;
+  overflow: hidden;
+  isolation: isolate;
+  text-align: left;
+  font-family: var(--font);
+  cursor: pointer;
+  /* Mismo lenguaje que el CTA de la referencia: elevacion corta. */
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* Velo inferior: el texto se lee sobre cualquier foto. */
+.hero-collage__tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(180deg, transparent 45%, rgba(31, 26, 26, 0.62));
+}
+
+.hero-collage__tile:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lift);
+  z-index: 2;
+}
+
+.hero-collage__tile:focus-visible {
+  outline: 3px solid var(--yellow-ink);
+  outline-offset: 2px;
+}
+
+/* Jerarquia: 1 = 2x2 (nivel 1); 5 = ancho abajo (nivel 2);
+   2 y 3 = niveles 3/4; 4 = quinto. */
+.hero-collage__tile--1 {
+  grid-column: 1 / span 2;
+  grid-row: 1 / span 2;
+}
+
+.hero-collage__tile--2 {
+  grid-column: 3 / span 1;
+  grid-row: 1 / span 1;
+}
+
+.hero-collage__tile--3 {
+  grid-column: 3 / span 1;
+  grid-row: 2 / span 1;
+}
+
+.hero-collage__tile--4 {
+  grid-column: 1 / span 1;
+  grid-row: 3 / span 1;
+}
+
+.hero-collage__tile--5 {
+  grid-column: 2 / span 2;
+  grid-row: 3 / span 1;
+}
+
+/* Sin foto: degradado de marca, distinto por hueco para que el collage
+   no se vea plano. */
+.hero-collage__tile--sin-foto,
+.hero-collage__tile--vacio {
+  background-image: linear-gradient(135deg, #6b5110, var(--ink));
+}
+
+.hero-collage__tile--1.hero-collage__tile--sin-foto,
+.hero-collage__tile--1.hero-collage__tile--vacio {
+  background-image: linear-gradient(135deg, #513e0c, #1f1a1a);
+}
+
+.hero-collage__tile--2.hero-collage__tile--sin-foto,
+.hero-collage__tile--2.hero-collage__tile--vacio {
+  background-image: linear-gradient(135deg, #a16207, #513e0c);
+}
+
+.hero-collage__tile--3.hero-collage__tile--sin-foto,
+.hero-collage__tile--3.hero-collage__tile--vacio {
+  background-image: linear-gradient(135deg, #ca8a04, #78350f);
+}
+
+.hero-collage__tile--4.hero-collage__tile--sin-foto,
+.hero-collage__tile--4.hero-collage__tile--vacio {
+  background-image: linear-gradient(135deg, #1a512d, #1f1a1a);
+}
+
+.hero-collage__tile--5.hero-collage__tile--sin-foto,
+.hero-collage__tile--5.hero-collage__tile--vacio {
+  background-image: linear-gradient(135deg, #8f6c14, #513e0c);
+}
+
+/* Pastilla de categoria: misma forma que la de la referencia. */
+.hero-collage__pill {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  max-width: calc(100% - 20px);
+  padding: 4px 9px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  color: var(--brown);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  backdrop-filter: blur(8px);
+}
+
+.hero-collage__label {
+  position: relative;
+  z-index: 1;
+  display: -webkit-box;
+  overflow: hidden;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* ===== ESTADOS ===== */
+.hero-collage__vacio {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px;
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: 14px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.hero-collage__vacio strong {
+  color: var(--brown);
+  font-size: 1.05rem;
+}
+
+.hero-collage__tile--cargando {
+  background: #ecead9;
+  animation: collagePulse 1.4s ease-in-out infinite;
+  cursor: default;
+}
+
+.hero-collage__tile--cargando::after {
+  display: none;
+}
+
+.hero-collage__tile--cargando:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+@keyframes collagePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* ===== RESPONSIVE (mismos cortes que la referencia) ===== */
+@media (max-width: 900px) {
+  .hero-collage {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    text-align: center;
+  }
+
+  .hero-collage__copy {
+    align-items: center;
+    max-width: none;
+  }
+
+  .hero-collage__kicker {
+    margin: 0 auto 0 0;
+  }
+
+  .hero-collage__actions {
+    justify-content: center;
+  }
+
+  .hero-collage__grid {
+    aspect-ratio: 1.4 / 1;
+    min-height: 280px;
+  }
+}
+
+@media (max-width: 560px) {
+  .hero-collage {
+    padding: 20px 14px;
+  }
+
+  .hero-collage__grid {
+    aspect-ratio: 1 / 1;
+  }
+
+  .hero-collage__tile {
+    padding: 9px;
+    border-radius: 12px;
+  }
+
+  .hero-collage__label {
+    font-size: 0.8rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-collage__cta,
+  .hero-collage__tile {
+    transition: none;
+  }
+
+  .hero-collage__tile:hover {
+    transform: none;
+  }
+
+  .hero-collage__tile--cargando {
+    animation: none;
+  }
+}
