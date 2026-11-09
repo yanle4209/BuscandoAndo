@@ -41,7 +41,7 @@ from business_hours.models import BusinessHours
 from . import geografia, osm, portar, validacion
 from .levantamiento import LIMITE_ENVIOS_POR_MINUTO, _ip
 from .models import Business, Correction, Colaborador, Envio, Pospuesto, SlugAntiguo
-from .serializers import BusinessListSerializer, compute_operational_status
+from .serializers import compute_operational_status
 
 BUSINESSES_URL = '/api/businesses/'
 FEATURED_BY_SEARCH_URL = '/api/businesses/featured-by-search/'
@@ -2118,7 +2118,7 @@ class ValidacionDeEntradaTests(TestCase):
     def test_un_negocio_de_otro_municipio_no_es_un_duplicado(self):
         """El cruce es por municipio: dos 'Farmacia Central' distintas
         pueden existir."""
-        existente = self.hacer('Farmacia Central')
+        self.hacer('Farmacia Central')
         indice = {}  # el cruce se hace sobre el municipio, y este no esta
 
         self.assertIsNone(validacion.duplicado(indice, 'Farmacia Central'))

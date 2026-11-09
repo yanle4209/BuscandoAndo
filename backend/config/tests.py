@@ -295,9 +295,6 @@ class SeoTests(TestCase):
         with override_settings(REACT_BUILD_DIR=self.build):
             return self.client.get(ruta)
 
-    def _html(self, ruta):
-        return self._get(ruta).content.decode('utf-8')
-
     # --- soft-404 -------------------------------------------------------
 
     def test_fuera_de_las_rutas_de_app_js_no_hay_index(self):
