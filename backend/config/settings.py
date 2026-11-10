@@ -238,15 +238,14 @@ CORS_ALLOW_CREDENTIALS = True
 
 # --- Fase geografica ---
 # Provincias donde BuscandoAndo esta publicado HOY (DISENO.md FASE1).
-# La restriccion es solo de VISTAS: el listado, los destacados y el
-# endpoint de cabeceras recortan por aqui; las fichas fuera de fase
-# siguen en la base, se abren por enlace directo y el admin las ve
-# todas. Tupla VACIA = sin fase: todo el pais entra (estado previo y
-# forma de volver atras en un deploy).
+# La restriccion es de VISTAS: listado, destacados, cabeceras, ficha y
+# sitemap recortan por aqui; las fichas fuera de fase siguen en la base
+# y el admin las ve todas, pero la web no las sirve (404). Tupla VACIA
+# = sin fase: todo el pais entra (estado previo y forma de volver atras
+# en un deploy).
 FASE1_PROVINCIAS = tuple(
     p.strip().casefold()
-    for p in env_csv('FASE1_PROVINCIAS',
-                     'Espaillat,Santiago,La Vega,Hermanas Mirabal')
+    for p in env_csv('FASE1_PROVINCIAS', 'Espaillat,Santiago')
     if p.strip()
 )
 

@@ -228,8 +228,8 @@ class SeoTests(TestCase):
     index se lee y se le inyectan titulo, description, Open Graph y
     canonical con los datos reales de la ficha — sin react-helmet y
     sin esperar a que arranque el JS, que es lo que Google y WhatsApp
-    leen. Las fichas fuera de fase abren (DISENO.md 13) pero con
-    noindex, y el sitemap solo anuncia lo que el listado enseña.
+    leen. Las fichas fuera de fase dan 404 (DISENO.md 13), y el
+    sitemap solo anuncia lo que el listado enseña.
     """
 
     #: Index realista: la inyeccion se ancla en <title> y </head>.
@@ -345,15 +345,11 @@ class SeoTests(TestCase):
         self.assertIn('la_receta.webp', html)
         self.assertIn('index,follow', html)
 
-    def test_la_ficha_fuera_de_fase_abre_pero_no_se_indexa(self):
-        """El enlace directo no se rompe (DISENO.md 13) pero Google no
-        la indexa por su cuenta."""
+    def test_la_ficha_fuera_de_fase_es_404(self):
+        """La ficha recorta igual que el listado (DISENO.md 13)."""
         response = self._get('/business/%s' % self.fuera.slug)
 
-        self.assertEqual(response.status_code, 200)
-        html = response.content.decode('utf-8')
-        self.assertIn('Dulce Hogar', html)
-        self.assertIn('noindex,nofollow', html)
+        self.assertEqual(response.status_code, 404)
 
     def test_las_no_publicadas_y_los_slugs_de_ayer_son_404(self):
         """La misma regla que el retrieve de la API."""
@@ -396,6 +392,14 @@ class SeoTests(TestCase):
 
         self.assertEqual(self._get('/business/%s' % viejo).status_code, 404)
 
+    def test_el_slug_anterior_de_una_ficha_fuera_de_fase_es_404(self):
+        """El 301 tampoco sirve para entrar a una ficha de fuera."""
+        viejo = self.fuera.slug
+        self.fuera.slug = 'dulce-hogar-nuevo'
+        self.fuera.save()
+
+        self.assertEqual(self._get('/business/%s' % viejo).status_code, 404)
+
     def test_levantamiento_se_sirve_pero_no_se_indexa(self):
         """Herramienta de campo sin enlace publico (DISENO.md 11.5)."""
         response = self._get('/levantamiento')
@@ -408,8 +412,7 @@ class SeoTests(TestCase):
 
     def test_el_sitemap_solo_anuncia_las_fichas_de_fase(self):
         """Mismo filtro que el listado (geografia.q_fase): fuera de
-        fase no se anuncia; esas fichas se llegan por enlace y ya
-        llevan noindex."""
+        fase no se anuncia ni se sirve."""
         response = self._get('/sitemap.xml')
         xml = response.content.decode('utf-8')
 

@@ -211,12 +211,11 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
             'category', 'publication_status', 'operational_status'
         ).prefetch_related('location', 'contact', 'hours', 'images')
 
-        # Fase geografica (DISENO.md FASE1): el LISTADO recorta a las
-        # provincias de fase. Solo aqui y en destacados: la ficha
-        # (retrieve) se abre aunque este fuera — el enlace directo no se
-        # rompe y nada se borra.
-        if self.action == 'list':
-            qs = qs.filter(geografia.q_fase())
+        # Fase geografica (DISENO.md FASE1): listado y ficha recortan a
+        # las provincias de fase. Nada se borra: lo de fuera sigue en la
+        # base y el admin lo ve, pero la web no lo sirve ni por enlace
+        # directo.
+        qs = qs.filter(geografia.q_fase())
 
         params = self.request.query_params
 
@@ -330,11 +329,11 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
 
         Si piden un slug que el negocio tuvo ANTES de cambiarlo, la API
         redirige 301 al slug actual (SlugAntiguo) en vez de dar 404:
-        misma regla que la vista publica. Lo no publicado sigue siendo
-        404 — se comprueba aqui igual que en el queryset, para no
-        filtrar nada de lo que no se ensena. En la redireccion no se
-        cuenta la visita: la peticion de despues (con el slug bueno) la
-        cuenta, y sin eso se contaria dos veces.
+        misma regla que la vista publica. Lo no publicado o fuera de
+        fase sigue siendo 404 — se comprueba aqui igual que en el
+        queryset, para no filtrar nada de lo que no se ensena. En la
+        redireccion no se cuenta la visita: la peticion de despues (con
+        el slug bueno) la cuenta, y sin eso se contaria dos veces.
         """
         try:
             respuesta = super().retrieve(request, *args, **kwargs)
@@ -346,6 +345,7 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
                     SlugAntiguo.objects
                     .filter(slug=origen,
                             business__publication_status__slug='publicado')
+                    .filter(geografia.q_fase('business__'))
                     .values_list('business__slug', flat=True)
                     .first()
                 )

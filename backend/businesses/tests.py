@@ -919,15 +919,14 @@ class CabecerasApiTests(TestCase):
 
 
 class FaseGeograficaTests(TestCase):
-    """FASE1: el listado y el selector recortan, la ficha no.
+    """FASE1: el listado, el selector y la ficha recortan.
 
-    Las provincias de fase (Espaillat, Santiago, La Vega y Hermanas
-    Mirabal) es lo unico que se enseña HOY en web, app y levantamiento
-    — los tres leen los mismos endpoints, asi que el recorte llega a
-    todas de una sola vez. Las fichas de fuera siguen en la base (nada
-    se borra), el enlace directo las sigue abriendo y vaciar
-    ``FASE1_PROVINCIAS`` en settings vuelve al pais entero en un solo
-    deploy.
+    Las provincias de fase (Espaillat y Santiago) son lo unico que se
+    enseña HOY en web, app y levantamiento — los tres leen los mismos
+    endpoints, asi que el recorte llega a todas de una sola vez. Las
+    fichas de fuera siguen en la base (nada se borra), pero su enlace
+    directo tambien da 404; vaciar ``FASE1_PROVINCIAS`` en settings
+    vuelve al pais entero en un solo deploy.
     """
 
     @classmethod
@@ -981,12 +980,21 @@ class FaseGeograficaTests(TestCase):
             ).exists(),
         )
 
-    def test_la_ficha_fuera_de_fase_abre_por_enlace_directo(self):
-        """El enlace directo no se rompe: retrieve no pasa por el filtro."""
+    def test_la_ficha_fuera_de_fase_no_abre_por_enlace_directo(self):
+        """El retrieve tambien pasa por el filtro de fase."""
         response = self.client.get(f'{BUSINESSES_URL}{self.fuera.slug}/')
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['name'], 'Dulce Hogar')
+        self.assertEqual(response.status_code, 404)
+
+    def test_el_slug_anterior_de_una_ficha_fuera_de_fase_es_404(self):
+        """Tampoco se revela por el historial de slugs."""
+        viejo = self.fuera.slug
+        self.fuera.slug = 'dulce-hogar-nuevo'
+        self.fuera.save()
+
+        response = self.client.get(f'{BUSINESSES_URL}{viejo}/')
+
+        self.assertEqual(response.status_code, 404)
 
     def test_los_destacados_tambien_recortan(self):
         """Si no recortan igual, salen destacados sobre '0 resultados'."""
@@ -4404,6 +4412,9 @@ class SlugEditableConRedireccion(TestCase):
 
     def test_la_api_por_el_slug_viejo_redirige_al_actual(self):
         ficha = self.ficha('Panaderia Luna')
+        # En fase: el retrieve ahora recorta igual que el listado.
+        BusinessLocation.objects.create(
+            business=ficha, municipality='Moca', province='Espaillat')
         viejo = ficha.slug
         ficha.slug = 'panaderia-luna-centro'
         ficha.save()

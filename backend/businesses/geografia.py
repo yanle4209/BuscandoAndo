@@ -138,12 +138,12 @@ def cabecera_mas_cercana(lat, lng, radio_km):
 # ---------------------------------------------------------------------------
 # Fase geografica (DISENO.md FASE1).
 #
-# El proyecto abre por PROVINCIAS — hoy Espaillat, Santiago, La Vega y
-# Hermanas Mirabal — y la lista crece provincia a provincia. La fase NO
-# borra nada: recorta vistas (listado, destacados, cabeceras) y las
-# fichas de fuera siguen abriéndose por enlace directo. Sin provincias
-# configuradas (tupla vacia) no hay fase: entra todo, que es el estado
-# anterior y la forma de volver atras en un deploy.
+# El proyecto abre por PROVINCIAS — hoy Espaillat y Santiago — y la
+# lista crece provincia a provincia. La fase NO borra nada: recorta
+# vistas (listado, destacados, cabeceras, ficha, sitemap) y las fichas
+# de fuera quedan fuera de la web; siguen en la base y el admin las ve.
+# Sin provincias configuradas (tupla vacia) no hay fase: entra todo,
+# que es el estado anterior y la forma de volver atras en un deploy.
 # ---------------------------------------------------------------------------
 
 def _fase_claves():
@@ -158,27 +158,30 @@ def _fase_claves():
     )
 
 
-def q_fase():
-    """El filtro de fase geografica para los LISTADOS (DISENO.md FASE1).
+def q_fase(prefijo=''):
+    """El filtro de fase geografica para las VISTAS (DISENO.md FASE1).
 
-    Solo recorta lo que se enseña: las fichas fuera de fase siguen en la
-    base y se abren por enlace directo (retrieve no pasa por aqui). El
-    province del location es texto libre, asi que se compara sin
-    distinguir mayusculas — las cuatro provincias actuales no tienen
-    tildes. Una ficha SIN fila de ubicacion no puede decirse de donde
-    es, asi que tampoco sale en el listado (el admin la sigue viendo).
-    Sin ``FASE1_PROVINCIAS`` no se recorta nada (y volver a ponerlo es
-    un solo deploy).
+    Recorta listado, destacados, ficha y sitemap. Las fichas fuera de
+    fase siguen en la base y el admin las ve, pero la web no las sirve
+    ni por enlace directo. El province del location es texto libre, asi
+    que se compara sin distinguir mayusculas — las dos provincias
+    actuales no tienen tildes. Una ficha SIN fila de ubicacion no puede
+    decirse de donde es, asi que tampoco sale (ni se abre). Sin
+    ``FASE1_PROVINCIAS`` no se recorta nada (y volver a ponerlo es un
+    solo deploy).
+
+    ``prefijo`` sirve para filtrar desde una relacion (``SlugAntiguo``):
+    ``q_fase('business__')`` apunta a ``business__location__province``.
 
     Vive aqui (y no en ``views``) porque la usan el listado, los
-    destacados Y el sitemap: todos tienen que recortar igual.
+    destacados, la ficha Y el sitemap: todos tienen que recortar igual.
     """
     nombres = settings.FASE1_PROVINCIAS
     if not nombres:
         return Q()
     q = Q()
     for nombre in nombres:
-        q |= Q(location__province__iexact=nombre)
+        q |= Q(**{f'{prefijo}location__province__iexact': nombre})
     return q
 
 

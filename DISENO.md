@@ -724,35 +724,36 @@ municipios pequeños de RD.
 
 ## 13. Fase geográfica (FASE1)
 
-**Decidido:** BuscandoAndo solo se enseña en **Espaillat, Santiago, La
-Vega y Hermanas Mirabal** — las provincias con fichas cargadas y
-trabajo de campo. Web, app y levantamiento leen los mismos endpoints,
-así que el recorte es **uno** y llega a los tres.
+**Decidido:** BuscandoAndo solo se enseña en **Espaillat y Santiago**
+— las provincias con fichas cargadas y trabajo de campo. Web, app y
+levantamiento leen los mismos endpoints, así que el recorte es **uno**
+y llega a los tres.
 
-Censo al entrar en la fase: **740 de 1.839 fichas** (40 %) y **22 de
-158 cabeceras**.
+Con el recorte actual, el listado cubre las fichas publicadas de esas
+dos provincias y **15 de 158 cabeceras**.
 
 ### La regla
 
-- **El listado recorta; la ficha no.** `GET /api/businesses/` y
-  `featured-by-search` filtran por `location.province` contra
-  `FASE1_PROVINCIAS`; `GET /api/businesses/<slug>/` no pasa por el
-  filtro: un enlace directo a una ficha de fuera de fase sigue
-  abriendo. Nada se borra ni se despublica — solo deja de enseñarse.
+- **Todo recorta, también la ficha.** `GET /api/businesses/`,
+  `featured-by-search`, `GET /api/businesses/<slug>/` y la ruta
+  `/business/<slug>` filtran por `location.province` contra
+  `FASE1_PROVINCIAS`. Una ficha de fuera da 404 también por enlace
+  directo. Nada se borra ni se despublica: sigue en la base y el admin
+  la ve.
 - **Las cabeceras también.** `GET /api/cabeceras/` devuelve solo las de
-  fase (22); el padrón completo de 158 sigue en `geografia.cabeceras()`
+  fase (15); el padrón completo de 158 sigue en `geografia.cabeceras()`
   y lo usan admin, importador y reporte de pendientes.
 - **Sin ubicación = fuera del listado.** Una ficha sin fila de
   ubicación no puede decirse de dónde es: no sale en el listado (el
   admin la sigue viendo).
 - La comparación es `iexact` contra los nombres tal cual de settings
-  (hoy las cuatro provincias no llevan tilde): si alguna llegara a
+  (hoy ninguna de las dos provincias lleva tilde): si alguna llegara a
   llevarla, se lista con tilde.
 
 ### El interruptor
 
-`FASE1_PROVINCIAS` (settings, leído con `env_csv`): por defecto las
-cuatro provincias. **Tupla vacía = sin fase**: el país entero vuelve
+`FASE1_PROVINCIAS` (settings, leído con `env_csv`): por defecto
+Espaillat y Santiago. **Tupla vacía = sin fase**: el país entero vuelve
 en un solo deploy, probado con `override_settings` en los tests. Solo
 lo leen `businesses/geografia.py` (`en_fase`, `cabeceras_en_fase`,
 `punto_en_fase`, `q_fase`) y los tests.
@@ -794,7 +795,7 @@ WhatsApp.
   primera foto es el `og:image`, expandida por el storage de
   Cloudinary con reserva a `/og.png` (una meta nunca tumba la página).
 - `location` es OneToOne inversa: se lee con `getattr`, que las fichas
-  sin ubicación den 404/noindex y no un 500.
+  sin ubicación den 404 y no un 500.
 - El `index.html` se sirve con `Cache-Control: no-cache` (antes el
   navegador lo cacheaba heurísticamente y los deploys no se veían
   hasta Ctrl+Shift+R); los bundles con hash siguen inmutables.
@@ -804,10 +805,9 @@ WhatsApp.
 Antes **cualquier** ruta devolvía 200 con el index: un soft-404
 indexable. Ahora solo sirven las tres rutas reales de `App.jsx` —
 `/`, `/business/<slug>` y `/levantamiento` — y lo demás es 404 de
-verdad. Las fichas no publicadas o inexistentes también (misma regla
-que el `retrieve` de la API). Las de **fuerade fase** abren con
-`noindex,nofollow`: el enlace directo no se rompe (sección 13) pero
-Google no las anuncia por su cuenta.
+verdad. Las fichas no publicadas, inexistentes o de fuera de fase
+también (misma regla que el `retrieve` de la API): no se sirven por
+enlace directo ni se indexan.
 
 ### 14.3 — `robots.txt` y `sitemap.xml` reales
 
@@ -972,9 +972,9 @@ base de datos:
   conteos y las provincias de fase.
 - Las fichas de negocio se quedan **automáticas** a propósito: sus
   metas salen de sus propios datos y su mando manual ya existe —
-  título, descripción y foto se editan en cada ficha (Gestión); el
-  noindex lo decide la fase. El sitemap se controla publicando o
-  excluyendo fichas.
+  título, descripción y foto se editan en cada ficha (Gestión); la
+  fase decide si la ficha se sirve. El sitemap se controla publicando
+  o excluyendo fichas.
 
 ### 15.3 — Navegación sin recarga (Turbo, alojado en local)
 
