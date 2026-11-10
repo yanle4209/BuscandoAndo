@@ -472,5 +472,6 @@ def admin_seo(request):
         'fichas_publicadas': Business.objects.filter(
             publication_status__slug='publicado').count(),
         'provincias_fase': settings.FASE1_PROVINCIAS,
+        'municipios_fase': settings.FASE1_MUNICIPIOS,
     })
     return render(request, 'admin/seo_panel.html', contexto)

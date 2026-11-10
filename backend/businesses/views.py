@@ -212,9 +212,9 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
         ).prefetch_related('location', 'contact', 'hours', 'images')
 
         # Fase geografica (DISENO.md FASE1): listado y ficha recortan a
-        # las provincias de fase. Nada se borra: lo de fuera sigue en la
-        # base y el admin lo ve, pero la web no lo sirve ni por enlace
-        # directo.
+        # las provincias y municipios de fase. Nada se borra: lo de
+        # fuera sigue en la base y el admin lo ve, pero la web no lo
+        # sirve ni por enlace directo.
         qs = qs.filter(geografia.q_fase())
 
         params = self.request.query_params
@@ -430,7 +430,7 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
 
 @api_view(['GET'])
 def cabeceras(request):
-    """Las cabeceras municipales de las provincias de fase (FASE1).
+    """Las cabeceras municipales de la fase actual (FASE1).
 
     Un dato, dos usos (DISENO.md R3):
 
@@ -441,7 +441,9 @@ def cabeceras(request):
     ``geografia.cabeceras()`` y lo usan el admin, el importador y el
     reporte de pendientes. Web, app y levantamiento leen este mismo
     endpoint, asi que los tres quedan recortados de una sola vez. Sin
-    provincias de fase configuradas se devuelven las 158.
+    provincias de fase configuradas se devuelven las 158; con
+    provincias pero sin ``FASE1_MUNICIPIOS``, las de esas provincias;
+    con municipios, solo esos.
 
     Se devuelve una lista plana agrupable por el cliente: la agrupacion por
     provincia es cosa de la interfaz, no del API.

@@ -229,7 +229,8 @@ class SeoTests(TestCase):
     canonical con los datos reales de la ficha — sin react-helmet y
     sin esperar a que arranque el JS, que es lo que Google y WhatsApp
     leen. Las fichas fuera de fase dan 404 (DISENO.md 13), y el
-    sitemap solo anuncia lo que el listado enseña.
+    sitemap solo anuncia lo que el listado enseña: provincias y
+    municipios de fase.
     """
 
     #: Index realista: la inyeccion se ancla en <title> y </head>.
@@ -273,6 +274,8 @@ class SeoTests(TestCase):
             image='business_images/2026/09/la_receta.webp')
         cls.fuera = cls.ficha('Dulce Hogar', 'Santo Domingo',
                               'Santo Domingo', cls.publicado)
+        cls.fuera_municipio = cls.ficha(
+            'Panaderia Puñal', 'Puñal', 'Santiago', cls.publicado)
         cls.sin_publicar = cls.ficha('Ideas Pendientes', 'Moca',
                                      'Espaillat', cls.revision)
 
@@ -346,10 +349,12 @@ class SeoTests(TestCase):
         self.assertIn('index,follow', html)
 
     def test_la_ficha_fuera_de_fase_es_404(self):
-        """La ficha recorta igual que el listado (DISENO.md 13)."""
-        response = self._get('/business/%s' % self.fuera.slug)
-
-        self.assertEqual(response.status_code, 404)
+        """La ficha recorta igual que el listado (DISENO.md 13): otra
+        provincia o un municipio vecino de la misma provincia."""
+        for ficha in (self.fuera, self.fuera_municipio):
+            with self.subTest(ficha=ficha.name):
+                response = self._get('/business/%s' % ficha.slug)
+                self.assertEqual(response.status_code, 404)
 
     def test_las_no_publicadas_y_los_slugs_de_ayer_son_404(self):
         """La misma regla que el retrieve de la API."""
@@ -394,11 +399,14 @@ class SeoTests(TestCase):
 
     def test_el_slug_anterior_de_una_ficha_fuera_de_fase_es_404(self):
         """El 301 tampoco sirve para entrar a una ficha de fuera."""
-        viejo = self.fuera.slug
-        self.fuera.slug = 'dulce-hogar-nuevo'
-        self.fuera.save()
+        for ficha in (self.fuera, self.fuera_municipio):
+            with self.subTest(ficha=ficha.name):
+                viejo = ficha.slug
+                ficha.slug = '%s-nuevo' % ficha.slug
+                ficha.save()
 
-        self.assertEqual(self._get('/business/%s' % viejo).status_code, 404)
+                self.assertEqual(
+                    self._get('/business/%s' % viejo).status_code, 404)
 
     def test_levantamiento_se_sirve_pero_no_se_indexa(self):
         """Herramienta de campo sin enlace publico (DISENO.md 11.5)."""
@@ -423,6 +431,7 @@ class SeoTests(TestCase):
         self.assertIn('<loc>%s/</loc>' % sitio, xml)
         self.assertIn('/business/%s' % self.en_fase.slug, xml)
         self.assertNotIn(self.fuera.slug, xml)
+        self.assertNotIn(self.fuera_municipio.slug, xml)
         self.assertNotIn(self.sin_publicar.slug, xml)
         self.assertIn('<lastmod>', xml)
 

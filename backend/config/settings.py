@@ -237,16 +237,28 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 # --- Fase geografica ---
-# Provincias donde BuscandoAndo esta publicado HOY (DISENO.md FASE1).
-# La restriccion es de VISTAS: listado, destacados, cabeceras, ficha y
-# sitemap recortan por aqui; las fichas fuera de fase siguen en la base
-# y el admin las ve todas, pero la web no las sirve (404). Tupla VACIA
-# = sin fase: todo el pais entra (estado previo y forma de volver atras
-# en un deploy).
+# Provincias y municipios donde BuscandoAndo esta publicado HOY
+# (DISENO.md FASE1). La restriccion es de VISTAS: listado, destacados,
+# cabeceras, ficha y sitemap recortan por aqui; las fichas fuera de
+# fase siguen en la base y el admin las ve todas, pero la web no las
+# sirve (404). Tupla de provincias VACIA = sin fase: todo el pais entra
+# (estado previo y forma de volver atras en un deploy).
 FASE1_PROVINCIAS = tuple(
     p.strip().casefold()
     for p in env_csv('FASE1_PROVINCIAS', 'Espaillat,Santiago')
     if p.strip()
+)
+
+# Municipios donde se abre la beta DENTRO de esas provincias (DISENO.md
+# FASE1). Refina la lista de provincias: si esta vacia, entran todos sus
+# municipios; si las provincias estan vacias, no hay fase y esto se
+# ignora. Vaciar esta tupla devuelve las 15 cabeceras de las dos
+# provincias sin tocar codigo; vaciar las provincias devuelve el pais.
+FASE1_MUNICIPIOS = tuple(
+    m.strip().casefold()
+    for m in env_csv('FASE1_MUNICIPIOS',
+                     'Moca,Santiago de los Caballeros')
+    if m.strip()
 )
 
 # --- SEO (auditoria C) ---

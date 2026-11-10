@@ -138,12 +138,14 @@ def cabecera_mas_cercana(lat, lng, radio_km):
 # ---------------------------------------------------------------------------
 # Fase geografica (DISENO.md FASE1).
 #
-# El proyecto abre por PROVINCIAS — hoy Espaillat y Santiago — y la
-# lista crece provincia a provincia. La fase NO borra nada: recorta
-# vistas (listado, destacados, cabeceras, ficha, sitemap) y las fichas
-# de fuera quedan fuera de la web; siguen en la base y el admin las ve.
-# Sin provincias configuradas (tupla vacia) no hay fase: entra todo,
-# que es el estado anterior y la forma de volver atras en un deploy.
+# El proyecto abre por PROVINCIAS — hoy Espaillat y Santiago — y, dentro
+# de ellas, por MUNICIPIOS — hoy Moca y Santiago de los Caballeros. La
+# fase NO borra nada: recorta vistas (listado, destacados, cabeceras,
+# ficha, sitemap) y las fichas de fuera quedan fuera de la web; siguen
+# en la base y el admin las ve. Sin provincias configuradas (tupla
+# vacia) no hay fase: entra todo, que es el estado anterior y la forma
+# de volver atras en un deploy. Sin municipios configurados entran todos
+# los de las provincias de fase.
 # ---------------------------------------------------------------------------
 
 def _fase_claves():
@@ -158,71 +160,123 @@ def _fase_claves():
     )
 
 
+def _fase_municipios():
+    """Los municipios de fase normalizados, o ``()`` si no refinan.
+
+    ``FASE1_MUNICIPIOS`` solo tiene sentido dentro de
+    ``FASE1_PROVINCIAS``: si no hay provincias configuradas no hay fase
+    y se ignora. Sin cache, por la misma razon que ``_fase_claves``.
+    """
+    if not settings.FASE1_PROVINCIAS:
+        return ()
+    return tuple(
+        normalizar(m) for m in settings.FASE1_MUNICIPIOS if m.strip()
+    )
+
+
 def q_fase(prefijo=''):
     """El filtro de fase geografica para las VISTAS (DISENO.md FASE1).
 
     Recorta listado, destacados, ficha y sitemap. Las fichas fuera de
     fase siguen en la base y el admin las ve, pero la web no las sirve
-    ni por enlace directo. El province del location es texto libre, asi
-    que se compara sin distinguir mayusculas — las dos provincias
-    actuales no tienen tildes. Una ficha SIN fila de ubicacion no puede
-    decirse de donde es, asi que tampoco sale (ni se abre). Sin
-    ``FASE1_PROVINCIAS`` no se recorta nada (y volver a ponerlo es un
-    solo deploy).
+    ni por enlace directo. El province y el municipality del location
+    son texto libre, asi que se comparan sin distinguir mayusculas —
+    los nombres actuales no tienen tildes. Una ficha SIN fila de
+    ubicacion no puede decirse de donde es, asi que tampoco sale (ni se
+    abre). Sin ``FASE1_PROVINCIAS`` no se recorta nada (y volver a
+    ponerlo es un solo deploy). Con provincias pero sin
+    ``FASE1_MUNICIPIOS`` entran todos los municipios de esas provincias.
 
     ``prefijo`` sirve para filtrar desde una relacion (``SlugAntiguo``):
-    ``q_fase('business__')`` apunta a ``business__location__province``.
+    ``q_fase('business__')`` apunta a
+    ``business__location__province`` y ``business__location__municipality``.
 
     Vive aqui (y no en ``views``) porque la usan el listado, los
     destacados, la ficha Y el sitemap: todos tienen que recortar igual.
     """
-    nombres = settings.FASE1_PROVINCIAS
-    if not nombres:
+    provincias = settings.FASE1_PROVINCIAS
+    if not provincias:
         return Q()
     q = Q()
-    for nombre in nombres:
+    for nombre in provincias:
         q |= Q(**{f'{prefijo}location__province__iexact': nombre})
+
+    municipios = settings.FASE1_MUNICIPIOS
+    if municipios:
+        qm = Q()
+        for nombre in municipios:
+            qm |= Q(**{f'{prefijo}location__municipality__iexact': nombre})
+        q &= qm
     return q
 
 
-def en_fase(provincia):
-    """¿La provincia (texto libre de la base) esta en la fase actual?
+def en_fase(provincia, municipio=None):
+    """¿El lugar (texto libre de la base) esta en la fase actual?
 
     Sin fase configurada entra todo; con fase, se compara normalizado
-    porque el campo es texto libre ("Santiago" vs "santiago ").
+    porque los campos son texto libre ("Santiago" vs "santiago "). Si
+    hay municipios configurados, el municipio tambien tiene que estar.
+    Pasar solo la provincia con municipios configurados devuelve
+    ``False``: una provincia no basta para decir que el punto entra.
     """
     claves = _fase_claves()
     if not claves:
         return True
-    return normalizar(provincia) in claves
+    if normalizar(provincia) not in claves:
+        return False
+    municipios = _fase_municipios()
+    if municipios and normalizar(municipio) not in municipios:
+        return False
+    return True
 
 
 def cabeceras_en_fase():
-    """Las cabeceras municipales de las provincias de fase.
+    """Las cabeceras municipales de la fase actual.
 
     El padron COMPLETO (158) sigue en ``cabeceras()``: lo usan el admin,
     el importador y el reporte de pendientes. Esto es solo lo que se le
-    enseña al publico.
+    enseña al publico: primero las provincias y, si
+    ``FASE1_MUNICIPIOS`` no esta vacio, solo esos municipios.
     """
     claves = _fase_claves()
     if not claves:
         return cabeceras()
-    return [c for c in cabeceras() if normalizar(c['provincia']) in claves]
+    municipios = _fase_municipios()
+    return [
+        c for c in cabeceras()
+        if normalizar(c['provincia']) in claves
+        and (not municipios or normalizar(c['municipio']) in municipios)
+    ]
 
 
 def punto_en_fase(lat, lng, radio_km=None):
-    """¿El punto cae a ``radio_km`` o menos de una cabecera de FASE?
+    """¿El punto cae en la fase actual?
 
     Sin radio ilimitado: la pregunta es "¿este punto tiene municipio de
     fase cerca?", no "¿está dentro del circulo de busqueda?". Por eso el
     default es el doble del radio de lugar de las metricas (15 km): un
     vecino a 10 km del centro del pueblo sigue siendo del pueblo.
+
+    Con ``FASE1_MUNICIPIOS`` configurado manda la **cabecera mas
+    cercana del padron**: si esa cabecera es de fase, el punto entra.
+    Asi Puñal no cuenta como Santiago solo por estar a menos de 30 km
+    de la ciudad. Sin municipios configurados se mantiene la regla
+    anterior de provincias: cualquier cabecera de una provincia de fase
+    dentro del radio.
     """
     if radio_km is None:
         radio_km = 2 * 15.0
-    claves = _fase_claves()
-    if not claves:
+    if not settings.FASE1_PROVINCIAS:
         return True
+
+    municipios = _fase_municipios()
+    if municipios:
+        cab = cabecera_mas_cercana(lat, lng, radio_km)
+        if cab is None:
+            return False
+        return en_fase(cab['provincia'], cab['municipio'])
+
+    claves = _fase_claves()
     for cab in cabeceras():
         if normalizar(cab['provincia']) not in claves:
             continue

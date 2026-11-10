@@ -725,37 +725,44 @@ municipios pequeños de RD.
 ## 13. Fase geográfica (FASE1)
 
 **Decidido:** BuscandoAndo solo se enseña en **Espaillat y Santiago**
-— las provincias con fichas cargadas y trabajo de campo. Web, app y
-levantamiento leen los mismos endpoints, así que el recorte es **uno**
-y llega a los tres.
+— las provincias con fichas cargadas y trabajo de campo — y, dentro
+de ellas, en **Moca y Santiago de los Caballeros**, que son los dos
+municipios con volumen para la beta. Web, app y levantamiento leen los
+mismos endpoints, así que el recorte es **uno** y llega a los tres.
 
-Con el recorte actual, el listado cubre las fichas publicadas de esas
-dos provincias y **15 de 158 cabeceras**.
+Con el recorte actual, el listado cubre las fichas publicadas de esos
+dos municipios. El resto de las dos provincias sigue en la base y el
+admin lo ve, pero no se sirve.
 
 ### La regla
 
 - **Todo recorta, también la ficha.** `GET /api/businesses/`,
   `featured-by-search`, `GET /api/businesses/<slug>/` y la ruta
   `/business/<slug>` filtran por `location.province` contra
-  `FASE1_PROVINCIAS`. Una ficha de fuera da 404 también por enlace
-  directo. Nada se borra ni se despublica: sigue en la base y el admin
-  la ve.
+  `FASE1_PROVINCIAS` y por `location.municipality` contra
+  `FASE1_MUNICIPIOS`. Una ficha de fuera da 404 también por enlace
+  directo, sea de otra provincia o de un municipio vecino. Nada se
+  borra ni se despublica: sigue en la base y el admin la ve.
 - **Las cabeceras también.** `GET /api/cabeceras/` devuelve solo las de
-  fase (15); el padrón completo de 158 sigue en `geografia.cabeceras()`
-  y lo usan admin, importador y reporte de pendientes.
+  fase (hoy 2); el padrón completo de 158 sigue en
+  `geografia.cabeceras()` y lo usan admin, importador y reporte de
+  pendientes.
 - **Sin ubicación = fuera del listado.** Una ficha sin fila de
   ubicación no puede decirse de dónde es: no sale en el listado (el
   admin la sigue viendo).
 - La comparación es `iexact` contra los nombres tal cual de settings
-  (hoy ninguna de las dos provincias lleva tilde): si alguna llegara a
-  llevarla, se lista con tilde.
+  (hoy ninguno lleva tilde): si alguno llegara a llevarla, se lista con
+  tilde.
 
 ### El interruptor
 
 `FASE1_PROVINCIAS` (settings, leído con `env_csv`): por defecto
-Espaillat y Santiago. **Tupla vacía = sin fase**: el país entero vuelve
-en un solo deploy, probado con `override_settings` en los tests. Solo
-lo leen `businesses/geografia.py` (`en_fase`, `cabeceras_en_fase`,
+Espaillat y Santiago. `FASE1_MUNICIPIOS`: por defecto Moca y Santiago
+de los Caballeros; **refina** la lista de provincias. Vaciar
+`FASE1_MUNICIPIOS` devuelve los 15 municipios de las dos provincias;
+vaciar `FASE1_PROVINCIAS` devuelve el país entero. Cada uno es un solo
+deploy, probado con `override_settings` en los tests. Solo lo leen
+`businesses/geografia.py` (`en_fase`, `cabeceras_en_fase`,
 `punto_en_fase`, `q_fase`) y los tests.
 
 ### Métricas y aviso
@@ -766,12 +773,20 @@ lo leen `businesses/geografia.py` (`en_fase`, `cabeceras_en_fase`,
   ceros **no** entran en `TerminoDia`: «lo que falta levantar» es
   solo de dentro. El término sí se suma: qué buscan los de fuera
   también interesa.
+- `punto_en_fase()` con municipios configurados usa la **cabecera más
+  cercana del padrón**: si esa cabecera es de fase, el punto entra. Así
+  Puñal no cuenta como Santiago solo por estar a menos de 30 km de la
+  ciudad. Sin municipios configurados se mantiene la regla anterior de
+  provincias (cualquier cabecera de fase dentro del radio).
 - `POST /api/interes/?lat=&lng=` suma **`aviso_interes`** (contador
   agregado día × evento × lugar × plataforma; sin correos, cookies ni
   IP). Web y app ofrecen «Quiero que lleguen aquí» cuando el punto
-  activo queda a más de **30 km** de cualquier cabecera de fase —
-  mismo criterio que `punto_en_fase()` — con enlace a contacto. Con
-  el padrón completo (fase vacía) el aviso se apaga solo.
+  activo queda lejos de las cabeceras de fase, con enlace a contacto.
+  El banner de la web usa una aproximación por distancia (30 km); el
+  bloqueo y la métrica usan la cabecera más cercana. En un municipio
+  vecino pegado a la ciudad el banner puede no salir, pero sus fichas
+  y su listado sí dan 404. Con el padrón completo (fase vacía) el aviso
+  se apaga solo.
 
 ## 14. SEO on-page y accesibilidad (auditoría externa, C y D)
 
@@ -816,7 +831,8 @@ de `frontend/public/` (Vite lo copia a `dist/`; prohíbe `/admin/` y
 `/api/`) y `/sitemap.xml` se genera desde la base con **el mismo
 filtro que el listado** (`geografia.q_fase`): solo las fichas
 publicadas de fase, con `lastmod` y `<loc>` escapado (los slugs de
-producción pueden llevar tildes). 741 URLs hoy. `/og.png` es una
+producción pueden llevar tildes). 595 URLs hoy con la beta (594
+fichas + portada). `/og.png` es una
 imagen de marca generada (600×315, paleta de la casa).
 
 ### 14.4 — Accesibilidad
@@ -969,7 +985,7 @@ base de datos:
 - **Panel SEO** en `/admin/seo/` (solo staff): las metas *efectivas*
   leídas de las mismas vistas que las sirven, con enlace «Editar» a
   cada fila guardada; el robots.txt efectivo; el sitemap con sus
-  conteos y las provincias de fase.
+  conteos y las provincias y municipios de fase.
 - Las fichas de negocio se quedan **automáticas** a propósito: sus
   metas salen de sus propios datos y su mando manual ya existe —
   título, descripción y foto se editan en cada ficha (Gestión); la
