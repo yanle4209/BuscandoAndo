@@ -1,17 +1,13 @@
-import { Suspense, useCallback, useEffect, lazy, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import SearchBar from '../components/SearchBar';
 import BusinessCard from '../components/BusinessCard';
 import CorrectionModal from '../components/CorrectionModal';
-import BusinessModal from '../components/BusinessModal';
+import HeroCollage from '../components/HeroCollage';
 import MapOverlay from '../components/MapOverlay';
 import { claveCabecera } from '../municipios';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import './Home.css';
-
-// Code-splitting (DISENO.md 14.6): Leaflet solo lo baja quien monta el
-// mapa; mientras llega su chunk la pagina ya es usable.
-const MapView = lazy(() => import('../components/MapView'));
 
 // R1.3: el radio es fijo a 5 km en las dos plataformas. El backend ya lo
 // acota por arriba, pero se manda explicito porque la portada tambien
@@ -83,7 +79,16 @@ function leerVista(busqueda) {
     : null;
   const hayVista = Boolean(coords) || Boolean(filtros.text)
     || Boolean(filtros.category) || pagina > 1 || p.has('ficha');
-  return { filtros, pagina, coords, hayVista };
+  return {
+    filtros,
+    pagina,
+    coords,
+    // "hero=1" = punto elegido pero sin buscar todavia (portada con
+    // collage). Sin el, recargar o volver de una ficha caia en la
+    // rejilla de resultados aunque el visitante no hubiera buscado.
+    hero: p.get('hero') === '1',
+    hayVista,
+  };
 }
 
 // Al montar con una vista en la URL, el punto de la URL entra por la
@@ -99,7 +104,7 @@ function estadoDesdeVista(vista) {
     destino: vista.coords,
     restaurado: Boolean(vista.coords),
     filters: vista.filtros,
-    haBuscado: true,
+    haBuscado: !vista.hero,
     pagina: vista.pagina,
   };
 }
@@ -196,33 +201,22 @@ function reducer(estado, accion) {
         if (estado.pos) return { ...base, modo: 'gps', punto: estado.pos };
         return { ...base, modo: 'espera', punto: null };
       }
-      // Elegir municipio (a mano o al restaurarlo de localStorage) EMPIEZA
-      // a consultar: el overlay de portada se oculta y salen las tarjetas
-      // de ese punto. Antes el punto se ponia pero el estado seguia en la
-      // portada (haBuscado false) y no se pedia nada: no aparecia nada.
+      // Elegir municipio (a mano o al restaurarlo de localStorage) fija
+      // el punto y lleva al HERO: el overlay de portada se oculta, pero
+      // todavia no se consulta nada. La busqueda la lanza el visitante
+      // con "Buscar" (o al elegir categoria); hasta entonces ve el
+      // collage de destacados de la zona.
       return {
         ...elegirPuntoDeMunicipio(estado, accion.cabecera, accion.restaurado),
-        haBuscado: true,
-      };
-
-    case 'mapa':
-      // Mover el punto con el mapa es el mismo acto que elegir municipio:
-      // un cambio explicito de punto que sigue las reglas de R3. No se
-      // recuerda: R3.4 habla de la ciudad elegida, no de un punto del mapa.
-      // Y al igual que elegir municipio, EMPIEZA la busqueda: en portada
-      // el clic movia el punto pero el overlay seguia encima y no salia
-      // ninguna tarjeta.
-      return {
-        ...elegirPuntoDeMunicipio(estado, accion.pos, false),
-        haBuscado: true,
+        haBuscado: false,
       };
 
     case 'forzar_gps': {
       const pos = accion.pos || estado.pos;
       if (!pos) return estado;
-      // "Mi ubicacion" es explicito: ademas de mover el punto, EMPIEZA a
-      // consultar (haBuscado). Sin eso el overlay de portada se quedaba
-      // encima y no aparecia ninguna tarjeta.
+      // "Mi ubicacion" es explicito: mueve el punto y lleva al HERO (la
+      // portada del collage), igual que elegir municipio. La consulta no
+      // sale hasta que el visitante pulsa "Buscar".
       //
       // Regla de la cabecera: si hay municipio elegido/recordado y esta
       // posicion queda a mas de 5 km de el, manda la CABECERA: el punto
@@ -237,7 +231,7 @@ function reducer(estado, accion) {
           punto: estado.destino,
           restaurado: false,
           pagina: 1,
-          haBuscado: true,
+          haBuscado: false,
         };
       }
       return {
@@ -249,7 +243,7 @@ function reducer(estado, accion) {
         restaurado: false,
         llego: false,
         pagina: 1,
-        haBuscado: true,
+        haBuscado: false,
       };
     }
 
@@ -282,10 +276,17 @@ function reducer(estado, accion) {
 
     case 'buscar': {
       // R2: en cada consulta se conservan texto y categoria y se vuelve a
-      // pagina 1. Un filtro vacio vuelve a la portada.
+      // pagina 1. Buscar SIN texto ni categoria ya no vuelve a la portada:
+      // muestra todo lo que hay en el radio. La portada es solo el estado
+      // sin punto; con punto, el estado previo a la primera busqueda es el
+      // hero. Sin punto no hay nada que consultar: se queda el overlay.
       const filters = { ...estado.filters, ...accion.parcial };
-      const vacio = !filters.text && !filters.category;
-      return { ...estado, filters, pagina: 1, haBuscado: !vacio };
+      return {
+        ...estado,
+        filters,
+        pagina: 1,
+        haBuscado: Boolean(estado.punto),
+      };
     }
 
     case 'pagina':
@@ -303,10 +304,9 @@ export default function Home() {
   const [vista] = useState(() => leerVista(window.location.search));
   const [estado, dispatch] = useReducer(reducer, vista, estadoDesdeVista);
   const [, setSearchParams] = useSearchParams();
-  const ubicacion = useLocation();
+  const navigate = useNavigate();
   const [searchFeatured, setSearchFeatured] = useState([]);
   const [businesses, setBusinesses] = useState([]);
-  const [modalBiz, setModalBiz] = useState(null);
   const [showContact, setShowContact] = useState(false);
   // Negocio del que el visitante ha pulsado "Corregir" (null = sin modal).
   const [correctionBiz, setCorrectionBiz] = useState(null);
@@ -345,10 +345,6 @@ export default function Home() {
   const pendienteRef = useRef(null);
   const ultimaRefrescoRef = useRef(0);
   const temporizadorRef = useRef(null);
-  // Marca que la consulta vigente ya contesto: sirve para descartar un
-  // ?ficha= cuyo slug no esta en los resultados (se veria mas abajo, en
-  // el efecto que sincroniza el modal con la URL).
-  const consultaHechaRef = useRef(false);
 
   // ------------------------------------------------------------------
   // Las 158 cabeceras: selector manual y respaldo cuando no hay GPS.
@@ -542,10 +538,7 @@ export default function Home() {
       // pintaban IDENTICOS.
       setErrorRed(true);
     } finally {
-      if (vigente()) {
-        consultaHechaRef.current = true;
-        setLoading(false);
-      }
+      if (vigente()) setLoading(false);
     }
   }, [estado.punto, estado.filters]);
 
@@ -580,59 +573,31 @@ export default function Home() {
   // ------------------------------------------------------------------
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
+    // Ya no hay modal intermedio: si un enlace viejo trae ?ficha=, se
+    // limpia al pasar por el Home (la tarjeta navega a /business/:slug).
+    p.delete('ficha');
     const poner = (k, v) => { if (v) p.set(k, v); else p.delete(k); };
     poner('text', estado.filters.text);
     poner('category', estado.filters.category);
     poner('page', estado.pagina > 1 ? String(estado.pagina) : '');
     poner('lat', estado.destino ? String(estado.destino.lat) : '');
     poner('lng', estado.destino ? String(estado.destino.lng) : '');
+    // Hero = punto elegido, sin busqueda todavia. Asi recargar (o volver
+    // desde una ficha) devuelve al collage, no a una rejilla que nadie
+    // pidio.
+    poner('hero', estado.punto && !estado.haBuscado ? '1' : '');
     const qs = p.toString();
     const actual = window.location.search.replace(/^\?/, '');
     if (qs === actual) return;
     setSearchParams(qs ? `?${qs}` : '', { replace: true });
-  }, [estado.filters, estado.pagina, estado.destino, setSearchParams]);
+  }, [estado.filters, estado.pagina, estado.destino, estado.punto, estado.haBuscado, setSearchParams]);
 
-  // ------------------------------------------------------------------
-  // El modal sigue a la URL: se abre cuando ella trae ?ficha= (al volver
-  // de la ficha completa, o con Adelante/Atras del navegador) y se cierra
-  // cuando deja de pedirlo. Los resultados llegan despues que la URL: si
-  // la consulta ya contesto y el slug no esta, el parametro se descarta
-  // para no dejar un modal muerto que se abriera solo mas adelante.
-  // ------------------------------------------------------------------
-  useEffect(() => {
-    const slug = new URLSearchParams(ubicacion.search).get('ficha');
-    if (!slug) {
-      setModalBiz(null);
-      return;
-    }
-    const hit = businesses.find((b) => b.slug === slug)
-      || searchFeatured.find((b) => b.slug === slug);
-    if (hit) {
-      setModalBiz(hit);
-      return;
-    }
-    if (!consultaHechaRef.current) return; // aun sin resultados: se espera
-    const p = new URLSearchParams(window.location.search);
-    if (p.get('ficha') !== slug) return;
-    p.delete('ficha');
-    setSearchParams(p.toString() ? `?${p.toString()}` : '', { replace: true });
-  }, [ubicacion.search, businesses, searchFeatured, setSearchParams]);
-
-  // Abrir el modal agrega ?ficha= con push: el "Atras" de la ficha
-  // completa cae en esta entrada y el modal se reabre. Cerrarlo quita el
-  // parametro con replace para no ensuciar el historial.
+  // La tarjeta (y cada hueco del collage) abre DIRECTAMENTE la ficha
+  // completa. El modal previo solo era una antesala de su boton "Ver
+  // ficha completa": un paso de mas para el mismo destino.
   const abrirFicha = (biz) => {
-    setModalBiz(biz);
-    const p = new URLSearchParams(window.location.search);
-    p.set('ficha', biz.slug);
-    setSearchParams(`?${p.toString()}`);
-  };
-  const cerrarFicha = () => {
-    setModalBiz(null);
-    const p = new URLSearchParams(window.location.search);
-    if (!p.has('ficha')) return;
-    p.delete('ficha');
-    setSearchParams(p.toString() ? `?${p.toString()}` : '', { replace: true });
+    if (!biz?.slug) return;
+    navigate(`/business/${biz.slug}`);
   };
 
   // Pestañas viejas: una pestaña abierta se queda con el bundle con el
@@ -655,7 +620,7 @@ export default function Home() {
           setVersionNueva(null);
           return;
         }
-        if (estado.haBuscado || modalBiz || correctionBiz || showContact) {
+        if (estado.haBuscado || correctionBiz || showContact) {
           setVersionNueva(servido);
           return;
         }
@@ -665,7 +630,7 @@ export default function Home() {
       }
     }, 60000);
     return () => clearInterval(id);
-  }, [estado.haBuscado, modalBiz, correctionBiz, showContact]);
+  }, [estado.haBuscado, correctionBiz, showContact]);
 
   const handleSearch = (parcial) => dispatch({ type: 'buscar', parcial });
 
@@ -714,11 +679,6 @@ export default function Home() {
     );
   };
 
-  const elegirPuntoDelMapa = (lat, lng) => {
-    setMunicipioClave('');
-    dispatch({ type: 'mapa', pos: { lat, lng } });
-  };
-
   // FASE1: el punto activo esta a mas de UMBRAL_FASE_KM de cualquier
   // cabecera de fase (la lista ya viene recortada del backend). La
   // segunda condicion apaga el banner con el padron completo, que es
@@ -765,16 +725,12 @@ export default function Home() {
     ? 'Elige tu municipio o activa tu ubicación para empezar'
     : null;
 
-  // El mapa de la barra: los resultados cuando hay busqueda; en la
-  // portada no hay marcadores (los destacados ya no se piden sin buscar).
-  const mapBusinesses = estado.haBuscado ? businesses : [];
-
-  // Identidad estable: si no, el mapa se recentra en cada render y no se
-  // puede arrastrar. Recentra SOLO cuando cambia el punto (R2.1).
-  const centroMapa = useMemo(
-    () => (estado.punto ? [estado.punto.lat, estado.punto.lng] : null),
-    [estado.punto],
-  );
+  // Municipio del selector, para el copy del hero ("Destacados en Moca").
+  // Con GPS sin municipio se queda vacio y el hero dice "cerca de ti".
+  const lugar = useMemo(() => {
+    const cab = cabeceras.find((c) => claveCabecera(c) === municipioClave);
+    return cab ? cab.municipio : '';
+  }, [cabeceras, municipioClave]);
 
   const searchProps = {
     filters: estado.filters,
@@ -792,49 +748,22 @@ export default function Home() {
     // el id que apunta el "Saltar al contenido". La clase manda en el
     // CSS, asi que el cambio de etiqueta no se nota en el dibujo.
     <main className="home-layout" id="contenido" tabIndex={-1}>
-      {/* Cabecera a todo el ancho del viewport: debajo van la barra
-          izquierda (20-25% del ancho) y la rejilla de resultados. */}
+      {/* Cabecera a todo el ancho: debajo van la barra en linea y el
+          contenido (hero o rejilla de resultados). */}
       <div className={`right-brand ${estado.haBuscado ? 'right-brand--compact' : ''}`}>
         <h1 className="right-brand-title" onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>Buscando<span className="right-brand-accent">Ando</span></h1>
         {/* A la derecha del logo, casi en el borde de la cabecera */}
         <button className="contact-link" onClick={() => setShowContact(true)}>Contáctanos</button>
       </div>
 
-      <div className="left-panel">
-        {/* autoFocus SOLO en escritorio: las dos barras montan a la vez
-            (una la esconde el CSS) y el ultimo montado se lleva el foco,
-            que era la barra MOVIL — en telefono abria el teclado sin
-            querer y en escritorio robaba el cursor al recargar. */}
-        <SearchBar {...searchProps} autoFocus />
-        {/* El mapa esta SIEMPRE, debajo del selector de municipio: se
-            centra en el municipio elegido o, si no lo hay, en lo que
-            haya captado el GPS. Sin punto aun -> vista del pais. */}
-        <div className="sidebar-map">
-          {/* Chunk propio del mapa: el fallback ocupa su hueco para
-              que la pagina no salte cuando llega Leaflet. */}
-          <Suspense
-            fallback={
-              <div className="mapa-cargando" role="status">
-                Cargando mapa…
-              </div>
-            }
-          >
-            <MapView
-              businesses={mapBusinesses}
-              center={centroMapa}
-              onMarkerClick={abrirFicha}
-              onMapClick={elegirPuntoDelMapa}
-            />
-          </Suspense>
-        </div>
+      {/* Menu + buscador en una sola fila bajo la cabecera. Sigue
+          visible con el overlay de portada: por ahi se elige municipio
+          o se activa el GPS. */}
+      <div className="home-toolbar">
+        <SearchBar {...searchProps} />
       </div>
 
       <div className="right-panel">
-        {/* Mobile search bar */}
-        <div className="mobile-search">
-          <SearchBar {...searchProps} />
-        </div>
-
         {/* FASE1: fuera de las provincias de fase no hay fichas cerca y
             el buscador no tiene la culpa. Se dice (el texto sale de los
             datos, no esta escrito a mano) y se puede contar con el mismo
@@ -906,6 +835,7 @@ export default function Home() {
                         <div className="skeleton-card__line skeleton-card__line--title" />
                         <div className="skeleton-card__line" />
                         <div className="skeleton-card__line skeleton-card__line--short" />
+                        <div className="skeleton-card__open" />
                       </div>
                       <div className="skeleton-card__footer" />
                     </div>
@@ -954,20 +884,23 @@ export default function Home() {
               )}
             </div>
           </>
+        ) : estado.punto ? (
+          // Hero: punto elegido (municipio o GPS) y aun sin buscar. El
+          // collage muestra destacados/cercanos de la zona.
+          <HeroCollage
+            punto={estado.punto}
+            lugar={lugar}
+            onOpen={abrirFicha}
+            onVerTodos={() => handleSearch({ text: '', category: '' })}
+          />
         ) : (
-          // Portada: el overlay ocupa el hueco de la rejilla, a la
-          // derecha, hasta que se hace la primera busqueda.
+          // Portada sin punto: el velo blanco de bienvenida de siempre.
           <div className="right-portada">
             <MapOverlay visible hint={avisoSinPunto} />
           </div>
         )}
       </div>
 
-      {modalBiz && <BusinessModal business={modalBiz} onClose={cerrarFicha} />}
-
-      {/* Formulario "Corregir": se monta aqui, en la raiz y fuera de la
-          tarjeta, igual que los demas modales (el overlay es position:fixed,
-          y dentro de la tarjeta podria quedar atrapado por un transform). */}
       {correctionBiz && (
         <CorrectionModal business={correctionBiz} onClose={() => setCorrectionBiz(null)} />
       )}

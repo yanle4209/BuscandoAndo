@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import api from '../api/axios';
+// .modal-overlay / .modal-panel / .modal-close viven aqui: este CSS era
+// el del modal de negocio, que ya no existe (la tarjeta abre la ficha
+// completa), pero los otros modales siguen usando sus clases.
+import './BusinessModal.css';
 import './CorrectionModal.css';
 
 /**

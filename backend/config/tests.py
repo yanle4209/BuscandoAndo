@@ -228,8 +228,9 @@ class SeoTests(TestCase):
     index se lee y se le inyectan titulo, description, Open Graph y
     canonical con los datos reales de la ficha — sin react-helmet y
     sin esperar a que arranque el JS, que es lo que Google y WhatsApp
-    leen. Las fichas fuera de fase abren (DISENO.md 13) pero con
-    noindex, y el sitemap solo anuncia lo que el listado enseña.
+    leen. Las fichas fuera de fase dan 404 (DISENO.md 13), y el
+    sitemap solo anuncia lo que el listado enseña: provincias y
+    municipios de fase.
     """
 
     #: Index realista: la inyeccion se ancla en <title> y </head>.
@@ -273,6 +274,8 @@ class SeoTests(TestCase):
             image='business_images/2026/09/la_receta.webp')
         cls.fuera = cls.ficha('Dulce Hogar', 'Santo Domingo',
                               'Santo Domingo', cls.publicado)
+        cls.fuera_municipio = cls.ficha(
+            'Panaderia Puñal', 'Puñal', 'Santiago', cls.publicado)
         cls.sin_publicar = cls.ficha('Ideas Pendientes', 'Moca',
                                      'Espaillat', cls.revision)
 
@@ -294,9 +297,6 @@ class SeoTests(TestCase):
     def _get(self, ruta):
         with override_settings(REACT_BUILD_DIR=self.build):
             return self.client.get(ruta)
-
-    def _html(self, ruta):
-        return self._get(ruta).content.decode('utf-8')
 
     # --- soft-404 -------------------------------------------------------
 
@@ -348,15 +348,13 @@ class SeoTests(TestCase):
         self.assertIn('la_receta.webp', html)
         self.assertIn('index,follow', html)
 
-    def test_la_ficha_fuera_de_fase_abre_pero_no_se_indexa(self):
-        """El enlace directo no se rompe (DISENO.md 13) pero Google no
-        la indexa por su cuenta."""
-        response = self._get('/business/%s' % self.fuera.slug)
-
-        self.assertEqual(response.status_code, 200)
-        html = response.content.decode('utf-8')
-        self.assertIn('Dulce Hogar', html)
-        self.assertIn('noindex,nofollow', html)
+    def test_la_ficha_fuera_de_fase_es_404(self):
+        """La ficha recorta igual que el listado (DISENO.md 13): otra
+        provincia o un municipio vecino de la misma provincia."""
+        for ficha in (self.fuera, self.fuera_municipio):
+            with self.subTest(ficha=ficha.name):
+                response = self._get('/business/%s' % ficha.slug)
+                self.assertEqual(response.status_code, 404)
 
     def test_las_no_publicadas_y_los_slugs_de_ayer_son_404(self):
         """La misma regla que el retrieve de la API."""
@@ -399,6 +397,17 @@ class SeoTests(TestCase):
 
         self.assertEqual(self._get('/business/%s' % viejo).status_code, 404)
 
+    def test_el_slug_anterior_de_una_ficha_fuera_de_fase_es_404(self):
+        """El 301 tampoco sirve para entrar a una ficha de fuera."""
+        for ficha in (self.fuera, self.fuera_municipio):
+            with self.subTest(ficha=ficha.name):
+                viejo = ficha.slug
+                ficha.slug = '%s-nuevo' % ficha.slug
+                ficha.save()
+
+                self.assertEqual(
+                    self._get('/business/%s' % viejo).status_code, 404)
+
     def test_levantamiento_se_sirve_pero_no_se_indexa(self):
         """Herramienta de campo sin enlace publico (DISENO.md 11.5)."""
         response = self._get('/levantamiento')
@@ -411,8 +420,7 @@ class SeoTests(TestCase):
 
     def test_el_sitemap_solo_anuncia_las_fichas_de_fase(self):
         """Mismo filtro que el listado (geografia.q_fase): fuera de
-        fase no se anuncia; esas fichas se llegan por enlace y ya
-        llevan noindex."""
+        fase no se anuncia ni se sirve."""
         response = self._get('/sitemap.xml')
         xml = response.content.decode('utf-8')
 
@@ -423,6 +431,7 @@ class SeoTests(TestCase):
         self.assertIn('<loc>%s/</loc>' % sitio, xml)
         self.assertIn('/business/%s' % self.en_fase.slug, xml)
         self.assertNotIn(self.fuera.slug, xml)
+        self.assertNotIn(self.fuera_municipio.slug, xml)
         self.assertNotIn(self.sin_publicar.slug, xml)
         self.assertIn('<lastmod>', xml)
 

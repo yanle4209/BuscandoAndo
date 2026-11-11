@@ -43,12 +43,13 @@ export default function BusinessCard({ business, onClick, onReport }) {
     <div
       className="biz-card"
       onClick={onClick}
-      // La tarjeta es la unica puerta al modal de la ficha: sin esto, un
-      // usuario de teclado o lector de pantalla no puede abrir ninguna
+      // La tarjeta entera navega a la ficha completa: sin role/tabIndex,
+      // un usuario de teclado o lector de pantalla no llegaria a ninguna
       // ficha. role/tabIndex la anuncian como boton y la hacen alcanzable;
       // onKeyDown la activa con Enter/barra como un boton de verdad.
       // El guard de target evita que Enter pulsado DENTRO de los enlaces
-      // internos (tel, mapa) burbujee y abra el modal encima.
+      // o botones internos (tel, mapa, Corregir, Ver ficha) burbujee y
+      // dispare la navegacion dos veces.
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -137,6 +138,19 @@ export default function BusinessCard({ business, onClick, onReport }) {
             <a href={`https://wa.me/${whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener" onClick={e => e.stopPropagation()}>WhatsApp</a>
           </div>
         )}
+
+        {/* Botón explícito de abrir la ficha completa: la acción clara de
+            la tarjeta (ademas de que toda ella navega al mismo sitio).
+            stopPropagation evita la doble navegacion con el onClick de la
+            tarjeta. margin-top:auto lo ancla al pie del cuerpo, en la
+            misma posicion de todas las tarjetas. */}
+        <button
+          type="button"
+          className="biz-card__open"
+          onClick={e => { e.stopPropagation(); onClick?.(); }}
+        >
+          Ver ficha completa →
+        </button>
       </div>
 
       <div className="biz-card__footer">
@@ -144,8 +158,8 @@ export default function BusinessCard({ business, onClick, onReport }) {
           {nombreDeEstado(business)}
         </span>
         {/* stopPropagation OBLIGATORIO: toda la tarjeta es clicable y su
-            onClick abre BusinessModal. Sin esto, pulsar "Corregir" abriria
-            los DOS modales a la vez. */}
+            onClick navega a la ficha completa. Sin esto, pulsar "Corregir"
+            dispararia tambien la navegacion. */}
         {onReport && (
           <button
             type="button"

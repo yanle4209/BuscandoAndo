@@ -1,5 +1,5 @@
 import { Fragment, Suspense, lazy, useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { slugDeEstado, nombreDeEstado } from '../estado';
 import { partirTelefono } from '../telefono';
@@ -9,8 +9,42 @@ import './BusinessDetail.css';
 // Code-splitting (DISENO.md 14.6): el mapa (Leaflet) en su propio chunk.
 const MapView = lazy(() => import('../components/MapView'));
 
+// La web puede venir sin esquema ("miempresa.com"); sin el, el enlace se
+// resolveria contra nuestra propia pagina. Si el valor no parece un
+// dominio ("Facebook"), se pinta como texto: no se inventa una URL.
+function urlWeb(valor) {
+  const web = (valor || '').trim();
+  if (!web) return '';
+  if (/^https?:\/\//i.test(web)) return web;
+  return /^[^\s/]+\.[^\s/]+/.test(web) ? `https://${web}` : '';
+}
+
+// Los horarios llegan con el dia en texto ("Miercoles"): se ordenan de
+// Lunes a Domingo y la hora se recorta a HH:MM para no enseñar segundos.
+const DIAS_SEMANA = [
+  'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo',
+];
+
+function claveDia(dia) {
+  return (dia || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function ordenDia(dia) {
+  const i = DIAS_SEMANA.indexOf(claveDia(dia));
+  return i === -1 ? DIAS_SEMANA.length : i;
+}
+
+function formatearHora(valor) {
+  return valor ? String(valor).slice(0, 5) : '';
+}
+
 export default function BusinessDetail() {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const [biz, setBiz] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,6 +59,16 @@ export default function BusinessDetail() {
   // tira en vez de pisar la buena. Sin esto, dos navegaciones rapidas de
   // /business/a a /business/b podian acabar mostrando la ficha de "a".
   const peticionRef = useRef(0);
+
+  // "Volver" conserva la busqueda desde la que se abrio la ficha: el
+  // Home escribe filtros y punto en su URL, asi que retroceder en el
+  // historial la restaura tal cual. Si la ficha se abrio en una pestana
+  // nueva (sin historial propio), cae al inicio.
+  const volver = (e) => {
+    e.preventDefault();
+    if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
+    else navigate('/');
+  };
 
   useEffect(() => {
     const peticion = peticionRef.current + 1;
@@ -67,7 +111,7 @@ export default function BusinessDetail() {
             Reintentar
           </button>
         )}
-        <Link to="/" className="detail-back">← Volver al inicio</Link>
+        <Link to="/" className="detail-back" onClick={volver}>← Volver al inicio</Link>
       </div>
     </main>
   );
@@ -77,7 +121,13 @@ export default function BusinessDetail() {
   const images = biz.images || [];
   // Varios numeros en una sola cadena: cada uno con su enlace tel:.
   const telefonos = partirTelefono(contact.phone);
-  const hours = biz.hours || [];
+  const webUrl = urlWeb(contact.website);
+  // Copia ordenada: no se muta el estado que vino de la API.
+  const hours = [...(biz.hours || [])].sort((a, b) => ordenDia(a.day) - ordenDia(b.day));
+  // La ficha guarda descripcion larga y corta: si la larga viene vacia
+  // (fichas importadas), se enseña la corta en vez de dejar el hueco.
+  const descripcion = (biz.description || '').trim()
+    || (biz.short_description || '').trim();
 
   const address = [loc.street, loc.sector, loc.municipality, loc.district, loc.province]
     .filter(Boolean).join(', ');
@@ -90,9 +140,10 @@ export default function BusinessDetail() {
     // <main> con id para el "Saltar al contenido" (auditoria D).
     <main className="detail-page" id="contenido" tabIndex={-1}>
       <div className="detail-left">
-        <Link to="/" className="detail-back">← Volver</Link>
+        <Link to="/" className="detail-back" onClick={volver}>← Volver</Link>
 
-        {/* Galería de imágenes ARRIBA, limpia (sin texto encima). */}
+        {/* Galería de imágenes ARRIBA, limpia (sin texto encima). Sin
+            fotos no ocupa espacio. */}
         {images.length > 0 && (
           <div className="detail-gallery">
             <ImageCarousel images={images} altBase={altBase} />
@@ -106,16 +157,16 @@ export default function BusinessDetail() {
           {biz.category_name && (
             <span className="detail-category">{biz.category_name}</span>
           )}
-          {/* Mismo estado que en la tarjeta y en el modal: manda el
-              calculado con los horarios de hoy (effective_status), no el
-              declarado en la base. */}
+          {/* Mismo estado que en la tarjeta: manda el calculado con los
+              horarios de hoy (effective_status), no el declarado en la
+              base. */}
           <span className={`detail-status detail-status--${slugDeEstado(biz)}`}>
             {nombreDeEstado(biz)}
           </span>
           {biz.is_featured && <span className="detail-badge">Destacado</span>}
         </div>
 
-        <p className="detail-desc">{biz.description}</p>
+        {descripcion && <p className="detail-desc">{descripcion}</p>}
 
         {/* Teléfono prominente: el dato estrella del directorio. */}
         {telefonos.length > 0 && (
@@ -139,11 +190,22 @@ export default function BusinessDetail() {
           <h2>Ubicación</h2>
           {address && <p className="detail-section-text">{address}</p>}
           {loc.postal_code && <p className="detail-postal">CP: {loc.postal_code}</p>}
+          {loc.referencias && (
+            <p className="detail-refs">
+              <strong>Referencias:</strong> {loc.referencias}
+            </p>
+          )}
         </section>
 
         {/* Contacto */}
         <section className="detail-section">
           <h2>Contacto</h2>
+          {contact.contact_person && (
+            <div className="detail-contact-row">
+              <span>Persona de contacto:</span>
+              {contact.contact_person}
+            </div>
+          )}
           {contact.whatsapp && (
             <div className="detail-contact-row detail-contact-row--wa">
               <span>WhatsApp:</span>
@@ -161,7 +223,11 @@ export default function BusinessDetail() {
           {contact.website && (
             <div className="detail-contact-row">
               <span>Sitio web:</span>
-              <a href={contact.website} target="_blank" rel="noopener">{contact.website}</a>
+              {webUrl ? (
+                <a href={webUrl} target="_blank" rel="noopener">{contact.website}</a>
+              ) : (
+                contact.website
+              )}
             </div>
           )}
         </section>
@@ -178,7 +244,9 @@ export default function BusinessDetail() {
                   {h.is_closed ? (
                     <span className="detail-hours-closed">Cerrado</span>
                   ) : (
-                    <span className="detail-hours-time">{h.open_time} - {h.close_time}</span>
+                    <span className="detail-hours-time">
+                      {formatearHora(h.open_time)} - {formatearHora(h.close_time)}
+                    </span>
                   )}
                 </div>
               ))}

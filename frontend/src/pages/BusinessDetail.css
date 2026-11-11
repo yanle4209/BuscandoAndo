@@ -53,7 +53,7 @@
   background: #f5f4ec;
 }
 
-/* El carrusel reutiliza las clases de BusinessCard.css: aqui se
+/* El carrusel reutiliza las clases base de ImageCarousel.css: aqui se
    fija la altura de la galería para que llene su contenedor. */
 .detail-gallery .biz-card__images {
   height: 100%;
@@ -204,6 +204,20 @@
   font-size: 12px;
   color: var(--grey);
   margin-top: 4px;
+}
+
+/* Referencias para llegar a pie: dato del levantamiento; acompaña a la
+   direccion, no la sustituye. */
+.detail-refs {
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+.detail-refs strong {
+  color: var(--grey);
+  font-weight: 600;
 }
 
 /* Contact */

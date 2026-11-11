@@ -232,6 +232,39 @@
   color: var(--yellow-ink);
 }
 
+/* ===== BOTÓN "VER FICHA COMPLETA" =====
+   La acción explícita de la tarjeta (además de que toda ella navega).
+   Anclado al pie del cuerpo con margin-top:auto: siempre en la misma
+   posición, con el descriptivo arriba y el pie (estado + Corregir)
+   debajo. Amarillo de marca sobre el texto marrón (8,3:1). */
+.biz-card__open {
+  display: block;
+  width: 100%;
+  margin-top: auto;
+  padding: 8px 12px;
+  min-height: 34px;
+  background: var(--yellow);
+  border: 1px solid rgba(81, 62, 12, 0.18);
+  border-radius: 8px;
+  color: var(--brown);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.biz-card__open:hover {
+  background: #f5b301;
+  box-shadow: 0 2px 6px rgba(81, 62, 12, 0.2);
+}
+
+.biz-card__open:focus-visible {
+  outline: 2px solid var(--yellow-ink);
+  outline-offset: 2px;
+}
+
 /* ===== PIE: banda crema con estado + Corregir ===== */
 .biz-card__footer {
   display: flex;

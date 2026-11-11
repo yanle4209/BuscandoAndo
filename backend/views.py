@@ -52,11 +52,10 @@ def _recortar(texto, maximo=160):
 def _metas_ficha(slug):
     """Metas de ``/business/<slug>/``.
 
-    Devuelve ``None`` si la ficha no existe o no esta publicada (-> 404,
-    misma regla que el ``retrieve`` de la API) y un dict con las metas en
-    caso contrario. Las fichas fuera de fase vuelven con ``noindex``: el
-    enlace directo sigue abriendo (DISENO.md 13) pero Google no las
-    indexa por su cuenta.
+    Devuelve ``None`` si la ficha no existe, no esta publicada o esta
+    fuera de fase (-> 404, misma regla que el ``retrieve`` de la API).
+    En caso contrario devuelve el dict con las metas; a esta altura la
+    ficha siempre se indexa.
     """
     from businesses import geografia
     from businesses.models import Business
@@ -64,6 +63,7 @@ def _metas_ficha(slug):
     ficha = (
         Business.objects
         .filter(slug=slug, publication_status__slug='publicado')
+        .filter(geografia.q_fase())
         .select_related('category', 'location')
         .prefetch_related('images')
         .first()
@@ -74,7 +74,7 @@ def _metas_ficha(slug):
     # `location` es una OneToOne inversa: una ficha SIN fila de
     # ubicacion lanza DoesNotExist al acceder (y ese error hereda de
     # AttributeError, por eso el getattr con default y no un try).
-    # El enlace directo tiene que seguir abriendo igualmente.
+    # A esta altura la fase ya descarto las fichas sin ubicacion.
     loc = getattr(ficha, 'location', None)
     municipio = loc.municipality if loc else ''
     provincia = loc.province if loc else ''
@@ -114,9 +114,9 @@ def _metas_ficha(slug):
         'descripcion': descripcion,
         'imagen': imagen,
         'url': '%s/business/%s' % (_sitio(), ficha.slug),
-        # Sin ubicacion no se ensena en el listado, asi que tampoco se
-        # anuncia (la misma regla que la fase).
-        'noindex': not geografia.en_fase(provincia),
+        # A esta altura la ficha ya esta publicada y dentro de fase:
+        # la ruta se indexa.
+        'noindex': False,
     }
 
 
@@ -126,20 +126,22 @@ def _destino_slug_anterior(rel):
     Si un negocio cambia de slug, el anterior queda en ``SlugAntiguo``
     y aqui se traduce: el enlace viejo redirige en vez de dar 404, que
     es lo que pierde visitas y posicionamiento. Solo si la ficha sigue
-    PUBLICADA: una borrada o sin publicar sigue devolviendo 404, la
-    misma regla que la vista y la API — no se filtra nada de lo que no
-    se ensena.
+    PUBLICADA y dentro de fase: una borrada, sin publicar o de fuera
+    sigue devolviendo 404, la misma regla que la vista y la API — no se
+    filtra nada de lo que no se ensena.
     """
     match = RUTA_NEGOCIO.match(rel)
     if not match:
         return None
 
+    from businesses import geografia
     from businesses.models import SlugAntiguo
 
     actual = (
         SlugAntiguo.objects
         .filter(slug=match.group('slug'),
                 business__publication_status__slug='publicado')
+        .filter(geografia.q_fase('business__'))
         .values_list('business__slug', flat=True)
         .first()
     )
@@ -279,7 +281,8 @@ def serve_react(request, path=''):
 
     # SOLO las rutas conocidas del SPA caen en el index (auditoria C:
     # el 200 universal era un soft-404). `None` incluye ademas las
-    # fichas no publicadas o inexistentes: mismas 404 que la API.
+    # fichas no publicadas, las de fuera de fase o inexistentes:
+    # mismas 404 que la API.
     rel = path.lstrip('/')
     metas = _metas_para_ruta(rel)
     if metas is None:
@@ -323,10 +326,10 @@ def sitemap_xml(request):
     que Google no podia leer ni las reglas ni el inventario. Aqui se
     genera desde la misma base y con el MISMO filtro que el listado
     (``geografia.q_fase``), asi que lo que esta fuera de fase no se
-    anuncia — esas fichas siguen abriendose por enlace directo pero con
-    noindex (ver ``serve_react``).
+    anuncia ni se sirve: la ficha tambien devuelve 404 (ver
+    ``serve_react``).
 
-    740 <loc> de fase actualmente: un unico fichero, muy por debajo del
+    363 <loc> de fase actualmente: un unico fichero, muy por debajo del
     limite de 50.000 que admite el formato.
     """
     from businesses import geografia
@@ -469,5 +472,6 @@ def admin_seo(request):
         'fichas_publicadas': Business.objects.filter(
             publication_status__slug='publicado').count(),
         'provincias_fase': settings.FASE1_PROVINCIAS,
+        'municipios_fase': settings.FASE1_MUNICIPIOS,
     })
     return render(request, 'admin/seo_panel.html', contexto)

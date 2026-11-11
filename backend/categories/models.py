@@ -28,9 +28,3 @@ class Category(models.Model):
         if self.parent:
             return f"{self.parent.name} → {self.name}"
         return self.name
-
-    @property
-    def full_name(self):
-        if self.parent:
-            return f"{self.parent.name} → {self.name}"
-        return self.name

@@ -93,17 +93,24 @@ def negocios_en_radio(qs, lat, lng, radius_km):
     except (TypeError, ValueError):
         return qs
 
+    # Solo hacen falta el id y las coordenadas. El queryset que llega
+    # trae prefetch de location, contact, hours e images (para pintar las
+    # 12 fichas de la pagina), pero recorrerlo tal cual cargaba esas
+    # relaciones de TODOS los negocios solo para medir el radio: ~0,6 s
+    # medidos en produccion con 738 fichas, y era el coste dominante del
+    # buscador. Mismo patron que ``busqueda.filtrar_por_texto``.
+    filas = qs.prefetch_related(None).values_list(
+        'id', 'location__latitude', 'location__longitude'
+    )
+
     dentro = []
-    for biz in qs:
-        loc = getattr(biz, 'location', None)
-        if loc is None:
-            continue
-        biz_lat = getattr(loc, 'lat', None)
-        biz_lng = getattr(loc, 'lng', None)
+    for biz_id, biz_lat, biz_lng in filas:
         if biz_lat is None or biz_lng is None:
             continue
-        if haversine_distance(user_lat, user_lng, biz_lat, biz_lng) <= radius_km:
-            dentro.append(biz.id)
+        if haversine_distance(
+            user_lat, user_lng, float(biz_lat), float(biz_lng)
+        ) <= radius_km:
+            dentro.append(biz_id)
 
     return qs.filter(id__in=dentro)
 
@@ -204,12 +211,11 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
             'category', 'publication_status', 'operational_status'
         ).prefetch_related('location', 'contact', 'hours', 'images')
 
-        # Fase geografica (DISENO.md FASE1): el LISTADO recorta a las
-        # provincias de fase. Solo aqui y en destacados: la ficha
-        # (retrieve) se abre aunque este fuera — el enlace directo no se
-        # rompe y nada se borra.
-        if self.action == 'list':
-            qs = qs.filter(geografia.q_fase())
+        # Fase geografica (DISENO.md FASE1): listado y ficha recortan a
+        # las provincias y municipios de fase. Nada se borra: lo de
+        # fuera sigue en la base y el admin lo ve, pero la web no lo
+        # sirve ni por enlace directo.
+        qs = qs.filter(geografia.q_fase())
 
         params = self.request.query_params
 
@@ -323,11 +329,11 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
 
         Si piden un slug que el negocio tuvo ANTES de cambiarlo, la API
         redirige 301 al slug actual (SlugAntiguo) en vez de dar 404:
-        misma regla que la vista publica. Lo no publicado sigue siendo
-        404 — se comprueba aqui igual que en el queryset, para no
-        filtrar nada de lo que no se ensena. En la redireccion no se
-        cuenta la visita: la peticion de despues (con el slug bueno) la
-        cuenta, y sin eso se contaria dos veces.
+        misma regla que la vista publica. Lo no publicado o fuera de
+        fase sigue siendo 404 — se comprueba aqui igual que en el
+        queryset, para no filtrar nada de lo que no se ensena. En la
+        redireccion no se cuenta la visita: la peticion de despues (con
+        el slug bueno) la cuenta, y sin eso se contaria dos veces.
         """
         try:
             respuesta = super().retrieve(request, *args, **kwargs)
@@ -339,6 +345,7 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
                     SlugAntiguo.objects
                     .filter(slug=origen,
                             business__publication_status__slug='publicado')
+                    .filter(geografia.q_fase('business__'))
                     .values_list('business__slug', flat=True)
                     .first()
                 )
@@ -423,7 +430,7 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
 
 @api_view(['GET'])
 def cabeceras(request):
-    """Las cabeceras municipales de las provincias de fase (FASE1).
+    """Las cabeceras municipales de la fase actual (FASE1).
 
     Un dato, dos usos (DISENO.md R3):
 
@@ -434,7 +441,9 @@ def cabeceras(request):
     ``geografia.cabeceras()`` y lo usan el admin, el importador y el
     reporte de pendientes. Web, app y levantamiento leen este mismo
     endpoint, asi que los tres quedan recortados de una sola vez. Sin
-    provincias de fase configuradas se devuelven las 158.
+    provincias de fase configuradas se devuelven las 158; con
+    provincias pero sin ``FASE1_MUNICIPIOS``, las de esas provincias;
+    con municipios, solo esos.
 
     Se devuelve una lista plana agrupable por el cliente: la agrupacion por
     provincia es cosa de la interfaz, no del API.

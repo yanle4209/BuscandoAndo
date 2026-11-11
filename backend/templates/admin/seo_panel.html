@@ -97,9 +97,12 @@
     <p class="ba-seo__nota">
       Se genera solo con lo que está publicado Y dentro de la fase: para
       que una ficha entre o salga se publica o excluye en Gestión, y el
-      filtro de fase decide las provincias.
+      filtro de fase decide las provincias y los municipios.
       {% if provincias_fase %}
       Provincias de fase ahora: {{ provincias_fase|join:", " }}.
+      {% endif %}
+      {% if municipios_fase %}
+      Municipios de fase ahora: {{ municipios_fase|join:", " }}.
       {% endif %}
     </p>
   </section>
