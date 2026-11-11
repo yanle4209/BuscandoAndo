@@ -423,6 +423,11 @@ class Colaborador(models.Model):
         editable=False,
         verbose_name='Token de firma',
     )
+    token_creado_el = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name='Token creado el',
+        help_text='Cuándo se generó el token actual. Cambia al regenerarlo.',
+    )
     municipio = models.CharField(
         max_length=100, blank=True, default='',
         verbose_name='Municipio',
@@ -433,6 +438,12 @@ class Colaborador(models.Model):
         default=True,
         verbose_name='Activo',
         help_text='Apagarlo bloquea a este colaborador sin tocar a los demas.',
+    )
+    expira_el = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name='Acceso válido hasta',
+        help_text='Vacío = sin caducidad. Si se vence, el token deja de '
+                  'aceptar envíos y reportes aunque siga activo.',
     )
     creado_el = models.DateTimeField(auto_now_add=True, verbose_name='Creado el')
     ultimo_envio = models.DateTimeField(
@@ -445,13 +456,32 @@ class Colaborador(models.Model):
         ordering = ['nombre']
 
     def __str__(self):
-        estado = '' if self.activo else ' (bloqueado)'
-        return f'{self.nombre}{estado}'
+        if not self.activo:
+            return f'{self.nombre} (bloqueado)'
+        if self.expira_el and self.expira_el <= timezone.now():
+            return f'{self.nombre} (vencido)'
+        return self.nombre
+
+    @property
+    def esta_vigente(self):
+        """Activo y dentro de la fecha de caducidad (si tiene)."""
+        if not self.activo:
+            return False
+        return self.expira_el is None or self.expira_el > timezone.now()
 
     def save(self, *args, **kwargs):
         if not self.token:
             self.token = _token_nuevo()
+            if self.token_creado_el is None:
+                self.token_creado_el = timezone.now()
         super().save(*args, **kwargs)
+
+    def regenerar_token(self):
+        """Emite un token nuevo y mata el anterior al instante."""
+        self.token = _token_nuevo()
+        self.token_creado_el = timezone.now()
+        self.save(update_fields=['token', 'token_creado_el'])
+        return self.token
 
 
 class Envio(models.Model):
@@ -460,6 +490,9 @@ class Envio(models.Model):
     Aqui esta la auditoria: quien firmo, que mando y que decidio el sistema
     (§11.5). Es lo que permite juzgar a un colaborador concreto y bloquear
     solo su token. El colaborador no lo lee — no hay acceso, hay envio.
+
+    El nombre del firmante se copia al envio en ``firmante_nombre``: borrar
+    al colaborador no borra la auditoria, solo deja ``colaborador`` vacio.
 
     ``estado`` refleja la decision del sistema, no una decision humana:
 
@@ -479,9 +512,18 @@ class Envio(models.Model):
 
     colaborador = models.ForeignKey(
         Colaborador,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
         related_name='envios',
         verbose_name='Colaborador',
+        help_text='Puede quedar vacío si el colaborador se borra; el '
+                  'nombre se conserva en “Firmante”.',
+    )
+    firmante_nombre = models.CharField(
+        max_length=120, blank=True, default='',
+        verbose_name='Firmante',
+        help_text='Nombre del colaborador al momento del envío. Se '
+                  'conserva aunque el colaborador se borre.',
     )
     negocio = models.ForeignKey(
         Business,
@@ -525,8 +567,24 @@ class Envio(models.Model):
         verbose_name_plural = 'Envíos de campo'
         ordering = ['-recibido_el']
 
+    @property
+    def firmante(self):
+        """Quién firmó, aunque el colaborador ya no exista."""
+        if self.firmante_nombre:
+            return self.firmante_nombre
+        if self.colaborador_id:
+            return self.colaborador.nombre
+        return '—'
+
+    def save(self, *args, **kwargs):
+        # Copia el nombre al crear el envío: el snapshot es lo que
+        # sobrevive si luego se borra el colaborador.
+        if not self.firmante_nombre and self.colaborador_id:
+            self.firmante_nombre = self.colaborador.nombre
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f'{self.get_estado_display()} · {self.colaborador.nombre}'
+        return f'{self.get_estado_display()} · {self.firmante}'
 
 
 class Pospuesto(models.Model):

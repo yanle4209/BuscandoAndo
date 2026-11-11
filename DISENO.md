@@ -541,6 +541,24 @@ y **último envío** (¿quién acaba de trabajar?, con «Sin fecha» para ver
 a los que no han tocado nada). El total solo no basta: no distingue a
 quien le publican todo de a quien le estan rechazando todo.
 
+**Vigencia y regeneración.** Cada colaborador tiene **«Acceso válido
+hasta»** (`expira_el`, fecha y hora). Vacío = sin caducidad. Al vencer, el
+token deja de servir para el reporte y para el canal de envío —401, como
+un token apagado—, pero la ficha del colaborador y su historial se
+conservan; se puede ampliar la fecha después. El listado muestra el estado
+(**Bloqueado / Vencido / Vence el… / Sin límite**). El botón **«Regenerar
+token»** de la ficha —y la acción para varios seleccionados— emite uno
+nuevo y mata el anterior en el acto; `token_creado_el` deja la fecha del
+último cambio.
+
+**Borrar sin perder la auditoría.** `Envio.colaborador` ya no es
+`PROTECT`: es `SET_NULL`, y cada envío guarda el nombre del firmante en
+`firmante_nombre`. Borrar un colaborador no borra sus envíos: la bandeja
+de **Envíos de campo** sigue mostrando **quién hizo qué** aunque el
+colaborador ya no exista. La migración `0015` rellenó el nombre en los
+envíos anteriores. Los **pospuestos** sí son listas de trabajo, no
+auditoría: se van con el colaborador (`CASCADE`).
+
 **Y lo que NO es:** no hay endpoint de lectura para el colaborador, ni
 permiso que le deje consultar el admin. Si mañana hace falta ver cosas,
 eso es otro canal y otra decisión.

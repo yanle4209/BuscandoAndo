@@ -6,3 +6,20 @@
 {% include "admin/includes/levantamiento.html" %}
 {{ block.super }}
 {% endblock %}
+
+{% block submit_buttons_bottom %}
+  {{ block.super }}
+
+  {% if change and has_change_permission %}
+    <div class="submit-row">
+      <input type="submit" name="_regenerar_token"
+             value="Regenerar token"
+             class="button"
+             onclick="return confirm('¿Regenerar el token? El token actual dejará de funcionar inmediatamente.');">
+      <p class="help" style="margin: 8px 0 0;">
+        El colaborador tendrá que guardar el token nuevo. El anterior deja
+        de aceptar envíos y reportes al instante.
+      </p>
+    </div>
+  {% endif %}
+{% endblock %}

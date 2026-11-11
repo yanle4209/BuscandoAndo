@@ -9,6 +9,9 @@ El token es una **firma, no una sesion**: por eso se acepta solo en
 cabecera (en la URL se quedaria en el historial y en los registros del
 servidor), y por eso que este inactivo lo apaga a el y solo a el.
 """
+from django.db.models import Q
+from django.utils import timezone
+
 from .models import Colaborador
 
 # Copia exacta de la cabecera, para que quien la recibe pueda mandarla sin
@@ -31,12 +34,19 @@ def token_de(request):
 
 
 def colaborador_de(request):
-    """El colaborador activo que firma esta peticion, o ``None``.
+    """El colaborador activo y vigente que firma esta peticion, o ``None``.
 
-    Que este inactivo devuelve tambien ``None``: apagar el token de uno
-    es como no tenerlo, sin tocar a los demas (§11.5).
+    Que este inactivo o vencido devuelve tambien ``None``: apagar o
+    caducar el token de uno es como no tenerlo, sin tocar a los demas
+    (§11.5).
     """
     token = token_de(request)
     if not token:
         return None
-    return Colaborador.objects.filter(token=token, activo=True).first()
+    ahora = timezone.now()
+    return (
+        Colaborador.objects
+        .filter(token=token, activo=True)
+        .filter(Q(expira_el__isnull=True) | Q(expira_el__gt=ahora))
+        .first()
+    )

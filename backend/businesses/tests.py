@@ -1389,6 +1389,24 @@ class ReportePendientesTests(TestCase):
 
         self.assertEqual(response.status_code, 401)
 
+    def test_un_colaborador_vencido_no_lee(self):
+        colab = self.colaborador()
+        colab.expira_el = timezone.now() - datetime.timedelta(minutes=1)
+        colab.save(update_fields=['expira_el'])
+
+        response = self.con_token(colab)
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_un_colaborador_con_vigencia_futura_lee(self):
+        colab = self.colaborador()
+        colab.expira_el = timezone.now() + datetime.timedelta(days=1)
+        colab.save(update_fields=['expira_el'])
+
+        response = self.con_token(colab)
+
+        self.assertEqual(response.status_code, 200)
+
     def test_al_colaborador_solo_le_sale_su_renglon(self):
         """§11-i: «ni reportes ajenos». Si le saliera la lista entera
         veria de un vistazo todos los municipios del país."""
@@ -2488,6 +2506,37 @@ class CanalDeEnvioTests(TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertEqual(Business.objects.count(), 0)
 
+    def test_un_colaborador_vencido_no_entra(self):
+        self.colaborador.expira_el = (
+            timezone.now() - datetime.timedelta(minutes=1)
+        )
+        self.colaborador.save(update_fields=['expira_el'])
+
+        response = self.enviar()
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(Business.objects.count(), 0)
+
+    def test_un_colaborador_con_vigencia_futura_entra(self):
+        self.colaborador.expira_el = (
+            timezone.now() + datetime.timedelta(days=1)
+        )
+        self.colaborador.save(update_fields=['expira_el'])
+
+        response = self.enviar()
+
+        self.assertEqual(response.status_code, 201, response.content)
+
+    def test_regenerar_el_token_mata_el_anterior(self):
+        viejo = self.colaborador.token
+
+        nuevo = self.colaborador.regenerar_token()
+
+        self.assertNotEqual(nuevo, viejo)
+        self.assertEqual(self.colaborador.token, nuevo)
+        self.assertEqual(self.enviar(token=viejo).status_code, 401)
+        self.assertEqual(self.enviar(token=nuevo).status_code, 201)
+
     def test_bloquear_a_uno_no_cierra_el_canal_a_los_demas(self):
         """§11.5: el token firma a UNO. Que se haya equivocado Pedro no es
         motivo para dejar a Maria sin poder levantar nada."""
@@ -2866,6 +2915,7 @@ class CanalDeEnvioTests(TestCase):
 
         envio = Envio.objects.get()
         self.assertEqual(envio.colaborador, self.colaborador)
+        self.assertEqual(envio.firmante_nombre, 'Pedro')
         self.assertEqual(envio.negocio, Business.objects.get())
         self.assertEqual(envio.estado, 'publicado')
         self.assertEqual(envio.datos['nombre'], 'Pan del Dia')
@@ -3787,6 +3837,103 @@ class ColaboradorConteosTests(TestCase):
 
         self.assertIn('>Pedro<', html)
         self.assertNotIn('>Maria<', html)
+
+
+@override_settings(STORAGES=STATIC_SIN_MANIFEST)
+class ColaboradorVigenciaAdminTests(TestCase):
+    """Vigencia, regeneración y borrado desde el admin (§11.5)."""
+
+    URL = '/admin/businesses/colaborador/'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = get_user_model().objects.create_superuser(
+            'admin', 'admin@example.com', 'x')
+        cls.colaborador = Colaborador.objects.create(
+            nombre='Pedro', municipio='Moca')
+
+    def test_la_ficha_muestra_vigencia_y_el_boton_de_regenerar(self):
+        self.client.force_login(self.admin)
+
+        html = self.client.get(
+            f'{self.URL}{self.colaborador.pk}/change/',
+        ).content.decode()
+
+        self.assertIn('Acceso válido hasta', html)
+        self.assertIn('name="_regenerar_token"', html)
+        self.assertIn('Regenerar token', html)
+
+    def test_el_boton_regenera_el_token(self):
+        viejo = self.colaborador.token
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            f'{self.URL}{self.colaborador.pk}/change/',
+            {
+                'nombre': self.colaborador.nombre,
+                'municipio': self.colaborador.municipio,
+                'activo': 'on',
+                # El admin usa un widget partido; se mandan las dos formas
+                # para que la prueba no dependa de la versión de Django.
+                'expira_el': '',
+                'expira_el_0': '',
+                'expira_el_1': '',
+                '_regenerar_token': 'Regenerar token',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.colaborador.refresh_from_db()
+        self.assertNotEqual(self.colaborador.token, viejo)
+        self.assertIsNotNone(self.colaborador.token_creado_el)
+
+    def test_la_accion_regenera_los_seleccionados(self):
+        viejo = self.colaborador.token
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            self.URL,
+            {
+                'action': 'regenerar_tokens',
+                '_selected_action': [self.colaborador.pk],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.colaborador.refresh_from_db()
+        self.assertNotEqual(self.colaborador.token, viejo)
+
+    def test_el_listado_marca_al_vencido(self):
+        Colaborador.objects.filter(pk=self.colaborador.pk).update(
+            expira_el=timezone.now() - datetime.timedelta(days=1),
+        )
+        self.client.force_login(self.admin)
+
+        html = self.client.get(self.URL).content.decode()
+
+        self.assertIn('Vencido', html)
+
+    def test_borrar_con_envios_conserva_el_nombre_en_la_bandeja(self):
+        envio = Envio.objects.create(
+            colaborador=self.colaborador, estado='publicado',
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            f'{self.URL}{self.colaborador.pk}/delete/',
+            {'post': 'yes'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            Colaborador.objects.filter(pk=self.colaborador.pk).exists()
+        )
+        envio.refresh_from_db()
+        self.assertIsNone(envio.colaborador_id)
+        self.assertEqual(envio.firmante_nombre, 'Pedro')
+
+        html = self.client.get('/admin/businesses/envio/').content.decode()
+        self.assertIn('Pedro', html)
 
 
 @override_settings(STORAGES=STATIC_SIN_MANIFEST)
