@@ -267,18 +267,6 @@ class Business(models.Model):
     def is_published(self):
         return self.publication_status.slug == 'publicado'
 
-    @property
-    def featured_remaining(self):
-        """Return remaining slots for this tier in same category."""
-        if not self.featured_tier or not self.category_id:
-            return 0
-        qs = Business.objects.filter(
-            is_featured=True, featured_tier=self.featured_tier,
-            category_id=self.category_id
-        )
-        if self.pk:
-            qs = qs.exclude(pk=self.pk)
-        return max(0, FEATURED_LIMITS.get(self.featured_tier, 0) - qs.count())
 
 
 class SlugAntiguo(models.Model):
@@ -389,9 +377,6 @@ class Correction(models.Model):
     def __str__(self):
         return f'{self.get_campo_display()} · {self.business.name}'
 
-    @property
-    def esta_resuelta(self):
-        return self.estado in ('aplicada', 'descartada')
 
 
 def _token_nuevo():

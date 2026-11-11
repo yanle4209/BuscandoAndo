@@ -8,7 +8,6 @@ from django.contrib import admin
 from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
-from django.urls import path, reverse
 
 from businesses.models import Business
 from categories.models import Category

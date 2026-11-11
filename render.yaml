@@ -23,7 +23,14 @@ services:
     # Los pasos que se quedan miden segundos: migrate (el esquema), el
     # admin inicial y los datos de arranque.
     buildCommand: pip install -r backend/requirements.txt && cd frontend && npm install && npm run build && cd ../backend && python manage.py collectstatic --noinput && python manage.py migrate && python manage.py setup_admin && python manage.py load_initial_data
-    startCommand: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+    # OJO con los workers: gunicorn arranca 1 por defecto y las
+    # peticiones se atienden de una en una. La prueba de carga del
+    # 9/nov midio un techo de ~5,4 peticiones/s y colas de 10-14 s con
+    # 30 usuarios simultaneos (0 errores, pero lento). gthread con 2
+    # workers x 4 hilos atiende 8 a la vez y solapa las esperas de red
+    # a Neon; son 8 conexiones a la BD como maximo (limite de Neon muy
+    # por encima) y ~300 MB de los 512 de la instancia free.
+    startCommand: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --worker-class gthread --workers 2 --threads 4
     envVars:
       - key: SECRET_KEY
         generateValue: true

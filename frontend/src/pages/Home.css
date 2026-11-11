@@ -1,46 +1,40 @@
-/* Tres secciones: la cabecera ocupa todo el ancho del viewport en la
-   fila 1; debajo (fila 2) van la barra izquierda y la rejilla. */
+/* Tres filas a todo el ancho: cabecera, barra (menu + buscador) y
+   contenido (hero o rejilla). Una sola columna: el mapa ya no vive
+   aqui, solo en la ficha completa. */
 .home-layout {
   display: grid;
-  grid-template-columns: max(28%, 220px) minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   height: 100vh;
   width: 100%;
 }
 
 .home-layout > .right-brand {
-  grid-column: 1 / -1;
+  grid-column: 1;
   grid-row: 1;
 }
 
-.home-layout > .left-panel,
-.home-layout > .right-panel {
+/* Menu + buscador en linea, pegado bajo la cabecera. */
+.home-toolbar {
+  grid-column: 1;
   grid-row: 2;
-}
-
-/* ===== LEFT PANEL: sidebar clara ===== */
-.left-panel {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
+  padding: 10px 24px;
   background: var(--surface);
-  border-right: 1px solid var(--border);
-  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+  z-index: 40;
 }
 
-.sidebar-brand-title {
-  font-size: 24px;
-  font-weight: 900;
-  color: var(--brown);
-  letter-spacing: 1px;
-  margin: 0;
+.home-layout > .right-panel {
+  grid-column: 1;
+  grid-row: 3;
+  min-height: 0;
 }
 
+/* ===== LOGOTIPO ===== */
 /* Logotipo: "Buscando" en marron y "Ando" en amarillo canario, plano
    (sin filete ni subrayado). El amarillo casi no contrasta con el
    blanco, pero es marca: WCAG exime a los logotipos de la norma de
    contraste (1.4.3). */
-.sidebar-brand-accent,
 .right-brand-accent {
   color: var(--yellow);
   background: none;
@@ -70,14 +64,6 @@
 .contact-link:hover {
   background: var(--yellow);
   color: var(--ink);
-}
-
-/* ===== MAP IN SIDEBAR ===== */
-.sidebar-map {
-  width: 100%;
-  flex: 1;
-  min-height: 250px;
-  position: relative;
 }
 
 /* ===== RIGHT PANEL ===== */
@@ -512,8 +498,9 @@
 
 /* ===== CONTACT MODAL ===== */
 /*
- * IMPORTANTE: el panel necesita .modal-panel —la MISMA clase que usa el
- * modal de negocio (BusinessModal.jsx)— para heredar fondo blanco,
+ * IMPORTANTE: el panel necesita .modal-panel —la MISMA clase que usaba
+ * el modal de negocio (retirado: la tarjeta abre la ficha completa)—
+ * para heredar fondo blanco,
  * border-radius, sombra y position:relative.
  *
  * Bug real: aquí se usaba .modal-content, un selector que no existe en
@@ -665,25 +652,27 @@
   font-weight: 700;
 }
 
-/* ===== MOBILE: Hide sidebar/map, show mobile search ===== */
-.mobile-search {
-  display: none;
+/* Con el ancho completo (sin barra lateral) la rejilla aprovecha:
+   4 columnas en pantallas anchas (12 por pagina = 3 filas limpias). */
+@media (min-width: 1440px) {
+  .right-results-list,
+  .search-featured-top {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
+/* ===== MOBILE ===== */
 @media (max-width: 768px) {
   .home-layout {
-    /* una sola columna: la barra izquierda no existe aqui */
+    /* una sola columna y alto libre: el scroll es del documento */
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
     height: auto;
     min-height: 100vh;
   }
 
-  .left-panel {
-    display: none;
-  }
-
-  .mobile-search {
-    display: block;
+  .home-toolbar {
+    padding: 10px 12px;
   }
 
   .right-panel {

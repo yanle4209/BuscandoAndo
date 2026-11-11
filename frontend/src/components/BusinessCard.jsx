@@ -142,8 +142,8 @@ export default function BusinessCard({ business, onClick, onReport }) {
           {nombreDeEstado(business)}
         </span>
         {/* stopPropagation OBLIGATORIO: toda la tarjeta es clicable y su
-            onClick abre BusinessModal. Sin esto, pulsar "Corregir" abriria
-            los DOS modales a la vez. */}
+            onClick navega a la ficha completa. Sin esto, pulsar "Corregir"
+            dispararia tambien la navegacion. */}
         {onReport && (
           <button
             type="button"

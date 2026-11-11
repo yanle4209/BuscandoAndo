@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import './ImageCarousel.css';
 
 export default function ImageCarousel({ images, autoplay = false, altBase = '' }) {
   const [current, setCurrent] = useState(0);

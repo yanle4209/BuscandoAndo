@@ -214,6 +214,10 @@ class MetricasDeFaseTests(TestCase):
             name='Restaurantes', slug='restaurantes')
         moca = geografia.cabecera_para('Moca', 'Espaillat')
         cls.moca = moca
+        # Misma provincia de fase, municipio que no lo es: la cabecera
+        # de Puñal esta a menos de 30 km de Santiago, y aun asi el punto
+        # tiene que contar como fuera de zona.
+        cls.punal = geografia.cabecera_para('Puñal', 'Santiago')
         cls.negocio = Business.objects.create(
             name='La Receta',
             slug='la-receta',
@@ -243,6 +247,17 @@ class MetricasDeFaseTests(TestCase):
         # El lugar lo dice el padron: ese punto cae en Distrito Nacional
         # (el mapa de la demanda muestra de QUE provincia llegan).
         self.assertEqual(fila.provincia, 'Distrito Nacional')
+        self.assertFalse(UsoDiario.objects.filter(evento='consulta').exists())
+
+    def test_desde_un_municipio_vecino_fuera_de_fase_cuenta_fuera_zona(self):
+        """Puñal es Santiago de provincia, pero no es municipio de fase:
+        no puede colarse como consulta solo por estar cerca de la ciudad."""
+        respuesta = self._consultar(
+            text='receta', lat=self.punal['lat'], lng=self.punal['lng'])
+
+        self.assertEqual(respuesta.status_code, 200)
+        fila = UsoDiario.objects.get(evento='fuera_zona')
+        self.assertEqual(fila.total, 1)
         self.assertFalse(UsoDiario.objects.filter(evento='consulta').exists())
 
     def test_los_ceros_de_fuera_no_ensucian_lo_que_falta_levantar(self):

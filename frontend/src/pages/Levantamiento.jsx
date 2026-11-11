@@ -35,6 +35,11 @@ const normal = (texto) => (texto || '')
   .replace(/[^a-z0-9]+/g, ' ')
   .trim();
 
+// La firma de CADA peticion de la herramienta, en un solo sitio: si el
+// dia de manana cambia el nombre de la cabecera, se cambia aqui y no en
+// las siete llamadas repartidas por el archivo.
+const cabeceraToken = (t, extra = {}) => ({ 'X-Colaborador-Token': t, ...extra });
+
 // Los siete dias, SIEMPRE en pantalla, igual que en el formulario de
 // creacion del negocio: lo que ya se sabe del horario se coloca solo y
 // lo que falta queda vacio esperando. Un mismo dia con dos franjas
@@ -234,12 +239,12 @@ export default function Levantamiento() {
             municipio: municipioVisto,
             ...(categoria ? { categoria } : {}),
           },
-          headers: { 'X-Colaborador-Token': t },
+          headers: cabeceraToken(t),
         }).then((r) => ({ ok: true, data: r.data })).catch(() => ({ ok: false }))
       : null;
 
     const { data } = await api.get('/pendientes/', {
-      headers: { 'X-Colaborador-Token': t },
+      headers: cabeceraToken(t),
     });
     if (!Array.isArray(data)) {
       if (vivo()) {
@@ -288,7 +293,7 @@ export default function Levantamiento() {
           municipio: fila.municipio,
           ...(categoria ? { categoria } : {}),
         },
-        headers: { 'X-Colaborador-Token': t },
+        headers: cabeceraToken(t),
       });
       if (vivo()) {
         setReporte((x) => (x.fila === fila ? { ...x, detalle: r.data, cargando: false } : x));
@@ -353,7 +358,7 @@ export default function Levantamiento() {
           municipio: fila.municipio,
           ...(cat ? { categoria: cat } : {}),
         },
-        headers: { 'X-Colaborador-Token': t },
+        headers: cabeceraToken(t),
       });
       setReporte((x) => (x.fila === fila
         ? { ...x, detalle: r.data, cargando: false }
@@ -373,7 +378,7 @@ export default function Levantamiento() {
       await api.post(
         '/pospuesto/',
         { ficha: id, pospuesto: valor },
-        { headers: { 'X-Colaborador-Token': t } },
+        { headers: cabeceraToken(t) },
       );
       await cargarReporte(t);
     } catch (err) {
@@ -409,7 +414,7 @@ export default function Levantamiento() {
     try {
       const { data } = await api.get('/pendientes/', {
         params: { ficha: id },
-        headers: { 'X-Colaborador-Token': token.trim() },
+        headers: cabeceraToken(token.trim()),
       });
       // Otra persona ya abrio otra ficha mientras esta volaba: lo que
       // llega ahora pertenece a una seleccion que ya no esta en pantalla.
@@ -673,14 +678,13 @@ export default function Levantamiento() {
 
     try {
       const { data } = await api.post('/levantamiento/', fd, {
-        headers: {
-          'X-Colaborador-Token': token.trim(),
+        headers: cabeceraToken(token.trim(), {
           // La instancia manda JSON por defecto: sin avisar, axios
           // convierte el FormData a JSON y las fotos se pierden por el
           // camino. Con esta cabecera pasa el multipart entero y el
           // navegador pone el boundary.
           'Content-Type': 'multipart/form-data',
-        },
+        }),
       });
       // Verde solo cuando el servidor dio la ficha por TERMINADA:
       // publicada y ya sin nada que completar. La publicada con

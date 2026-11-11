@@ -44,16 +44,3 @@ class BusinessHoursInline(admin.TabularInline):
     max_num = 7
     fields = ['day', 'open_time', 'close_time', 'is_closed', 'is_holiday']
     ordering = ['day']
-
-
-class BusinessHoursAdmin(admin.ModelAdmin):
-    list_display = ['business', 'day', 'open_time', 'close_time', 'is_closed', 'is_holiday']
-    list_filter = ['day', 'is_closed', 'is_holiday']
-    raw_id_fields = ['business']
-    list_per_page = 25
-    ordering = ['business', 'day']
-    readonly_fields = ['business']
-
-
-# NO se registra con admin.site -> no aparece en el sidebar
-# Se gestiona como inline dentro de Negocios

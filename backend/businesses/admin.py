@@ -13,7 +13,7 @@ from . import geografia
 from .busqueda import BusquedaAdmin
 from .models import (
     Business, Correction, Colaborador, Envio, Pospuesto,
-    FEATURED_LIMITS, FEATURED_WEEKS_CHOICES,
+    FEATURED_LIMITS,
 )
 from business_locations.models import BusinessLocation
 from business_contacts.models import BusinessContact
