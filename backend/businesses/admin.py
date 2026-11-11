@@ -717,9 +717,11 @@ class ColaboradorAdmin(BusquedaAdmin, admin.ModelAdmin):
     el, sin tocar a los demas — que es justo la propiedad que hizo que se
     eligiera el token de firma en vez de una cuenta.
 
-    El token se puede regenerar desde la ficha (el anterior muere al
-    instante) y la vigencia se controla con `expira_el`: vacio es sin
-    caducidad, y al vencer el token deja de aceptar envios y reportes.
+    El token se puede copiar, regenerar y borrar desde la ficha. Al
+    regenerarlo, el anterior muere al instante; al borrarlo, el
+    colaborador queda sin firma hasta que se le genere otro. La vigencia
+    se controla con `expira_el`: vacio es sin caducidad, y al vencer el
+    token deja de aceptar envios y reportes.
     """
 
     form = ColaboradorForm
@@ -740,7 +742,8 @@ class ColaboradorAdmin(BusquedaAdmin, admin.ModelAdmin):
     search_fields = ['nombre', 'municipio']
     # El token se genera en `save()` y no se teclea: se muestra aqui para
     # poder copiarlo y entregarselo, pero no se puede escribir.
-    readonly_fields = ['token', 'token_creado_el', 'creado_el', 'ultimo_envio']
+    readonly_fields = ['token_acciones', 'token_creado_el', 'creado_el',
+                       'ultimo_envio']
     actions = ['regenerar_tokens', 'bloquear', 'desbloquear']
     fieldsets = [
         (None, {
@@ -761,12 +764,13 @@ class ColaboradorAdmin(BusquedaAdmin, admin.ModelAdmin):
             ),
         }),
         ('Firma', {
-            'fields': ['token', 'token_creado_el'],
+            'fields': ['token_acciones', 'token_creado_el'],
             'description': (
                 'Se entrega tal cual. La herramienta de levantamiento lo '
                 'pide una vez y lo guarda en el navegador. Va en la '
                 'cabecera <code>X-Colaborador-Token</code>, nunca en la URL. '
-                'Regenerarlo invalida el anterior de inmediato.'
+                'Regenerarlo invalida el anterior de inmediato; borrarlo '
+                'deja al colaborador sin firma hasta que se le genere otro.'
             ),
         }),
         ('Actividad', {
@@ -774,12 +778,59 @@ class ColaboradorAdmin(BusquedaAdmin, admin.ModelAdmin):
         }),
     ]
 
+    def token_acciones(self, obj):
+        """El token y sus botones, debajo del token y no al pie del form."""
+        if obj is None:
+            return 'El token se genera al guardar.'
+        if not obj.token:
+            acciones = format_html(
+                '<input type="submit" name="_regenerar_token" '
+                'value="Generar token" class="button">'
+            )
+            return format_html(
+                '<div style="margin-bottom: 10px;">'
+                'Sin token: el colaborador no puede firmar.</div>'
+                '<div style="display: flex; flex-wrap: wrap; gap: 8px; '
+                'align-items: center;">{}</div>',
+                acciones,
+            )
+
+        acciones = format_html(
+            '<input type="submit" name="_regenerar_token" '
+            'value="Regenerar token" class="button" '
+            'onclick="return confirm(\'¿Regenerar el token? El token actual '
+            'dejará de funcionar inmediatamente.\');">'
+            '<input type="submit" name="_borrar_token" '
+            'value="Borrar token" class="button" '
+            'style="background: var(--delete-button-bg); '
+            'color: var(--button-fg);" '
+            'onclick="return confirm(\'¿Borrar el token? El colaborador no '
+            'podrá enviar ni leer hasta que se le genere otro.\');">'
+            '<button type="button" class="button" data-ba-copiar '
+            'data-ba-texto="{}">Copiar token</button>'
+            '<span class="help" data-ba-estado role="status" '
+            'aria-live="polite"></span>',
+            obj.token,
+        )
+        return format_html(
+            '<div style="font-family: ui-monospace, SFMono-Regular, Menlo, '
+            'Consolas, monospace; font-size: 1.05em; word-break: break-all; '
+            'margin-bottom: 10px;">{}</div>'
+            '<div style="display: flex; flex-wrap: wrap; gap: 8px; '
+            'align-items: center;">{}</div>',
+            obj.token,
+            acciones,
+        )
+    token_acciones.short_description = 'Token de firma'
+
     def token_corto(self, obj):
         return (obj.token[:10] + '…') if obj.token else '-'
     token_corto.short_description = 'Token'
     token_corto.admin_order_field = 'token'
 
     def estado_acceso(self, obj):
+        if not obj.token:
+            return 'Sin token'
         if not obj.activo:
             return 'Bloqueado'
         if obj.expira_el and obj.expira_el <= timezone.now():
@@ -805,13 +856,25 @@ class ColaboradorAdmin(BusquedaAdmin, admin.ModelAdmin):
     regenerar_tokens.short_description = 'Regenerar token de los seleccionados'
 
     def response_change(self, request, obj):
-        """Atiende el botón «Regenerar token» de la ficha."""
+        """Atiende los botones de token de la ficha."""
         if '_regenerar_token' in request.POST:
+            tenia_token = bool(obj.token)
             obj.regenerar_token()
             self.message_user(
                 request,
-                'Token regenerado. El anterior dejó de funcionar.',
+                ('Token regenerado. El anterior dejó de funcionar.'
+                 if tenia_token else
+                 'Token generado. El colaborador ya puede firmar.'),
                 messages.SUCCESS,
+            )
+            return HttpResponseRedirect(request.get_full_path())
+        if '_borrar_token' in request.POST:
+            obj.borrar_token()
+            self.message_user(
+                request,
+                'Token borrado. El colaborador no podrá enviar ni leer '
+                'hasta que se le genere otro.',
+                messages.WARNING,
             )
             return HttpResponseRedirect(request.get_full_path())
         return super().response_change(request, obj)

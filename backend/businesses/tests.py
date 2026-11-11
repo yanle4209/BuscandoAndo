@@ -1460,6 +1460,18 @@ class ReportePendientesTests(TestCase):
 
         self.assertEqual(response.status_code, 401)
 
+    def test_un_colaborador_sin_token_no_lee(self):
+        """Borrar el token cierra el canal sin borrar al colaborador."""
+        colab = self.colaborador()
+        viejo = colab.token
+        colab.borrar_token()
+
+        response = self.client.get(
+            PENDIENTES_URL, headers={'X-Colaborador-Token': viejo},
+        )
+
+        self.assertEqual(response.status_code, 401)
+
     def test_un_colaborador_con_vigencia_futura_lee(self):
         colab = self.colaborador()
         colab.expira_el = timezone.now() + datetime.timedelta(days=1)
@@ -2597,6 +2609,21 @@ class CanalDeEnvioTests(TestCase):
         self.assertNotEqual(nuevo, viejo)
         self.assertEqual(self.colaborador.token, nuevo)
         self.assertEqual(self.enviar(token=viejo).status_code, 401)
+        self.assertEqual(self.enviar(token=nuevo).status_code, 201)
+
+    def test_borrar_el_token_cierra_el_canal(self):
+        viejo = self.colaborador.token
+        self.colaborador.borrar_token()
+
+        response = self.enviar(token=viejo)
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(Business.objects.count(), 0)
+
+    def test_regenerar_despues_de_borrar_vuelve_a_dar_acceso(self):
+        self.colaborador.borrar_token()
+        nuevo = self.colaborador.regenerar_token()
+
         self.assertEqual(self.enviar(token=nuevo).status_code, 201)
 
     def test_bloquear_a_uno_no_cierra_el_canal_a_los_demas(self):
@@ -3914,7 +3941,7 @@ class ColaboradorVigenciaAdminTests(TestCase):
         cls.colaborador = Colaborador.objects.create(
             nombre='Pedro', municipio='Moca')
 
-    def test_la_ficha_muestra_vigencia_y_el_boton_de_regenerar(self):
+    def test_las_acciones_del_token_estan_debajo_del_token(self):
         self.client.force_login(self.admin)
 
         html = self.client.get(
@@ -3922,8 +3949,18 @@ class ColaboradorVigenciaAdminTests(TestCase):
         ).content.decode()
 
         self.assertIn('Acceso válido hasta', html)
-        self.assertIn('name="_regenerar_token"', html)
-        self.assertIn('Regenerar token', html)
+        self.assertEqual(html.count('name="_regenerar_token"'), 1)
+        self.assertIn('name="_borrar_token"', html)
+        self.assertIn('data-ba-copiar', html)
+        self.assertIn(
+            f'data-ba-texto="{self.colaborador.token}"', html)
+
+        posicion_token = html.index(self.colaborador.token)
+        self.assertLess(
+            posicion_token, html.index('name="_regenerar_token"'))
+        self.assertLess(
+            posicion_token, html.index('name="_borrar_token"'))
+        self.assertLess(posicion_token, html.index('data-ba-copiar'))
 
     def test_el_boton_regenera_el_token(self):
         viejo = self.colaborador.token
@@ -3948,6 +3985,66 @@ class ColaboradorVigenciaAdminTests(TestCase):
         self.colaborador.refresh_from_db()
         self.assertNotEqual(self.colaborador.token, viejo)
         self.assertIsNotNone(self.colaborador.token_creado_el)
+
+    def test_el_boton_borra_el_token(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            f'{self.URL}{self.colaborador.pk}/change/',
+            {
+                'nombre': self.colaborador.nombre,
+                'municipio': self.colaborador.municipio,
+                'activo': 'on',
+                'expira_el': '',
+                'expira_el_0': '',
+                'expira_el_1': '',
+                '_borrar_token': 'Borrar token',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.colaborador.refresh_from_db()
+        self.assertIsNone(self.colaborador.token)
+        self.assertIsNone(self.colaborador.token_creado_el)
+
+    def test_guardar_despues_de_borrar_no_regenera_el_token(self):
+        self.colaborador.borrar_token()
+        self.colaborador.nombre = 'Pedro actualizado'
+        self.colaborador.save()
+
+        self.colaborador.refresh_from_db()
+        self.assertIsNone(self.colaborador.token)
+        self.assertIsNone(self.colaborador.token_creado_el)
+
+    def test_el_boton_genera_token_si_no_habia(self):
+        self.colaborador.borrar_token()
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            f'{self.URL}{self.colaborador.pk}/change/',
+            {
+                'nombre': self.colaborador.nombre,
+                'municipio': self.colaborador.municipio,
+                'activo': 'on',
+                'expira_el': '',
+                'expira_el_0': '',
+                'expira_el_1': '',
+                '_regenerar_token': 'Generar token',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.colaborador.refresh_from_db()
+        self.assertIsNotNone(self.colaborador.token)
+        self.assertIsNotNone(self.colaborador.token_creado_el)
+
+    def test_el_listado_marca_sin_token(self):
+        self.colaborador.borrar_token()
+        self.client.force_login(self.admin)
+
+        html = self.client.get(self.URL).content.decode()
+
+        self.assertIn('Sin token', html)
 
     def test_la_accion_regenera_los_seleccionados(self):
         viejo = self.colaborador.token

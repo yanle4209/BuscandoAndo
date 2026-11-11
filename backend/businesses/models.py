@@ -406,12 +406,16 @@ class Colaborador(models.Model):
         max_length=64,
         unique=True,
         editable=False,
+        null=True, blank=True,
         verbose_name='Token de firma',
+        help_text='Sin token, el colaborador no puede firmar. Se puede '
+                  'regenerar o borrar desde su ficha.',
     )
     token_creado_el = models.DateTimeField(
         null=True, blank=True,
         verbose_name='Token creado el',
-        help_text='Cuándo se generó el token actual. Cambia al regenerarlo.',
+        help_text='Cuándo se generó el token actual. Queda vacío si no hay '
+                  'token. Cambia al regenerarlo.',
     )
     municipio = models.CharField(
         max_length=100, blank=True, default='',
@@ -441,6 +445,8 @@ class Colaborador(models.Model):
         ordering = ['nombre']
 
     def __str__(self):
+        if not self.token:
+            return f'{self.nombre} (sin token)'
         if not self.activo:
             return f'{self.nombre} (bloqueado)'
         if self.expira_el and self.expira_el <= timezone.now():
@@ -455,7 +461,9 @@ class Colaborador(models.Model):
         return self.expira_el is None or self.expira_el > timezone.now()
 
     def save(self, *args, **kwargs):
-        if not self.token:
+        # Solo se genera al crear. Asi «Borrar token» no se deshace al
+        # guardar cualquier otro cambio de la ficha.
+        if self._state.adding and not self.token:
             self.token = _token_nuevo()
             if self.token_creado_el is None:
                 self.token_creado_el = timezone.now()
@@ -467,6 +475,13 @@ class Colaborador(models.Model):
         self.token_creado_el = timezone.now()
         self.save(update_fields=['token', 'token_creado_el'])
         return self.token
+
+    def borrar_token(self):
+        """Deja al colaborador sin firma hasta que se le genere otra."""
+        self.token = None
+        self.token_creado_el = None
+        if not self._state.adding:
+            self.save(update_fields=['token', 'token_creado_el'])
 
 
 class Envio(models.Model):
