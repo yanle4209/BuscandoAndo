@@ -1,16 +1,11 @@
 /* ============================================================
-   Tarjeta de negocio — BuscandoAndo
+   Tarjeta de negocio — estilo Páginas Amarillas modernizado
    ------------------------------------------------------------
-   - PORTADA (foto real o placeholder) arriba, ~50% de la altura:
-     en TODAS las tarjetas (bento de la portada y resultados): la
-     portada ocupa media tarjeta y la imagen recorta a rellenar
-     (object-fit: cover).
-   - La bento de la portada usa la MISMA portada que los resultados.
-     (antes iba sin foto, con banda amarilla y sin carrusel).
-   - PIE: banda crema (#fffdf7), sin filete amarillo.
-   - Hover sin aro amarillo: elevacion suave estilo Colorlib Card V14.
-   - Sin escalonado por nivel: todas las tarjetas se elevan un
-     poco al pasar el cursor; las destacadas, un poco mas.
+   - IMAGEN arriba, SIEMPRE limpia (sin velo ni texto encima).
+   - NOMBRE debajo de la imagen, como título de la ficha.
+   - Teléfono prominente: en un directorio es el dato estrella.
+   - Pie con estado + botón Corregir, sobre banda crema.
+   - Hover: elevación suave (Colorlib Card V14).
    ============================================================ */
 
 .biz-card {
@@ -18,19 +13,17 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 0;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow: hidden;
   min-height: 340px;
 }
 
-/* Hover: el mismo efecto que la muestra (Colorlib Card V14): la
-   tarjeta se eleva 4px con una sombra suave y difusa. Sin aro
-   amarillo ni cambio de borde. */
+/* Hover: elevacion suave. Sin aro amarillo ni cambio de borde. */
 .biz-card:hover {
   box-shadow:
     0 1px 2px rgba(15, 28, 46, 0.06),
@@ -38,31 +31,27 @@
   transform: translateY(-4px);
 }
 
-/* ===== PORTADA =====
-   Alto = 50% de la tarjeta (340px -> 170px): ni la foto ni el
-   carrusel cambian la altura del conjunto. A sangre, con las
-   esquinas redondeadas como la tarjeta. */
+/* ===== IMAGEN (arriba, limpia) =====
+   Alto fijo para que ni la foto ni el carrusel cambien la altura
+   del conjunto. A sangre, con las esquinas de arriba redondas. */
 .biz-card__cover {
   position: relative;
-  height: 50%;
+  height: 170px;
   min-height: 170px;
   flex-shrink: 0;
-  margin: -12px -14px 8px;
-  background: var(--brown);
+  background: #f5f4ec;
   border-radius: 11px 11px 0 0;
   overflow: hidden;
+  border-bottom: 1px solid var(--border);
 }
 
-/* Placeholder: fondo blanco con la marca tenue (50% de opacidad).
-   El marron oscuro de antes pesaba demasiado a la vista. La marca
-   sube un poco para no chocar con la banda inferior del velo. */
+/* Placeholder sin foto: fondo claro con la marca tenue. */
 .biz-card__cover-ph {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-bottom: 28px;
   background: #ffffff;
 }
 
@@ -71,7 +60,6 @@
   font-weight: 800;
   letter-spacing: 1px;
   color: var(--brown);
-  /* Transparencia del 50%: la marca acompana sin gritar. */
   opacity: 0.5;
 }
 
@@ -80,95 +68,62 @@
   font-weight: 800;
 }
 
-/* Velo para que el nombre se lea sobre cualquier foto */
-.biz-card__cover-veil {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    to top,
-    rgba(28, 21, 4, 0.9) 0%,
-    rgba(28, 21, 4, 0.62) 42%,
-    rgba(28, 21, 4, 0.12) 100%
-  );
-}
-
-/* Portada SIN foto: el velo solo oscurece la banda inferior, para que
-   el fondo blanco de arriba se quede blanco. El nombre y la categoria
-   siguen en blanco sobre esa banda, igual que con foto. */
-.biz-card__cover--sin-foto .biz-card__cover-veil {
-  background: linear-gradient(
-    to top,
-    rgba(28, 21, 4, 0.92) 0%,
-    rgba(28, 21, 4, 0.9) 22%,
-    rgba(28, 21, 4, 0) 48%
-  );
-}
-
-.biz-card__cover-titles {
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 8px;
-  z-index: 2;
+/* ===== CUERPO (debajo de la imagen) =====
+   Padding propio; el nombre vive aqui, no sobre la foto. */
+.biz-card__body {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-
-/* ===== Segunda linea (dentro de la portada) ===== */
-/* Segunda linea: categoria a la izquierda, pastillas a la derecha */
-.biz-card__meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 6px;
+  padding: 12px 14px 8px;
   min-width: 0;
 }
 
-/* Nombre: UNA linea con puntos si no cabe. Siempre sobre la portada
-   (velo marron) -> blanco. */
+/* Cabecera del cuerpo: nombre a la izquierda, pastilla a la derecha. */
+.biz-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Nombre: UNA linea con puntos si no cabe. Título debajo de la foto. */
 .biz-card__name {
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 16px;
-  font-weight: 700;
-  line-height: 1.2;
-  color: #ffffff;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--brown);
+  letter-spacing: 0.2px;
 }
 
-/* Categoria / siglas de la segunda linea */
-.biz-card__siglas {
-  flex: 0 1 auto;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* Categoria: etiqueta tipo directorio, debajo del nombre. */
+.biz-card__category {
+  display: inline-block;
+  align-self: flex-start;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
   line-height: 1.2;
-  color: var(--yellow);
+  color: var(--yellow-ink);
+  background: rgba(251, 191, 36, 0.14);
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
-.biz-card__badges {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-/* Destacado: la unica pastilla de nivel. Blanca, texto dorado
-   (#8f6c14, 4,9:1 sobre blanco). */
+/* Destacado: pastilla blanca con borde, texto dorado legible. */
 .biz-card__badge {
   background: #ffffff;
   border: 1px solid rgba(31, 26, 26, 0.15);
   color: #8f6c14;
   font-size: 9px;
   font-weight: 700;
-  padding: 1px 6px;
+  padding: 2px 7px;
   border-radius: 5px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -176,31 +131,26 @@
   white-space: nowrap;
 }
 
-/* La descripcion absorbe el aire de las tarjetas cortas: la rejilla
-   estira todas las tarjetas de la fila a la altura de la mas alta, y
-   sin esto una tarjeta con pocos datos dejaba un hueco blanco entre
-   la ultima fila y el pie. Con flex:1 el sobrante se queda dentro de
-   la caja de la descripcion (el pie sigue pegado abajo por el
-   margin:auto de .biz-card__footer) y la tarjeta se ve llena. */
+/* Descripcion: absorbe el aire de las tarjetas cortas. */
 .biz-card__desc {
   flex: 1 1 auto;
   font-size: 12px;
   color: #544f47;
-  margin-bottom: 6px;
-  line-height: 1.3;
+  line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  margin: 0;
 }
 
+/* ===== FILAS DE DATOS (dirección, mapa, WhatsApp) ===== */
 .biz-card__row {
   display: flex;
   align-items: center;
   gap: 5px;
   font-size: 11px;
   color: #423e38;
-  margin-bottom: 2px;
 }
 
 .biz-card__row svg {
@@ -211,6 +161,9 @@
 .biz-card__row a {
   color: #423e38;
   text-decoration: none;
+  /* Objetivo minimo de 24 px (WCAG 2.5.8). */
+  display: inline-block;
+  padding: 4px 0;
 }
 
 .biz-card__row a:hover {
@@ -241,15 +194,54 @@
   }
 }
 
-/* ===== PIE: banda crema #fffdf7, sin filete amarillo arriba ===== */
+/* ===== TELÉFONO PROMINENTE =====
+   El dato estrella del directorio: banda suave con el número en
+   grande y en negrita, fácil de leer de un vistazo. */
+.biz-card__phone {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 2px;
+  padding: 7px 10px;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 8px;
+}
+
+.biz-card__phone svg {
+  color: var(--yellow-ink);
+  flex-shrink: 0;
+}
+
+.biz-card__phone-nums {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--brown);
+  letter-spacing: 0.3px;
+  min-width: 0;
+}
+
+.biz-card__phone-nums a {
+  color: var(--brown);
+  text-decoration: none;
+  display: inline-block;
+  padding: 2px 0;
+}
+
+.biz-card__phone-nums a:hover {
+  color: var(--yellow-ink);
+}
+
+/* ===== PIE: banda crema con estado + Corregir ===== */
 .biz-card__footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: auto -14px -12px;
+  margin-top: auto;
   padding: 9px 14px;
   background: #fffdf7;
-  border-radius: 0 0 11px 11px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .biz-card__status {
@@ -262,20 +254,14 @@
   letter-spacing: 0.3px;
 }
 
-/* Pastillas de color: verde (abierto), rojizo (cerrado) y anaranjado
-   (por horario). Relleno solido con texto blanco (contraste AA,
-   >= 4.8:1) y mismo lenguaje de colores que Android. */
+/* Pastillas de color: verde (abierto), rojizo (cerrado), anaranjado
+   (por horario). Relleno solido con texto blanco (contraste AA). */
 .biz-card__status--abierto { background: #15803d; border-color: #15803d; color: #ffffff; }
 .biz-card__status--cerrado { background: #dc2626; border-color: #dc2626; color: #ffffff; }
 .biz-card__status--por-horario { background: #c2410c; border-color: #c2410c; color: #ffffff; }
 .biz-card__status--default { background: #ffffff; border-color: rgba(31, 26, 26, 0.25); color: #544f47; }
 
-/* ===== BOTON "CORREGIR" =====
-   Relleno #e6e2da (tono pedido) sobre el pie crema, SIN borde: es un
-   <button>, asi que hay que poner border: none (si solo se quita la
-   linea amarilla queda el borde por defecto del navegador).
-   Con el fondo claro el texto es marron, porque el dorado no llega
-   a 4.5:1 sobre ese fondo. */
+/* ===== BOTON "CORREGIR" ===== */
 .biz-card__fix {
   background: #e6e2da;
   border: none;
@@ -301,120 +287,9 @@
   outline-offset: 2px;
 }
 
-/* ===== CARRUSEL =====
-   Base: bloque al final del cuerpo (se usa poco: en resultados el
-   carrusel vive dentro de la portada). */
-.biz-card__images {
-  margin-top: 6px;
-  border-radius: 8px;
-  position: relative;
-  flex-shrink: 0;
-}
-
-.biz-card__images-viewport {
-  overflow: hidden;
-  border-radius: 8px;
-  height: 140px;
-}
-
-.biz-card__images-track {
-  display: flex;
-  flex-direction: row;
-  transition: transform 0.3s ease;
-  height: 100%;
-}
-
-.biz-card__images-track img {
-  width: 100%;
-  min-width: 100%;
-  height: 140px;
-  object-fit: cover;
-  flex-shrink: 0;
-  display: block;
-}
-
-.biz-card__images-nav {
-  display: flex;
-  justify-content: center;
-  gap: 0;
-  margin-top: 4px;
-}
-
-/* Punto del carrusel: el BOTON mide 24x24 (WCAG 2.5.8, objetivo
-   minimo de 24 px — Lighthouse lo marcaba) y el punto de siempre se
-   pinta dentro con ::after. Mismo dibujo, dedo que acierta. */
-.biz-card__images-dot {
-  width: 24px;
-  height: 24px;
-  border: none;
-  padding: 0;
-  background: transparent;
-  position: relative;
-  cursor: pointer;
-}
-
-.biz-card__images-dot::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #7d7768;
-  transition: all 0.2s;
-}
-
-.biz-card__images-dot--active::after {
-  background: var(--brown);
-  width: 16px;
-  border-radius: 3px;
-}
-
-/* Los enlaces de telefono/WhatsApp de la fila median 17 px de alto y
-   no cumplian el objetivo minimo de 24 px (WCAG 2.5.8; Lighthouse los
-   marcaba). Padding y no height, para no tocar la tipografia. */
-.biz-card__row a {
-  display: inline-block;
-  padding: 4px 0;
-}
-
-.biz-card__images-arrows {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  transform: translateY(-50%);
-  display: flex;
-  justify-content: space-between;
-  padding: 0 6px;
-  pointer-events: none;
-  z-index: 3;
-}
-
-.biz-card__images-arrow {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.6);
-  border: none;
-  color: #fff;
-  font-size: 12px;
-  cursor: pointer;
-  pointer-events: all;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s;
-}
-
-.biz-card__images-arrow:hover {
-  background: var(--brown);
-  color: #fff;
-}
-
-/* Variante PORTADA: el carrusel llena la cabecera de la tarjeta */
+/* ===== CARRUSEL (ajustes contextuales) =====
+   Los estilos base viven en ImageCarousel.css (compartido).
+   Aqui solo lo que cambia dentro de la portada de la tarjeta. */
 .biz-card__cover .biz-card__images {
   position: absolute;
   inset: 0;
@@ -431,6 +306,7 @@
   height: 100%;
 }
 
+/* Puntos y flechas del carrusel: en la imagen, sin nav inferior. */
 .biz-card__cover .biz-card__images-nav {
   position: absolute;
   left: 0;
@@ -452,17 +328,21 @@
 
 /* ===== MOBILE ===== */
 @media (max-width: 768px) {
-  .biz-card {
-    padding: 14px 16px;
+  .biz-card__cover {
+    height: 180px;
+    min-height: 180px;
   }
 
-  .biz-card__cover {
-    margin: -14px -16px 8px;
+  .biz-card__body {
+    padding: 12px 16px 8px;
   }
 
   .biz-card__footer {
-    margin: auto -16px -14px;
     padding: 9px 16px;
+  }
+
+  .biz-card__name {
+    font-size: 17px;
   }
 
   .biz-card__desc {
@@ -472,17 +352,9 @@
 
   .biz-card__row {
     font-size: 12px;
-    margin-bottom: 4px;
   }
 
-  .biz-card__images-viewport,
-  .biz-card__images-track img {
-    height: 100px;
-  }
-
-  .biz-card__images-arrow {
-    width: 24px;
-    height: 24px;
-    font-size: 14px;
+  .biz-card__phone-nums {
+    font-size: 15px;
   }
 }

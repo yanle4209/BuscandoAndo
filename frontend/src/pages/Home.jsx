@@ -902,9 +902,11 @@ export default function Home() {
                   Array.from({ length: POR_PAGINA }, (_, i) => (
                     <div className="skeleton-card" key={`skeleton-${i}`} aria-hidden="true">
                       <div className="skeleton-card__cover" />
-                      <div className="skeleton-card__line skeleton-card__line--title" />
-                      <div className="skeleton-card__line" />
-                      <div className="skeleton-card__line skeleton-card__line--short" />
+                      <div className="skeleton-card__body">
+                        <div className="skeleton-card__line skeleton-card__line--title" />
+                        <div className="skeleton-card__line" />
+                        <div className="skeleton-card__line skeleton-card__line--short" />
+                      </div>
                       <div className="skeleton-card__footer" />
                     </div>
                   ))
