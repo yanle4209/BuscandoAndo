@@ -143,9 +143,9 @@
 .right-results-list {
   padding: 0;
   display: grid;
-  /* 4 columnas SIEMPRE (peticion del usuario):12 por pagina = 3 filas
-     limpias. En movil (<=768px) manda su propio media query (1fr). */
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* 5 columnas SIEMPRE (peticion del usuario:4 seguian quedando anchas):
+    12 por pagina. En movil (<=768px) manda su propio media query (1fr). */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   /* Suelo de fila = alto real de UNA tarjeta normal (min-height 340 +
      bordes/contenido). Sin él, las filas que solo contienen destacados
      (span 2) encogen a su propio contenido y el destacado NO mide dos
