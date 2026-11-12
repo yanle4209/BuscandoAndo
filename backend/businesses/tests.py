@@ -3,7 +3,7 @@
 Cubren los dos puntos que usa la app (web y Android):
 
 * ``GET /api/businesses/featured-by-search/`` -> hasta 3 destacados activos
-  que coincidan con la busqueda, del mejor nivel al peor.
+  que coincidan con la busqueda, UNO POR CATEGORIA (mejor nivel primero).
 * ``GET /api/businesses/?featured=true``     -> destacados ordenados por nivel.
 
 Historial: ambos endpoints filtraban por ``'large'/'medium'/'small'`` (tiers
@@ -22,6 +22,7 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db import connection
@@ -267,13 +268,14 @@ class FeaturedApiTests(TestCase):
         cls.category = Category.objects.create(name='Restaurantes', slug='restaurantes')
         cls.op_status = OperationalStatus.objects.create(name='Abierto', slug='abierto')
 
-    def make_business(self, name, tier=None, *, featured=True, publication_status=None):
+    def make_business(self, name, tier=None, *, featured=True,
+                      publication_status=None, category=None):
         """Crea un negocio ya destacado (o no) y lo devuelve."""
         biz = Business.objects.create(
             name=name,
             description=f'Descripcion de {name}',
             short_description=name,
-            category=self.category,
+            category=category or self.category,
             publication_status=publication_status or self.publicado,
             operational_status=self.op_status,
             is_featured=featured,
@@ -293,21 +295,45 @@ class FeaturedApiTests(TestCase):
     # ------------------------------------------------------------------
     def test_featured_by_search_usa_los_tiers_nuevos(self):
         """Los tiers '1'..'4' deben encontrar; los antiguos 'large' no."""
+        # Una categoria por negocio: la seleccion es UNO POR CATEGORIA
+        # (hasta 3), asi que con la misma solo entraria el mejor nivel.
         for tier in ['4', '3', '2', '1']:
-            self.make_business(f'Negocio Nivel {tier}', tier)
+            cat = Category.objects.create(
+                name=f'Nivel {tier}', slug=f'nivel-{tier}',
+            )
+            self.make_business(f'Negocio Nivel {tier}', tier, category=cat)
 
         data = self.client.get(FEATURED_BY_SEARCH_URL, {'text': 'Negocio'}).json()
 
         self.assertEqual([b['featured_tier'] for b in data], ['1', '2', '3'])
 
     def test_featured_by_search_devuelve_como_maximo_tres(self):
+        # Cuatro categorias distintas: sin la regla de una por categoria
+        # estos cuatro serian cuatro niveles de la misma y solo contaria
+        # el tope de tres.
         for tier in ['1', '2', '3', '4']:
-            self.make_business(f'Negocio Nivel {tier}', tier)
+            cat = Category.objects.create(
+                name=f'Techo {tier}', slug=f'techo-{tier}',
+            )
+            self.make_business(f'Negocio Nivel {tier}', tier, category=cat)
 
         data = self.client.get(FEATURED_BY_SEARCH_URL, {'text': 'Negocio'}).json()
 
         self.assertEqual(len(data), 3)
         self.assertNotIn('4', [b['featured_tier'] for b in data])
+
+    def test_un_destacado_por_categoria(self):
+        """Una categoria no tapa a la otra: un espacio por categoria."""
+        tiendas = Category.objects.create(name='Tiendas', slug='tiendas-feat')
+        self.make_business('Restaurante Destacado', '1')
+        self.make_business('Tienda Destacada', '1', category=tiendas)
+
+        data = self.client.get(FEATURED_BY_SEARCH_URL, {'text': 'Destacado'}).json()
+
+        self.assertEqual(
+            sorted(b['category_name'] for b in data),
+            ['Restaurantes', 'Tiendas'],
+        )
 
     def test_featured_by_search_sin_filtros_devuelve_vacio(self):
         """Sin texto/ciudad/categoria no hay criterio de busqueda -> []."""
@@ -405,12 +431,13 @@ class RadioDeBusquedaTests(TestCase):
         cls.category = Category.objects.create(name='Restaurantes', slug='restaurantes')
         cls.op_status = OperationalStatus.objects.create(name='Abierto', slug='abierto')
 
-    def make_business(self, name, lat, lng, *, tier=None, featured=True):
+    def make_business(self, name, lat, lng, *, tier=None, featured=True,
+                      category=None):
         biz = Business.objects.create(
             name=name,
             description=f'Descripcion de {name}',
             short_description=name,
-            category=self.category,
+            category=category or self.category,
             publication_status=self.publicado,
             operational_status=self.op_status,
             is_featured=featured,
@@ -480,8 +507,11 @@ class RadioDeBusquedaTests(TestCase):
 
     def test_featured_by_search_sin_coordinadas_no_se_recorta(self):
         """Sin lat/lng el endpoint se comporta como siempre."""
+        # Categorias distintas: la seleccion es una por categoria.
+        otra = Category.objects.create(name='Tiendas', slug='tiendas-radio')
         self.make_business('Destacado Cerca', 19.4000, MOCA_LNG, tier='1')
-        self.make_business('Destacado Lejos', 19.4500, MOCA_LNG, tier='2')
+        self.make_business('Destacado Lejos', 19.4500, MOCA_LNG, tier='2',
+                           category=otra)
 
         data = self.client.get(FEATURED_BY_SEARCH_URL, {'text': 'Destacado'}).json()
 
@@ -803,12 +833,13 @@ class FiltroCityTests(TestCase):
         cls.categoria = Category.objects.create(name='Restaurantes', slug='restaurantes')
         cls.op_status = OperationalStatus.objects.create(name='Abierto', slug='abierto')
 
-    def make_business(self, name, municipio, *, featured=False, tier='2'):
+    def make_business(self, name, municipio, *, featured=False, tier='2',
+                      category=None):
         biz = Business.objects.create(
             name=name,
             description=f'Descripcion de {name}',
             short_description=name,
-            category=self.categoria,
+            category=category or self.categoria,
             publication_status=self.publicado,
             operational_status=self.op_status,
             is_featured=featured,
@@ -836,11 +867,13 @@ class FiltroCityTests(TestCase):
         self.assertEqual(data['count'], 2, 'city no debe recortar nada')
 
     def test_los_destacados_tambien_lo_ignoran(self):
-        # Niveles distintos: featured-by-search coge UNO por nivel
-        # (`.first()` dentro de cada tier), asi que dos en el mismo
-        # solo dejarian ver uno y el test no estaria mirando `city`.
+        # Categorias distintas: featured-by-search coge UNO POR CATEGORIA,
+        # asi que dos en la misma solo dejarian ver uno y el test no
+        # estaria mirando `city`.
+        otra = Category.objects.create(name='Tiendas', slug='tiendas-city')
         self.make_business('De Moca', 'Moca', featured=True, tier='2')
-        self.make_business('De Santiago', 'Santiago de los Caballeros', featured=True, tier='3')
+        self.make_business('De Santiago', 'Santiago de los Caballeros',
+                           featured=True, tier='3', category=otra)
 
         data = self.client.get(
             FEATURED_BY_SEARCH_URL, {'city': 'Moca', 'text': 'De '}
@@ -851,8 +884,9 @@ class FiltroCityTests(TestCase):
             ['De Moca', 'De Santiago'],
         )
 
-    def test_por_nivel_se_coge_solo_uno(self):
-        """Dos nivel 2 -> solo sale uno; la mezcla es de niveles, no de filas."""
+    def test_por_categoria_se_coge_solo_uno(self):
+        """Dos en la misma categoria -> solo sale uno; la mezcla es de
+        categorias (un espacio por categoria y municipio), no de filas."""
         self.make_business('De Moca', 'Moca', featured=True, tier='2')
         self.make_business('De Santiago', 'Santiago de los Caballeros', featured=True, tier='2')
 
@@ -865,6 +899,107 @@ class FiltroCityTests(TestCase):
         self.make_business('De Moca', 'Moca', featured=True)
 
         self.assertEqual(self.client.get(FEATURED_BY_SEARCH_URL).json(), [])
+
+
+class EspacioDestacadoTests(TestCase):
+    """1 destacado por categoria y municipio: el espacio que se vende.
+
+    El tope antiguo (3 por nivel y categoria, GLOBAL) se retiro: con el,
+    tres restaurantes agotaban el inventario en todo el pais y nadie podia
+    comprar el espacio de su municipio. Ahora el hueco es (categoria,
+    municipio): cada municipio tiene un espacio por categoria en venta, un
+    hueco ocupado no se vende dos veces y, si el destacado caduca, el
+    hueco se libera solo.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(name='Publicado', slug='publicado')
+        cls.op_status = OperationalStatus.objects.create(name='Abierto', slug='abierto')
+        cls.restaurantes = Category.objects.create(name='Restaurantes', slug='restaurantes')
+        cls.tiendas = Category.objects.create(name='Tiendas', slug='tiendas')
+
+    def make(self, nombre, *, categoria, municipio='Moca', destacado=True,
+             tier='1', permanente=True, fin=None):
+        biz = Business.objects.create(
+            name=nombre,
+            description=f'Descripcion de {nombre}',
+            short_description=nombre,
+            category=categoria,
+            publication_status=self.publicado,
+            operational_status=self.op_status,
+            is_featured=destacado,
+            featured_tier=tier,
+            featured_permanent=permanente,
+            featured_end_date=fin,
+        )
+        if municipio is not None:
+            BusinessLocation.objects.create(
+                business=biz, municipality=municipio, province='Espaillat',
+                latitude=MOCA_LAT, longitude=MOCA_LNG,
+            )
+        return biz
+
+    def test_no_dos_en_la_misma_categoria_y_municipio(self):
+        self.make('Uno', categoria=self.restaurantes)
+        otro = self.make('Dos', categoria=self.restaurantes, destacado=False)
+        otro.is_featured = True
+        otro.featured_tier = '2'
+
+        with self.assertRaises(ValidationError) as fallo:
+            otro.clean()
+
+        self.assertIn('Espacio ocupado', str(fallo.exception))
+
+    def test_categorias_distintas_caben_en_el_mismo_municipio(self):
+        self.make('Restaurante', categoria=self.restaurantes)
+        otro = self.make('Tienda', categoria=self.tiendas)
+
+        otro.clean()  # no debe lanzar: es otro espacio
+
+    def test_municipios_distintos_caben_en_la_misma_categoria(self):
+        self.make('De Moca', categoria=self.restaurantes, municipio='Moca')
+        otro = self.make('De Santiago', categoria=self.restaurantes,
+                         municipio='Santiago de los Caballeros')
+
+        otro.clean()  # no debe lanzar: otro municipio, otro espacio
+
+    def test_si_el_anterior_caduco_el_hueco_se_libera(self):
+        viejo = self.make('Viejo', categoria=self.restaurantes)
+        viejo.featured_permanent = False
+        viejo.featured_end_date = timezone.now() - datetime.timedelta(days=1)
+        viejo.save()
+
+        nuevo = self.make('Nuevo', categoria=self.restaurantes)
+
+        nuevo.clean()  # no debe lanzar: el caducado ya no ocupa
+
+    def test_al_editar_no_se_cuenta_a_si_mismo(self):
+        biz = self.make('Unico', categoria=self.restaurantes)
+
+        biz.clean()  # no debe lanzar: excluirse a si mismo
+
+    def test_sin_ubicacion_comparte_el_hueco_sin_municipio(self):
+        self.make('Sin municipio A', categoria=self.restaurantes,
+                  municipio=None)
+        otro = self.make('Sin municipio B', categoria=self.restaurantes,
+                         municipio=None)
+
+        with self.assertRaises(ValidationError):
+            otro.clean()
+
+    def test_la_ubicacion_tambien_valida_el_hueco(self):
+        """El alta entra como inline: ahi el negocio ya esta enlazado."""
+        self.make('Primero', categoria=self.restaurantes)  # ocupa Moca
+        segundo = self.make('Segundo', categoria=self.restaurantes,
+                            municipio=None)
+
+        loc = BusinessLocation(
+            business=segundo, municipality='Moca', province='Espaillat',
+            latitude=MOCA_LAT, longitude=MOCA_LNG,
+        )
+        with self.assertRaises(ValidationError):
+            loc.clean()
 
 
 class CabecerasApiTests(TestCase):
@@ -4332,6 +4467,7 @@ def _datos_del_formulario_admin(client, url):
     return datos
 
 
+@override_settings(STORAGES=STATIC_SIN_MANIFEST)
 class SlugEditableConRedireccion(TestCase):
     """Slug editable en el panel con redireccion 301 del slug anterior.
 
@@ -4493,6 +4629,7 @@ class SlugEditableConRedireccion(TestCase):
             self.client.get('/api/businesses/%s/' % viejo).status_code, 404)
 
 
+@override_settings(STORAGES=STATIC_SIN_MANIFEST)
 class FiltrosDelListadoSeConservan(TestCase):
     """Volver un nivel atras no pierde los filtros del listado.
 

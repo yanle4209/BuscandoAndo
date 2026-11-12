@@ -116,6 +116,11 @@ Principio rector: **si hay resultados disponibles, se enseñan — nunca tapados
 
 - **a1** — fila de destacados solo si **hay destacados que coinciden con la
   búsqueda dentro de 5 km**; si no, no se dibuja.
+- **a2** — **un destacado por categoría y municipio**: es el espacio que se
+  vende. El panel no deja ocupar dos veces el mismo hueco (antes: máx. 3 por
+  nivel y categoría, **global**) y `featured-by-search` devuelve **hasta 3,
+  uno por categoría** (el mejor nivel de cada una). Si el destacado caduca,
+  el hueco se libera solo.
 - **m2** — mapa siempre junto a la lista en escritorio; en móvil **solo cuando
   no hay resultados**.
 - **0 destacadas + 0 normales** → **overlay** sustituyendo a
@@ -170,7 +175,7 @@ web → `a9142b7` Android).
 |---|---|---|
 | 1 | ~~Fuente de cabeceras municipales~~ | ✅ **Resuelta** → `backend/data/cabeceras_municipales.csv` (158 filas). Ver §9. |
 | 2 | ~~Cobertura de datos por municipio~~ | ✅ **Mecanismo completo y verificado** (29/oct/2026): importar → deduplicar (§10-d) → trío → publicar solo; reporte §11.1 funcionando; canal de envío §11.5 funcionando. **Lo que queda es dato, no código**: el 100 % de las fichas en revisión le falta el teléfono. Ver §7.2-medido abajo. |
-| 3 | **Destacados** | Atada al 2, pero **ya se puede marcar**: hay 452 fichas publicadas en FASE1 y solo 5 destacados en total (2 en fase). |
+| 3 | **Destacados** | Atada al 2, pero **ya se puede marcar**: hay 452 fichas publicadas en FASE1 y solo 5 destacados en total (2 en fase). El espacio de venta es **1 por categoría y municipio** (a2). |
 | 4 | ~~Confirmación: destino elegido + reabrir **con GPS** → ¿se reanuda?~~ | ✅ **Verificado en código** (29/oct/2026): **no se reanuda**, R3.6 literal. El municipio guardado **solo se lee** si el GPS falla — `restaurarMunicipio()` se invoca únicamente en los callbacks de error (`Home.jsx` GPS effect); si el GPS responde, el dispatch `'gps'` con `modo === 'espera'` pasa a GPS y el `localStorage` queda sin tocar. En modo destino **restaurado**, la siguiente posición sí cede: a ≤5 km pasa a GPS (R3.1), a >5 km sigue consultando la cabecera. |
 
 ### §7.2-medido — estado real (29/oct/2026, base local: 16.287 fichas)

@@ -16,15 +16,18 @@
 <div class="featured-stats-banner">
   <strong>Destacados:</strong>
   {% for tier, s in featured_stats.items %}
-    {% if tier != 'total' %}
-      <span style="margin-left:12px;padding:3px 10px;border-radius:6px;font-weight:bold;font-size:12px;background:#ffffff;border:1px solid {% if s.count < s.limit %}#87b332{% else %}#dc3545{% endif %};color:{% if s.count < s.limit %}#1a512d{% else %}#b91c1c{% endif %};">
-        {{ s.label }}: {{ s.count }}/{{ s.limit }}
+    {% if tier != 'total' and tier != 'espacios' %}
+      <span style="margin-left:12px;padding:3px 10px;border-radius:6px;font-weight:bold;font-size:12px;background:#ffffff;border:1px solid #87b332;color:#1a512d;">
+        {{ s.label }}: {{ s.count }}
       </span>
     {% endif %}
   {% endfor %}
-  {% with t=featured_stats.total %}
-    <span style="margin-left:12px;padding:3px 10px;border-radius:6px;font-weight:bold;font-size:12px;background:#ffffff;border:1px solid {% if t.count < t.limit %}#87b332{% else %}#dc3545{% endif %};color:{% if t.count < t.limit %}#1a512d{% else %}#b91c1c{% endif %};">
-      {{ t.label }}: {{ t.count }}/{{ t.limit }}
+  {% with t=featured_stats.total e=featured_stats.espacios %}
+    <span style="margin-left:12px;padding:3px 10px;border-radius:6px;font-weight:bold;font-size:12px;background:#ffffff;border:1px solid #87b332;color:#1a512d;">
+      {{ t.label }}: {{ t.count }}
+    </span>
+    <span style="margin-left:12px;padding:3px 10px;border-radius:6px;font-weight:bold;font-size:12px;background:#ffffff;border:1px solid #1a512d;color:#1a512d;">
+      {{ e.label }}: {{ e.count }} · 1 por categoría y municipio
     </span>
   {% endwith %}
 </div>

@@ -31,9 +31,12 @@ export default function HeroCollage({ punto, lugar, onOpen, onVerTodos }) {
     const base = { lat: punto.lat, lng: punto.lng, radius: RADIO_KM };
 
     Promise.all([
-      // Hasta 3 destacados activos dentro del radio, por nivel.
-      api.get('/businesses/featured-by-search/', { params: base })
-        .then(({ data }) => (Array.isArray(data) ? data : []))
+      // Destacados activos dentro del radio, por nivel. Se pide al
+      // listado con `featured=true`: `featured-by-search` exige texto
+      // o categoria (regla a1) y la portada no lleva ninguno, asi que
+      // siempre devolvia [] — la foto de los destacados nunca llegaba.
+      api.get('/businesses/', { params: { featured: true, ...base } })
+        .then(({ data }) => (Array.isArray(data) ? data : data.results || []))
         .catch(() => []),
       // Relleno: los negocios mas recientes de la zona.
       api.get('/businesses/', { params: base })

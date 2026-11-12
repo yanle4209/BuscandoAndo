@@ -12,7 +12,10 @@ import './BusinessCard.css';
  * - Teléfono prominente (en un directorio el teléfono es lo primero).
  * - `is_featured` pinta la pastilla "Destacado".
  */
-export default function BusinessCard({ business, onClick, onReport }) {
+// `featured` (opcional) manda sobre `business.is_featured`: la lista
+// normal del Home la pasa en false para que solo UNA tarjeta por
+// pagina (la del fragmento de destacados) lleve el tratamiento.
+export default function BusinessCard({ business, onClick, onReport, featured }) {
   const loc = business.location || {};
   const contact = business.contact || {};
   const images = business.images || [];
@@ -29,7 +32,7 @@ export default function BusinessCard({ business, onClick, onReport }) {
     business.province || loc.province,
   ].filter(Boolean).join(', ');
 
-  const destacado = Boolean(business.is_featured);
+  const destacado = featured ?? Boolean(business.is_featured);
   const hasImages = images.length > 0;
 
   // Alt descriptivo de las fotos (auditoria D): el campo caption no
@@ -41,7 +44,9 @@ export default function BusinessCard({ business, onClick, onReport }) {
 
   return (
     <div
-      className="biz-card"
+      // `biz-card--featured` es la asa para el tamano de destacado (2 filas
+      // x 1 columna en la rejilla de resultados del Home); solo lo usa Home.
+      className={`biz-card${destacado ? ' biz-card--featured' : ''}`}
       onClick={onClick}
       // La tarjeta entera navega a la ficha completa: sin role/tabIndex,
       // un usuario de teclado o lector de pantalla no llegaria a ninguna

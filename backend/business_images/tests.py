@@ -166,6 +166,7 @@ class ProcesadoDeFotoTests(TestCase):
         self.assertEqual(self.business.images.count(), MAX_IMAGES_PER_BUSINESS)
 
 
+@override_settings(STORAGES=STORAGES_DE_PRUEBA, MEDIA_ROOT=MEDIA_DE_PRUEBA)
 class AyudaDeFotoEnElPanelTests(TestCase):
     """El texto de ayuda de la foto se pinta en el panel.
 

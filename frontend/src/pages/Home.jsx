@@ -548,7 +548,8 @@ export default function Home() {
 
   // ------------------------------------------------------------------
   // Portada: ya no se piden destacados sin buscar (R4.1 retirado); los
-  // destacados solo salen de una busqueda (.search-featured-top). Lo
+  // destacados solo salen de una busqueda (dentro de la rejilla de
+  // resultados). Lo
   // que si se borra es lo que hubiera de una consulta anterior: sin
   // punto activo no hay circulo de 5 km que mostrar.
   // ------------------------------------------------------------------
@@ -719,6 +720,19 @@ export default function Home() {
     && !errorRed
     && businesses.length === 0
     && searchFeatured.length === 0;
+
+  // El destacado del fragmento tambien viene dentro de los resultados
+  // normales (la API lo busca igual): se quita de la lista para que el
+  // mismo negocio no salga repetido en la misma pagina (peticion del
+  // usuario: "solo uno por pagina de resultados").
+  const destacadoMostrado = searchFeatured[0];
+  const esDestacadoMostrado = (biz) => {
+    if (!destacadoMostrado) return false;
+    if (biz.id != null && destacadoMostrado.id != null) {
+      return biz.id === destacadoMostrado.id;
+    }
+    return biz.slug === destacadoMostrado.slug;
+  };
   // Sin punto activo no hay circulo de 5 km que trazar. El overlay es toda
   // la pantalla, asi que tiene que decir ademas como salir de ahi.
   const avisoSinPunto = sinPunto
@@ -806,23 +820,6 @@ export default function Home() {
               <h2>{loading ? 'Buscando...' : `${totalResults} resultado${totalResults !== 1 ? 's' : ''}`}</h2>
             </div>
             <div className="right-results-scroll">
-              {/* 3 Featured by category: solo si hay destacados dentro de los 5 km (a1).
-                  No se pintan mientras carga la busqueda: si no, se veian los
-                  destacados de la consulta anterior saltando por la pantalla. */}
-              {!loading && searchFeatured.length > 0 && (
-                <div className="search-featured-top">
-                  {searchFeatured.map((biz) => (
-                    <BusinessCard
-                      key={biz.id || biz.slug}
-                      business={biz}
-                      onClick={() => abrirFicha(biz)}
-                      onReport={() => setCorrectionBiz(biz)}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Regular results */}
               {/* Esqueleto mientras responde la API: 12 huecos (POR_PAGINA),
                   la misma pagina 3x4 que despues, para que el cambio a los
                   resultados reales no mueva ni un pixel el layout. */}
@@ -840,36 +837,63 @@ export default function Home() {
                       <div className="skeleton-card__footer" />
                     </div>
                   ))
-                ) : errorRed ? (
-                  // La API no contesto. NO es "no hay negocios aqui" y el
-                  // overlay de portada tampoco vale: ese overlay mandaba a
-                  // elegir municipio o activar GPS a alguien que ya lo
-                  // habia hecho y al que simplemente se le cayo la red.
-                  <div className="error-red" role="alert">
-                    <p className="error-red__titulo">
-                      No se pudieron cargar los resultados.
-                    </p>
-                    <p className="error-red__detalle">
-                      Revisa tu conexión a internet y vuelve a intentarlo.
-                    </p>
-                    <button className="error-red__btn" onClick={reintentar}>
-                      Reintentar
-                    </button>
-                  </div>
-                ) : sinResultados ? (
-                  // 0 destacadas + 0 normales -> overlay en vez de
-                  // "No se encontraron negocios" (DISENO.md a1 / m2).
-                  <div className="sin-resultados">
-                    <MapOverlay visible hint={avisoSinPunto} />
-                  </div>
-                ) : businesses.map((biz) => (
-                  <BusinessCard
-                    key={biz.id || biz.slug}
-                    business={biz}
-                    onClick={() => abrirFicha(biz)}
-                    onReport={() => setCorrectionBiz(biz)}
-                  />
-                ))}
+                ) : (
+                  <>
+                    {/* Destacado DENTRO de la rejilla: 1 columna x 2 filas
+                        (grid-row: span 2), es decir, del tamano de dos
+                        tarjetas normales a lo alto (peticion del usuario).
+                        SOLO UNO por pagina de resultados y siempre el
+                        primero de la izquierda (slice(0,1): el primero
+                        que devuelve la API, el de mejor nivel). Solo si
+                        hay destacados que coinciden con la busqueda
+                        dentro de los 5 km (a1); no se pinta mientras
+                        carga, para no ver el de la consulta anterior
+                        saltando. */}
+                    {searchFeatured.slice(0, 1).map((biz) => (
+                      <BusinessCard
+                        key={biz.id || biz.slug}
+                        business={biz}
+                        onClick={() => abrirFicha(biz)}
+                        onReport={() => setCorrectionBiz(biz)}
+                      />
+                    ))}
+
+                    {errorRed ? (
+                      // La API no contesto. NO es "no hay negocios aqui" y el
+                      // overlay de portada tampoco vale: ese overlay mandaba a
+                      // elegir municipio o activar GPS a alguien que ya lo
+                      // habia hecho y al que simplemente se le cayo la red.
+                      <div className="error-red" role="alert">
+                        <p className="error-red__titulo">
+                          No se pudieron cargar los resultados.
+                        </p>
+                        <p className="error-red__detalle">
+                          Revisa tu conexión a internet y vuelve a intentarlo.
+                        </p>
+                        <button className="error-red__btn" onClick={reintentar}>
+                          Reintentar
+                        </button>
+                      </div>
+                    ) : sinResultados ? (
+                      // 0 destacadas + 0 normales -> overlay en vez de
+                      // "No se encontraron negocios" (DISENO.md a1 / m2).
+                      <div className="sin-resultados">
+                        <MapOverlay visible hint={avisoSinPunto} />
+                      </div>
+                    ) : businesses.filter((biz) => !esDestacadoMostrado(biz)).map((biz) => (
+                      <BusinessCard
+                        key={biz.id || biz.slug}
+                        business={biz}
+                        // Sin tratamiento destacado en la lista normal:
+                        // el unico destacado de la pagina es el del
+                        // fragmento de arriba (peticion del usuario).
+                        featured={false}
+                        onClick={() => abrirFicha(biz)}
+                        onReport={() => setCorrectionBiz(biz)}
+                      />
+                    ))}
+                  </>
+                )}
               </div>
 
               {/* Pagination */}

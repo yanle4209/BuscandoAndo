@@ -12,7 +12,7 @@ from . import geografia
 from .busqueda import BusquedaAdmin
 from .models import (
     Business, Correction, Colaborador, Envio, Pospuesto,
-    FEATURED_LIMITS,
+    q_destacado_activo,
 )
 from business_locations.models import BusinessLocation
 from business_contacts.models import BusinessContact
@@ -485,8 +485,13 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
         return super().changeform_view(request, object_id, form_url, extra_context)
 
     def save_model(self, request, obj, form, change):
-        """Validate featured limits before saving."""
-        if obj.is_featured and obj.featured_tier:
+        """Validate the featured space before saving.
+
+        El chequeo de "1 destacado por categoria y municipio" vive en
+        ``Business.clean`` (lo llama full_clean de aqui); si el hueco
+        esta ocupado, el error va como mensaje y no guarda.
+        """
+        if obj.is_featured:
             # Auto-set defaults if not provided
             if not obj.featured_permanent and not obj.featured_weeks:
                 obj.featured_permanent = True
@@ -533,30 +538,36 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
                             )
 
     def _get_featured_stats(self):
-        """Get current featured counts per tier per category.
+        """Conteos por nivel + espacios ocupados (1 por categoria y municipio).
 
         UNA sola consulta (GROUP BY) en vez de cinco COUNT: cada una de
         las cinco escaneaba la tabla entera en Postgres, y se pagaban en
         CADA carga del listado y de la ficha. El total es la suma de los
         grupos, que es exactamente lo que antes media el quinto COUNT —
         incluidos los destacados sin nivel, que agrupan en None.
+
+        El limite antiguo (3 por nivel y categoria, GLOBAL) ya no existe:
+        lo que se cuenta aqui son los ESPACIOS ocupados — pares
+        (categoria, municipio) con destacado activo. Los conteos por
+        nivel siguen siendo los paquetes vendidos.
         """
+        activos = Business.objects.filter(q_destacado_activo())
         stats = {}
         conteos = dict(
-            Business.objects.filter(is_featured=True)
-            .values_list('featured_tier')
+            activos.values_list('featured_tier')
             .annotate(total=models.Count('id'))
         )
         for tier, label in Business.FEATURED_TIERS:
-            stats[tier] = {
-                'count': conteos.get(tier, 0),
-                'limit': FEATURED_LIMITS[tier],
-                'label': label,
-            }
+            stats[tier] = {'count': conteos.get(tier, 0), 'label': label}
         stats['total'] = {
             'count': sum(conteos.values()),
-            'limit': 'N/A',
             'label': 'Total activos',
+        }
+        stats['espacios'] = {
+            'count': activos.values(
+                'category_id', 'location__municipality'
+            ).distinct().count(),
+            'label': 'Espacios ocupados',
         }
         return stats
 
@@ -567,15 +578,20 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
         for tier in ['1', '2', '3', '4']:
             if tier in stats:
                 s = stats[tier]
-                color = '#1a512d' if s['count'] < s['limit'] else '#b91c1c'
                 lines.append(
-                    f'<span style="color:{color};font-weight:bold">'
-                    f'{s["label"]}: {s["count"]}/{s["limit"]} por categoria</span>'
+                    '<span style="color:#1a512d;font-weight:bold">'
+                    f'{s["label"]}: {s["count"]} activos</span>'
                 )
         total = stats['total']
         lines.append(
             f'<span style="color:#8f6c14;font-weight:bold">'
             f'{total["label"]}: {total["count"]}</span>'
+        )
+        espacios = stats['espacios']
+        lines.append(
+            '<span style="color:#1a512d;font-weight:bold">'
+            f'{espacios["label"]}: {espacios["count"]} '
+            '(1 destacado por categoría y municipio)</span>'
         )
 
         # Show expiration info for current business

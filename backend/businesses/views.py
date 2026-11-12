@@ -359,9 +359,10 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
     def featured_by_search(self, request):
         """Devuelve hasta 3 destacados activos que coincidan con la busqueda.
 
-        Se recorren los niveles del 1 (principal) al 4 (basico), de modo que
-        siempre entra el mejor nivel disponible. Los niveles son los que define
-        ``Business.FEATURED_TIERS``: '1'..'4' (nunca 'large'/'medium'/'small').
+        UNO POR CATEGORIA (el mejor nivel de cada una): es el espacio que
+        se vende — "1 destacado por categoria en cada municipio". Los
+        niveles son los que define ``Business.FEATURED_TIERS``: '1'..'4'
+        (nunca 'large'/'medium'/'small').
         """
         params = request.query_params
         search = params.get('text') or params.get('search')
@@ -414,15 +415,24 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
         if not search and not category:
             return Response([])
 
-        # Escoger hasta 3 destacados, del mejor nivel al peor (1 -> 4).
-        # El queryset ya esta filtrado por is_featured=True y por no expirado.
+        # Escoger hasta 3 destacados, UNO POR CATEGORIA y con el mejor
+        # nivel primero ('1'..'4' ordena acentado; dentro de un nivel, el
+        # mas reciente, igual que el .first() anterior). El queryset ya
+        # esta filtrado por is_featured=True y por no expirado; los
+        # destacados SIN nivel no entran (como antes: el bucle por
+        # niveles tampoco los cogia).
         result = []
-        for tier in ['1', '2', '3', '4']:
+        vistas = set()
+        elegibles = qs.filter(
+            featured_tier__in=['1', '2', '3', '4']
+        ).order_by('featured_tier', '-created_at')
+        for biz in elegibles:
+            if biz.category_id in vistas:
+                continue
+            vistas.add(biz.category_id)
+            result.append(biz)
             if len(result) >= 3:
                 break
-            biz = qs.filter(featured_tier=tier).first()
-            if biz:
-                result.append(biz)
 
         serializer = BusinessListSerializer(result, many=True)
         return Response(serializer.data)

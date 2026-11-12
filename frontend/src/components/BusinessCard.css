@@ -11,8 +11,9 @@
 .biz-card {
   position: relative;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  /* Borde NEGRO en todas; el destacado lo pone verde (mas abajo). */
+  border: 1px solid #000;
+  border-radius: 6px;
   padding: 0;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
@@ -31,6 +32,17 @@
   transform: translateY(-4px);
 }
 
+/* ===== DESTACADO: BORDE VERDE MAS GRUESO =====
+   El destacado es el espacio de venta: se distingue por el color del
+   borde (verde de marca sobre el negro del resto) y por ocupar 1x2 en
+   la rejilla de resultados (Home.css). El grosor tambien: 3px sobre
+   los 1px del resto, para que destaque de los demas (peticion del
+   usuario). Specificity doble para ganar pase lo que pase el orden
+   de hojas. */
+.biz-card.biz-card--featured {
+  border: 3px solid var(--grass);   /* verde hierba #87b332 */
+}
+
 /* ===== IMAGEN (arriba, limpia) =====
    Alto fijo para que ni la foto ni el carrusel cambien la altura
    del conjunto. A sangre, con las esquinas de arriba redondas. */
@@ -40,7 +52,7 @@
   min-height: 170px;
   flex-shrink: 0;
   background: #f5f4ec;
-  border-radius: 11px 11px 0 0;
+  border-radius: 5px 5px 0 0;
   overflow: hidden;
   border-bottom: 1px solid var(--border);
 }

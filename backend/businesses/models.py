@@ -9,13 +9,15 @@ from publication_status.models import PublicationStatus
 from operational_status.models import OperationalStatus
 
 
-# Featured tier limits PER CATEGORY
-FEATURED_LIMITS = {
-    '1': 3,
-    '2': 3,
-    '3': 3,
-    '4': 3,
-}
+# Inventario de destacados: UNO por categoria y municipio. Ese es el
+# espacio que se vende ("para cuando comience a vender los espacios"):
+# cada categoria de cada municipio tiene un hueco, y un hueco ocupado no
+# se vende dos veces. El tope antiguo (3 por nivel y categoria, GLOBAL)
+# se retiro: agotaba el inventario a nivel pais y no protegia el hueco
+# por municipio. La comprobacion vive en Business.clean() y en
+# BusinessLocation.clean(); la seleccion del buscador (hasta3, uno por
+# categoria) en businesses.views.featured_by_search.
+DESTACADOS_POR_ESPACIO = 1
 
 FEATURED_WEEKS_CHOICES = [
     (1, '1 semana'),
@@ -23,6 +25,51 @@ FEATURED_WEEKS_CHOICES = [
     (3, '3 semanas'),
     (4, '4 semanas'),
 ]
+
+
+def q_destacado_activo():
+    """Q del destacado ACTIVO: marcado y no caducado.
+
+    Mismo criterio que ``Business.is_featured_active`` y que
+    ``featured-by-search``. No mira la publicacion: un destacado pagado
+    reserva su espacio aunque la ficha este en borrador.
+    """
+    ahora = timezone.now()
+    return (
+        models.Q(is_featured=True)
+        & (
+            models.Q(featured_permanent=True)
+            | models.Q(featured_end_date__isnull=True)
+            | models.Q(featured_end_date__gt=ahora)
+        )
+    )
+
+
+def destacado_en_el_espacio(category_id, municipio, exclude_pk=None):
+    """El destacado activo que ya ocupa el espacio (categoria, municipio).
+
+    Devuelve el ``Business`` ocupante o ``None`` (hueco libre). El
+    municipio se compara normalizado (tildes, mayusculas): el campo es
+    texto libre en la ficha. Sin municipio comparte el hueco
+    ``(sin municipio)`` de geografia, igual que en los reportes.
+    """
+    from .geografia import SIN_MUNICIPIO, normalizar
+
+    candidatos = (
+        Business.objects.filter(q_destacado_activo())
+        .filter(category_id=category_id)
+        .select_related('location')
+    )
+    if exclude_pk:
+        candidatos = candidatos.exclude(pk=exclude_pk)
+
+    clave = normalizar(municipio or SIN_MUNICIPIO)
+    for otro in candidatos:
+        loc = getattr(otro, 'location', None)
+        propio = normalizar(getattr(loc, 'municipality', '') or SIN_MUNICIPIO)
+        if propio == clave:
+            return otro
+    return None
 
 
 class Business(models.Model):
@@ -157,40 +204,35 @@ class Business(models.Model):
         return self.name
 
     def clean(self):
-        """Validar limites de destacados por tier y categoria."""
+        """Validar el espacio de destacado: UNO por categoria y municipio."""
         super().clean()
         if not self.is_featured:
-            return
-
-        tier = self.featured_tier
-        if not tier:
             return
 
         # Auto-set defaults for duration if not provided (e.g. from list_editable)
         if not self.featured_permanent and not self.featured_weeks:
             self.featured_permanent = True
 
-        # Validate per-CATEGORY limit (exclude self on update)
-        cat_id = self.category_id
-        if cat_id:
-            qs = Business.objects.filter(
-                is_featured=True, featured_tier=tier, category_id=cat_id
-            )
-            if self.pk:
-                qs = qs.exclude(pk=self.pk)
-            current_count = qs.count()
-            limit = FEATURED_LIMITS.get(tier, 0)
-
-            if current_count >= limit:
-                tier_display = dict(self.FEATURED_TIERS).get(tier, tier)
-                cat_name = self.category.name if self.category else 'sin categoria'
-                raise ValidationError({
-                    'featured_tier': (
-                        f'Limite alcanzado en categoria "{cat_name}": '
-                        f'maximo {limit} destacados "{tier_display}". '
-                        f'Actualmente hay {current_count}.'
-                    ),
-                })
+        # El municipio vive en la ubicacion, que en el alta entra como
+        # inline DESPUES del negocio: sin location no hay municipio que
+        # comparar (se comprobara al editar la ubicacion, en
+        # BusinessLocation.clean). Mientras tanto comparte el hueco
+        # "(sin municipio)".
+        loc = getattr(self, 'location', None)
+        municipio = getattr(loc, 'municipality', '')
+        ocupante = destacado_en_el_espacio(
+            self.category_id, municipio, exclude_pk=self.pk,
+        )
+        if ocupante:
+            cat = self.category.name if self.category_id else 'sin categoria'
+            raise ValidationError({
+                'is_featured': (
+                    f'Espacio ocupado: la categoria "{cat}" ya tiene un '
+                    f'destacado activo en este municipio: "{ocupante.name}". '
+                    f'Solo se permite {DESTACADOS_POR_ESPACIO} destacado '
+                    f'por categoria y municipio.'
+                ),
+            })
 
     def save(self, *args, **kwargs):
         """Auto-generate slug from name if not set, and calculate featured dates."""
