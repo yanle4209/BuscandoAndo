@@ -70,6 +70,35 @@
     }
   }
 
+  function copiarTexto(boton, texto) {
+    // Boton «Copiar token» de la ficha de colaboradores. Si el navegador
+    // no deja usar el portapapeles (contexto no seguro o permiso
+    // denegado), se muestra el texto en un prompt para copiarlo a mano.
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(texto).then(
+        function () { anunciar(boton, 'Copiado'); },
+        function () { window.prompt('Copia el token:', texto); }
+      );
+    } else {
+      window.prompt('Copia el token:', texto);
+    }
+  }
+
+  document.addEventListener('click', function (evento) {
+    var objetivo = evento.target;
+    var boton = (objetivo && objetivo.closest)
+      ? objetivo.closest('[data-ba-copiar]')
+      : null;
+    if (!boton) return;
+
+    evento.preventDefault();
+
+    var texto = boton.getAttribute('data-ba-texto');
+    if (!texto) return;
+
+    copiarTexto(boton, texto);
+  });
+
   document.addEventListener('click', function (evento) {
     var objetivo = evento.target;
     var boton = (objetivo && objetivo.closest)

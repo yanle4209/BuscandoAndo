@@ -4,6 +4,7 @@ from django.contrib import admin
 from django import forms
 from django.core.cache import cache
 from django.db import models
+from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.html import format_html
 from django.contrib import messages
@@ -731,11 +732,18 @@ class ColaboradorAdmin(BusquedaAdmin, admin.ModelAdmin):
     es entregarle el token; apagarlo (`activo`) lo bloquea a el y solo a
     el, sin tocar a los demas — que es justo la propiedad que hizo que se
     eligiera el token de firma en vez de una cuenta.
+
+    El token se puede copiar, regenerar y borrar desde la ficha. Al
+    regenerarlo, el anterior muere al instante; al borrarlo, el
+    colaborador queda sin firma hasta que se le genere otro. La vigencia
+    se controla con `expira_el`: vacio es sin caducidad, y al vencer el
+    token deja de aceptar envios y reportes.
     """
 
     form = ColaboradorForm
-    list_display = ['nombre', 'token_corto', 'municipio', 'activo',
-                    'correcciones', 'ultimo_envio', 'creado_el']
+    change_form_template = 'admin/businesses/colaborador/change_form.html'
+    list_display = ['nombre', 'token_corto', 'municipio', 'estado_acceso',
+                    'expira_el', 'correcciones', 'ultimo_envio', 'creado_el']
     # Dos fechas porque son dos preguntas distintas: cuando se dio de
     # alta (quien es nuevo) y cuando trabajo por ultima vez (quien esta
     # parado). La segunda es opcional, y Django le añade ademas «Sin
@@ -743,14 +751,16 @@ class ColaboradorAdmin(BusquedaAdmin, admin.ModelAdmin):
     list_filter = [
         'activo',
         'municipio',
+        ('expira_el', admin.DateFieldListFilter),
         ('creado_el', admin.DateFieldListFilter),
         ('ultimo_envio', admin.DateFieldListFilter),
     ]
     search_fields = ['nombre', 'municipio']
     # El token se genera en `save()` y no se teclea: se muestra aqui para
     # poder copiarlo y entregarselo, pero no se puede escribir.
-    readonly_fields = ['token', 'creado_el', 'ultimo_envio']
-    actions = ['bloquear', 'desbloquear']
+    readonly_fields = ['token_acciones', 'token_creado_el', 'creado_el',
+                       'ultimo_envio']
+    actions = ['regenerar_tokens', 'bloquear', 'desbloquear']
     fieldsets = [
         (None, {
             'fields': ['nombre', 'municipio', 'activo'],
@@ -761,12 +771,22 @@ class ColaboradorAdmin(BusquedaAdmin, admin.ModelAdmin):
                 'bloquear a este sin cerrarle el canal a los demas.'
             ),
         }),
+        ('Vigencia', {
+            'fields': ['expira_el'],
+            'description': (
+                'Vacío = acceso sin caducidad. Si se vence, el token deja '
+                'de aceptar envíos y reportes, pero el colaborador y su '
+                'historial se conservan. Puedes ampliar la fecha después.'
+            ),
+        }),
         ('Firma', {
-            'fields': ['token'],
+            'fields': ['token_acciones', 'token_creado_el'],
             'description': (
                 'Se entrega tal cual. La herramienta de levantamiento lo '
                 'pide una vez y lo guarda en el navegador. Va en la '
-                'cabecera <code>X-Colaborador-Token</code>, nunca en la URL.'
+                'cabecera <code>X-Colaborador-Token</code>, nunca en la URL. '
+                'Regenerarlo invalida el anterior de inmediato; borrarlo '
+                'deja al colaborador sin firma hasta que se le genere otro.'
             ),
         }),
         ('Actividad', {
@@ -774,10 +794,106 @@ class ColaboradorAdmin(BusquedaAdmin, admin.ModelAdmin):
         }),
     ]
 
+    def token_acciones(self, obj):
+        """El token y sus botones, debajo del token y no al pie del form."""
+        if obj is None:
+            return 'El token se genera al guardar.'
+        if not obj.token:
+            acciones = format_html(
+                '<input type="submit" name="_regenerar_token" '
+                'value="Generar token" class="button">'
+            )
+            return format_html(
+                '<div style="margin-bottom: 10px;">'
+                'Sin token: el colaborador no puede firmar.</div>'
+                '<div style="display: flex; flex-wrap: wrap; gap: 8px; '
+                'align-items: center;">{}</div>',
+                acciones,
+            )
+
+        acciones = format_html(
+            '<input type="submit" name="_regenerar_token" '
+            'value="Regenerar token" class="button" '
+            'onclick="return confirm(\'¿Regenerar el token? El token actual '
+            'dejará de funcionar inmediatamente.\');">'
+            '<input type="submit" name="_borrar_token" '
+            'value="Borrar token" class="button" '
+            'style="background: var(--delete-button-bg); '
+            'color: var(--button-fg);" '
+            'onclick="return confirm(\'¿Borrar el token? El colaborador no '
+            'podrá enviar ni leer hasta que se le genere otro.\');">'
+            '<button type="button" class="button" data-ba-copiar '
+            'data-ba-texto="{}">Copiar token</button>'
+            '<span class="help" data-ba-estado role="status" '
+            'aria-live="polite"></span>',
+            obj.token,
+        )
+        return format_html(
+            '<div style="font-family: ui-monospace, SFMono-Regular, Menlo, '
+            'Consolas, monospace; font-size: 1.05em; word-break: break-all; '
+            'margin-bottom: 10px;">{}</div>'
+            '<div style="display: flex; flex-wrap: wrap; gap: 8px; '
+            'align-items: center;">{}</div>',
+            obj.token,
+            acciones,
+        )
+    token_acciones.short_description = 'Token de firma'
+
     def token_corto(self, obj):
         return (obj.token[:10] + '…') if obj.token else '-'
     token_corto.short_description = 'Token'
     token_corto.admin_order_field = 'token'
+
+    def estado_acceso(self, obj):
+        if not obj.token:
+            return 'Sin token'
+        if not obj.activo:
+            return 'Bloqueado'
+        if obj.expira_el and obj.expira_el <= timezone.now():
+            return 'Vencido'
+        if obj.expira_el:
+            return timezone.localtime(obj.expira_el).strftime(
+                'Vence el %d/%m/%Y %H:%M')
+        return 'Sin límite'
+    estado_acceso.short_description = 'Acceso'
+    estado_acceso.admin_order_field = 'expira_el'
+
+    def regenerar_tokens(self, request, queryset):
+        """Emite tokens nuevos y mata los anteriores de los seleccionados."""
+        total = 0
+        for colaborador in queryset:
+            colaborador.regenerar_token()
+            total += 1
+        self.message_user(
+            request,
+            '%d token(s) regenerado(s). Los anteriores dejaron de funcionar.'
+            % total,
+        )
+    regenerar_tokens.short_description = 'Regenerar token de los seleccionados'
+
+    def response_change(self, request, obj):
+        """Atiende los botones de token de la ficha."""
+        if '_regenerar_token' in request.POST:
+            tenia_token = bool(obj.token)
+            obj.regenerar_token()
+            self.message_user(
+                request,
+                ('Token regenerado. El anterior dejó de funcionar.'
+                 if tenia_token else
+                 'Token generado. El colaborador ya puede firmar.'),
+                messages.SUCCESS,
+            )
+            return HttpResponseRedirect(request.get_full_path())
+        if '_borrar_token' in request.POST:
+            obj.borrar_token()
+            self.message_user(
+                request,
+                'Token borrado. El colaborador no podrá enviar ni leer '
+                'hasta que se le genere otro.',
+                messages.WARNING,
+            )
+            return HttpResponseRedirect(request.get_full_path())
+        return super().response_change(request, obj)
 
     def get_queryset(self, request):
         """Los contadores, EN la consulta.
@@ -859,10 +975,11 @@ class EnvioAdmin(BusquedaAdmin, admin.ModelAdmin):
     se arregla es en la ficha, no aqui.
     """
 
-    list_display = ['recibido_el', 'colaborador', 'estado', 'negocio',
+    list_display = ['recibido_el', 'firmante', 'estado', 'negocio',
                     'motivos_cortos', 'ip']
     list_filter = ['estado', 'colaborador', 'recibido_el']
-    search_fields = ['colaborador__nombre', 'negocio__name', 'datos']
+    search_fields = ['firmante_nombre', 'colaborador__nombre',
+                     'negocio__name', 'datos']
     date_hierarchy = 'recibido_el'
 
     def has_add_permission(self, request):
@@ -871,6 +988,12 @@ class EnvioAdmin(BusquedaAdmin, admin.ModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         return [campo.name for campo in Envio._meta.fields]
+
+    def firmante(self, obj):
+        """El nombre guardado sobrevive aunque el colaborador se borre."""
+        return obj.firmante
+    firmante.short_description = 'Colaborador'
+    firmante.admin_order_field = 'firmante_nombre'
 
     def motivos_cortos(self, obj):
         if obj.estado == 'rechazado' and obj.motivos:

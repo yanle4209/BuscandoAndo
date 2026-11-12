@@ -601,7 +601,7 @@ def _acceso_reporte(request):
         # Quien manda un token que no vale (o que esta apagado) no es lo
         # mismo que quien no manda nada: el primero puede arreglarlo.
         return None, None, Response(
-            {'detail': 'Token de colaborador invalido o inactivo.'},
+            {'detail': 'Token de colaborador invalido, inactivo o vencido.'},
             status=status.HTTP_401_UNAUTHORIZED,
         )
 

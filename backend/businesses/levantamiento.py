@@ -363,6 +363,7 @@ def _registrar(colaborador, estado, datos, motivos, faltan, negocio, request):
     """
     envio = Envio.objects.create(
         colaborador=colaborador,
+        firmante_nombre=colaborador.nombre,
         negocio=negocio,
         estado=estado,
         motivos=motivos,
@@ -387,7 +388,7 @@ def levantamiento(request):
     colaborador = colaborador_de(request)
     if colaborador is None:
         return Response(
-            {'detail': 'Firma de colaborador invalida o inactiva.'},
+            {'detail': 'Firma de colaborador invalida, inactiva o vencida.'},
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
