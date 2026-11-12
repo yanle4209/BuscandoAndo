@@ -1,12 +1,21 @@
-/* Tres filas a todo el ancho: cabecera, barra (menu + buscador) y
-   contenido (hero o rejilla). Una sola columna: el mapa ya no vive
-   aqui, solo en la ficha completa. */
+/* Tres filas: cabecera, barra (menu + buscador) y contenido (hero o
+   rejilla). Una sola columna: el mapa ya no vive aqui, solo en la
+   ficha completa.
+   MODO BOXED (peticion del usuario): la pagina de resultados vive en
+   un contenedor centrado de hasta 1200px. Sin esto, a pantalla ancha
+   (1920) la rejilla de 5 columnas se estiraba y cada tarjeta pasaba
+   de 365px; con el tope la tarjeta queda en ~221px en cualquier
+   monitor y las tres filas comparten los mismos bordes izquierdo y
+   derecho. En pantallas de 1200px o menos no cambia nada: manda el
+   ancho completo. */
 .home-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr);
   height: 100vh;
   width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
 }
 
 .home-layout > .right-brand {
