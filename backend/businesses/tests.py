@@ -2,9 +2,12 @@
 
 Cubren los dos puntos que usa la app (web y Android):
 
-* ``GET /api/businesses/featured-by-search/`` -> hasta 3 destacados activos
-  que coincidan con la busqueda, UNO POR CATEGORIA (mejor nivel primero).
+* ``GET /api/businesses/featured-by-search/`` -> destacados activos que
+  coincidan con la busqueda, UNO POR CATEGORIA y sin tope (mejor nivel
+  primero; la web rota uno por pagina de resultados).
 * ``GET /api/businesses/?featured=true``     -> destacados ordenados por nivel.
+* ``GET /api/anuncios/``                     -> anuncios que rellenan la celda
+  destacada cuando la busqueda no tiene destacado de pago.
 
 Historial: ambos endpoints filtraban por ``'large'/'medium'/'small'`` (tiers
 heredados), pero ``Business.FEATURED_TIERS`` solo admite ``'1'..'4'``. Por eso
@@ -41,11 +44,12 @@ from business_contacts.models import BusinessContact
 from business_hours.models import BusinessHours
 from . import geografia, osm, portar, validacion
 from .levantamiento import LIMITE_ENVIOS_POR_MINUTO, _ip
-from .models import Business, Correction, Cobro, Colaborador, Envio, Pospuesto, SlugAntiguo
+from .models import Anuncio, Business, Correction, Cobro, Colaborador, Envio, Pospuesto, SlugAntiguo
 from .serializers import compute_operational_status
 
 BUSINESSES_URL = '/api/businesses/'
 FEATURED_BY_SEARCH_URL = '/api/businesses/featured-by-search/'
+ANUNCIOS_URL = '/api/anuncios/'
 CORRECTIONS_URL = '/api/corrections/'
 CABECERAS_URL = '/api/cabeceras/'
 PENDIENTES_URL = '/api/pendientes/'
@@ -5211,3 +5215,156 @@ class CobroTests(TestCase):
 
         self.negocio.refresh_from_db()
         self.assertFalse(self.negocio.is_featured)
+
+
+class AnuncioTests(TestCase):
+    """``GET /api/anuncios/`` — la publicidad de la celda 2x2.
+
+    La web los pide SOLO cuando la busqueda no tiene destacado de pago
+    (destacado primero, anuncio rellena — DISENO.md a1). Aqui se prueba
+    quien SALE de esta lista: activos, dentro de su ventana de fechas y
+    con la categoria de la busqueda. Quien no sale de aqui, la celda no
+    lo pinta.
+    """
+
+    URL = ANUNCIOS_URL
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.gimnasios = Category.objects.create(
+            name='Gimnasios', slug='gimnasios')
+        cls.restaurantes = Category.objects.create(
+            name='Restaurantes', slug='restaurantes')
+        cls.admin = get_user_model().objects.create_superuser(
+            'admin_anuncio', 'anuncio@example.com', 'x')
+
+    def anuncio(self, titulo='Promo de verano', **campos):
+        datos = dict(
+            titulo=titulo,
+            imagen='anuncios/promo.jpg',
+            enlace='https://ejemplo.com/promo',
+        )
+        datos.update(campos)
+        return Anuncio.objects.create(**datos)
+
+    def titulos(self, **params):
+        data = self.client.get(self.URL, params).json()
+        return [a['titulo'] for a in data]
+
+    # --- Quien entra ---
+
+    def test_un_anuncio_activo_sale_con_sus_tres_campos(self):
+        self.anuncio()
+
+        data = self.client.get(self.URL).json()
+
+        self.assertEqual(len(data), 1)
+        anuncio = data[0]
+        self.assertEqual(anuncio['titulo'], 'Promo de verano')
+        self.assertEqual(anuncio['enlace'], 'https://ejemplo.com/promo')
+        self.assertTrue(
+            str(anuncio['imagen_url']).endswith('anuncios/promo.jpg'),
+            f'imagen_url rara: {anuncio["imagen_url"]}',
+        )
+
+    def test_un_anuncio_inactivo_no_sale(self):
+        self.anuncio(activo=False)
+
+        self.assertEqual(self.titulos(), [])
+
+    def test_la_ventana_deja_fuera_al_vencido_y_al_que_falta(self):
+        hoy = timezone.localdate()
+        self.anuncio('Ya vencido', fecha_fin=hoy - datetime.timedelta(days=1))
+        self.anuncio('Todavia no', fecha_inicio=hoy + datetime.timedelta(days=1))
+
+        self.assertEqual(self.titulos(), [])
+
+    def test_hoy_es_dentro_de_la_ventana_en_los_dos_extremos(self):
+        hoy = timezone.localdate()
+        self.anuncio('Arranca hoy', fecha_inicio=hoy)
+        self.anuncio('Termina hoy', fecha_fin=hoy)
+
+        self.assertEqual(
+            sorted(self.titulos()), ['Arranca hoy', 'Termina hoy'])
+
+    # --- La categoria de la busqueda ---
+
+    def test_sin_categoria_sirve_en_cualquier_busqueda(self):
+        self.anuncio('Global')
+
+        self.assertEqual(self.titulos(), ['Global'])
+        self.assertEqual(self.titulos(category='gimnasios'), ['Global'])
+
+    def test_con_categoria_solo_si_coincide(self):
+        self.anuncio('Global')
+        self.anuncio('De gimnasios', categoria=self.gimnasios)
+
+        self.assertEqual(
+            sorted(self.titulos(category='gimnasios')),
+            ['De gimnasios', 'Global'],
+        )
+        self.assertEqual(
+            self.titulos(category='restaurantes'), ['Global'])
+        # En "Todas" (sin categoria) el de categoria NO sale: no hay
+        # categoria por la que colgarlo.
+        self.assertEqual(self.titulos(), ['Global'])
+
+    # --- El formulario ---
+
+    def test_la_ventana_invertida_es_un_error(self):
+        hoy = timezone.localdate()
+        anuncio = self.anuncio(
+            'Al reves', fecha_inicio=hoy,
+            fecha_fin=hoy - datetime.timedelta(days=1))
+
+        with self.assertRaises(ValidationError) as fallo:
+            anuncio.full_clean()
+
+        self.assertIn('fecha_fin', fallo.exception.message_dict)
+
+    def test_el_vigente_refleja_activo_y_ventana(self):
+        hoy = timezone.localdate()
+        anuncio = self.anuncio()
+        self.assertTrue(anuncio.vigente)
+
+        anuncio.activo = False
+        self.assertFalse(anuncio.vigente)
+
+        anuncio.activo = True
+        anuncio.fecha_fin = hoy - datetime.timedelta(days=1)
+        self.assertFalse(anuncio.vigente)
+
+    # --- El panel ---
+
+    def test_el_listado_del_panel_tiene_el_interruptor(self):
+        self.anuncio()
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.get('/admin/businesses/anuncio/')
+
+        self.assertEqual(respuesta.status_code, 200)
+        # El interruptor de la columna ACTIVO (list_editable) viene con
+        # el prefijo del formset del panel, y la fila pinta su titulo
+        # y su miniatura.
+        self.assertContains(respuesta, 'form-0-activo')
+        self.assertContains(respuesta, 'Promo de verano')
+
+    def test_la_ficha_del_panel_guarda_un_anuncio(self):
+        self.client.force_login(self.admin)
+        url = '/admin/businesses/anuncio/add/'
+        datos = {
+            'titulo': 'Anuncio de prueba',
+            'imagen': _foto('anuncio.jpg'),
+            'enlace': 'https://ejemplo.com/nuevo',
+            'categoria': '',
+            'fecha_inicio': '',
+            'fecha_fin': '',
+            'activo': 'on',
+        }
+
+        respuesta = self.client.post(url, datos, follow=True)
+
+        self.assertEqual(respuesta.status_code, 200)
+        creado = Anuncio.objects.get(titulo='Anuncio de prueba')
+        self.assertTrue(creado.activo)
+        self.assertTrue(creado.vigente)

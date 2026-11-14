@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Business, Correction
+from .models import Anuncio, Business, Correction
 from business_locations.models import BusinessLocation
 from business_contacts.models import BusinessContact
 from business_hours.models import BusinessHours
@@ -71,6 +71,27 @@ def compute_operational_status(business):
 def get_effective_status_name(business):
     slug = compute_operational_status(business)
     return STATUS_NAMES.get(slug, 'Sin estado')
+
+
+class AnuncioSerializer(serializers.ModelSerializer):
+    """El anuncio para la celda 2x2: imagen, titulo y enlace.
+
+    `imagen_url` sigue el mismo patron que las fotos de negocio (con
+    Cloudinary la ruta ya viene absoluta; a disco se sirve desde
+    /media/).
+    """
+
+    imagen_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Anuncio
+        fields = ['id', 'titulo', 'imagen', 'imagen_url', 'enlace']
+
+    def get_imagen_url(self, obj):
+        url = str(obj.imagen)
+        if url.startswith('http'):
+            return url
+        return obj.imagen.url if obj.imagen else None
 
 
 class BusinessImageSerializer(serializers.ModelSerializer):

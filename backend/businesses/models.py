@@ -850,3 +850,90 @@ class Cobro(models.Model):
         else:
             self.fecha_pago = None
         super().save(*args, **kwargs)
+
+
+class Anuncio(models.Model):
+    """Publicidad de la casa para la celda destacada de los resultados.
+
+    Mientras no entre la primera venta, el espacio de destacados se
+    rellena con anuncios (decision: "destacado primero, anuncio
+    rellena"): la web solo pide anuncios cuando la busqueda no tiene
+    destacado de pago que mostrar, asi que un negocio que pago nunca
+    pierde su celda. El anuncio lleva imagen, titulo y enlace — lo
+    minimo para un cuadro 2x2 con boton hacia fuera — y se gestiona
+    entero desde el panel (DISENO.md a1).
+    """
+
+    class Meta:
+        ordering = ['-creado']
+
+    titulo = models.CharField(
+        max_length=120,
+        verbose_name='Título',
+        help_text='Texto grande del anuncio.',
+    )
+    imagen = models.ImageField(
+        upload_to='anuncios/',
+        verbose_name='Imagen',
+        help_text='Foto del anuncio (la celda mide 2x2: apaisada ideal).',
+    )
+    enlace = models.URLField(
+        verbose_name='Enlace',
+        help_text='A donde lleva el clic, por ejemplo la página de la '
+                  'promoción.',
+    )
+    # Sin categoria sirve en cualquier busqueda; con categoria, solo
+    # cuando se busca esa (la celda de resultados respeta el filtro de
+    # categoria de la busqueda, igual que los destacados).
+    categoria = models.ForeignKey(
+        Category,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='anuncios',
+        verbose_name='Categoría',
+        help_text='Vacío = cualquier búsqueda.',
+    )
+    fecha_inicio = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Mostrar desde',
+        help_text='Vacío = desde ya.',
+    )
+    fecha_fin = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Mostrar hasta',
+        help_text='Vacío = sin fecha final.',
+    )
+    activo = models.BooleanField(
+        default=True,
+        verbose_name='Activo',
+        help_text='Un click en la lista del panel lo enciende o apaga.',
+    )
+    creado = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Creado',
+    )
+
+    def __str__(self):
+        return self.titulo
+
+    def clean(self):
+        if (self.fecha_inicio and self.fecha_fin
+                and self.fecha_fin < self.fecha_inicio):
+            raise ValidationError({
+                'fecha_fin': 'La fecha final no puede ser anterior a la '
+                             'inicial.',
+            })
+
+    @property
+    def vigente(self):
+        """Activo y dentro de su ventana de fechas (reloj del proyecto)."""
+        hoy = timezone.localdate()
+        return (
+            self.activo
+            and (self.fecha_inicio is None
+                 or self.fecha_inicio <= hoy)
+            and (self.fecha_fin is None or self.fecha_fin >= hoy)
+        )

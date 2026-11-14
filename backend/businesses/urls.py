@@ -15,6 +15,9 @@ urlpatterns = [
     # ancla de los circulos de 5 km cuando no hay GPS, y fuente del
     # selector manual de municipio.
     path('cabeceras/', views.cabeceras, name='cabeceras'),
+    # Anuncios de la celda destacada de resultados (DISENO.md a1): la
+    # web los pide solo cuando la busqueda no tiene destacado de pago.
+    path('anuncios/', views.anuncios, name='anuncios'),
     # Aviso de lista de espera del banner de fuera de fase (FASE1):
     # solo suma la metrica aviso_interes, sin datos del usuario.
     path('interes/', views.interes, name='interes'),

@@ -13,7 +13,7 @@ from django.utils import timezone
 from . import geografia
 from .busqueda import BusquedaAdmin
 from .models import (
-    Business, Correction, Cobro, Colaborador, Envio, Pospuesto,
+    Anuncio, Business, Correction, Cobro, Colaborador, Envio, Pospuesto,
     q_destacado_activo,
 )
 from business_locations.models import BusinessLocation
@@ -1259,3 +1259,53 @@ class PospuestoAdmin(BusquedaAdmin, admin.ModelAdmin):
     def dueno(self, obj):
         return obj.colaborador or obj.usuario
     dueno.short_description = 'Quien lo pospuso'
+
+
+@admin.register(Anuncio)
+class AnuncioAdmin(admin.ModelAdmin):
+    """Publicidad de la celda destacada 2x2 de los resultados.
+
+    Rellena el espacio mientras la busqueda no tenga destacado de pago
+    (la web lo decide: el destacado manda). El interruptor de la lista
+    es el dia a dia: un click y el anuncio entra o sale sin abrir la
+    ficha.
+    """
+
+    list_display = ['miniatura', 'titulo', 'enlace', 'categoria',
+                    'ventana', 'activo']
+    list_editable = ['activo']
+    list_filter = ['activo', 'categoria']
+    search_fields = ['titulo', 'enlace']
+    ordering = ['-creado']
+    fieldsets = (
+        (None, {
+            'fields': ('titulo', 'imagen', 'enlace'),
+        }),
+        ('Alcance y duración', {
+            'fields': ('categoria', 'fecha_inicio', 'fecha_fin',
+                       'activo'),
+            'description': (
+                'Sin categoría sirve en cualquier búsqueda; con '
+                'categoría, solo cuando se busca esa. Las fechas '
+                'vacías = sin límite de tiempo. Mientras la búsqueda '
+                'tenga destacado de pago, el anuncio no entra: el '
+                'destacado manda y el anuncio rellena.'
+            ),
+        }),
+    )
+
+    def miniatura(self, obj):
+        if not obj.imagen:
+            return '-'
+        return format_html(
+            '<img src="{}" alt="" style="width:46px;height:32px;'
+            'object-fit:cover;border-radius:3px;vertical-align:middle;">',
+            obj.imagen.url,
+        )
+    miniatura.short_description = 'Imagen'
+
+    def ventana(self, obj):
+        if not obj.fecha_inicio and not obj.fecha_fin:
+            return 'Sin límite'
+        return f'{obj.fecha_inicio or "…"} → {obj.fecha_fin or "…"}'
+    ventana.short_description = 'Ventana'

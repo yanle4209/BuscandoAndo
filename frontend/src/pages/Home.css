@@ -641,6 +641,15 @@
   grid-row: span 2;
 }
 
+/* El anuncio comparte la MISMA celda 2x2: es el hueco de la
+   publicidad, que entra solo cuando no hay destacado de pago que
+   mostrar (destacado primero, anuncio rellena). Mismo span, mismas
+   reglas de foto que el destacado. */
+.right-results-list .anuncio-card {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
 .right-results-list .biz-card--featured .biz-card__body {
   flex: 0 0 auto;
 }
@@ -756,7 +765,8 @@
   /* En movil solo hay 1 columna: sin este reset, un `span 2`
      crearia una segunda columna implicita vacia al lado del
      destacado (CSS Grid la genera sola para cumplir el span). */
-  .right-results-list .biz-card--featured {
+  .right-results-list .biz-card--featured,
+  .right-results-list .anuncio-card {
     grid-column: span 1;
   }
 

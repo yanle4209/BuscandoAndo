@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import SearchBar from '../components/SearchBar';
 import BusinessCard from '../components/BusinessCard';
+import AnuncioCard from '../components/AnuncioCard';
 import CorrectionModal from '../components/CorrectionModal';
 import HeroCollage from '../components/HeroCollage';
 import MapOverlay from '../components/MapOverlay';
@@ -306,6 +307,9 @@ export default function Home() {
   const [, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [searchFeatured, setSearchFeatured] = useState([]);
+  // Anuncios para la celda destacada: entran solo cuando la busqueda no
+  // tiene destacado de pago (destacado primero, anuncio rellena).
+  const [searchAds, setSearchAds] = useState([]);
   const [businesses, setBusinesses] = useState([]);
   const [showContact, setShowContact] = useState(false);
   // Negocio del que el visitante ha pulsado "Corregir" (null = sin modal).
@@ -514,18 +518,28 @@ export default function Home() {
       }
 
       // Destacados del buscador: R1.2 entran en el MISMO filtro de 5 km.
+      // Los anuncios (celda de publicidad) se piden EN PARALELO: la
+      // decision de quien ocupa la celda es aqui — destacado primero,
+      // anuncio rellena — y cada lista rota por su cuenta. Un fallo de
+      // una lista no borra la otra (catch propio) ni enciende el aviso
+      // de red: eso es solo para el listado principal.
       const searchParams = {
         lat: punto.lat, lng: punto.lng, radius: RADIO_KM,
       };
       if (estado.filters.text) searchParams.text = estado.filters.text;
       if (estado.filters.category) searchParams.category = estado.filters.category;
-      try {
-        const { data: featData } = await api.get('/businesses/featured-by-search/', { params: searchParams });
-        if (!vigente()) return;
-        setSearchFeatured(Array.isArray(featData) ? featData : []);
-      } catch {
-        if (vigente()) setSearchFeatured([]);
-      }
+      const [feat, anun] = await Promise.all([
+        api.get('/businesses/featured-by-search/', { params: searchParams })
+          .catch(() => ({ data: [] })),
+        api.get('/anuncios/', {
+          params: estado.filters.category
+            ? { category: estado.filters.category }
+            : {},
+        }).catch(() => ({ data: [] })),
+      ]);
+      if (!vigente()) return;
+      setSearchFeatured(Array.isArray(feat.data) ? feat.data : []);
+      setSearchAds(Array.isArray(anun.data) ? anun.data : []);
     } catch (err) {
       if (!vigente()) return;
       console.error('Error fetching businesses:', err);
@@ -533,6 +547,7 @@ export default function Home() {
       setTotalResults(0);
       setTotalPages(1);
       setSearchFeatured([]);
+      setSearchAds([]);
       // Sin esto el visitante veia la lista vacia y creia que la zona no
       // tenia negocios: un corte de red y un sitio sin resultados se
       // pintaban IDENTICOS.
@@ -557,6 +572,7 @@ export default function Home() {
     if (estado.punto) return undefined;
     setBusinesses([]);
     setSearchFeatured([]);
+    setSearchAds([]);
     setTotalResults(0);
     setTotalPages(1);
     // Cambiar de punto es una consulta NUEVA: el aviso de la anterior no
@@ -719,7 +735,8 @@ export default function Home() {
   const sinResultados = !loading
     && !errorRed
     && businesses.length === 0
-    && searchFeatured.length === 0;
+    && searchFeatured.length === 0
+    && searchAds.length === 0;
 
   // La fila rota por pagina (peticion del usuario: "que cada destacado
   // aparezca en las paginas de resultados"): pagina 1 el primero, pagina
@@ -730,6 +747,13 @@ export default function Home() {
   // para que el mismo negocio no salga repetido en la misma pagina.
   const destacadoMostrado = searchFeatured.length
     ? searchFeatured[(estado.pagina - 1) % searchFeatured.length]
+    : undefined;
+  // Si NO hay destacado, la celda la rellena un anuncio (destacado
+  // primero, anuncio rellena — decision del panel): rota igual, por su
+  // propia lista, y SOLO cuando searchFeatured esta vacia — un negocio
+  // que pago nunca pierde su celda.
+  const anuncioMostrado = searchFeatured.length === 0 && searchAds.length
+    ? searchAds[(estado.pagina - 1) % searchAds.length]
     : undefined;
   const esDestacadoMostrado = (biz) => {
     if (!destacadoMostrado) return false;
@@ -861,6 +885,15 @@ export default function Home() {
                         business={destacadoMostrado}
                         onClick={() => abrirFicha(destacadoMostrado)}
                         onReport={() => setCorrectionBiz(destacadoMostrado)}
+                      />
+                    )}
+
+                    {/* Mismo hueco 2x2, con publicidad cuando no hay
+                        destacado que mostrar (la celda del anuncio). */}
+                    {!destacadoMostrado && anuncioMostrado && (
+                      <AnuncioCard
+                        key={anuncioMostrado.id}
+                        anuncio={anuncioMostrado}
                       />
                     )}
 

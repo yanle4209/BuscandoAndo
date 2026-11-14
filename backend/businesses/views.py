@@ -21,9 +21,9 @@ from .geografia import (
     haversine_distance,
     normalizar,
 )
-from .models import Business, Correction, SlugAntiguo, Pospuesto
+from .models import Anuncio, Business, Correction, SlugAntiguo, Pospuesto
 from business_locations.models import BusinessLocation
-from .serializers import BusinessListSerializer, BusinessDetailSerializer, CorrectionCreateSerializer, CorrectionSerializer
+from .serializers import AnuncioSerializer, BusinessListSerializer, BusinessDetailSerializer, CorrectionCreateSerializer, CorrectionSerializer
 
 # Las metricas de uso se cuentan dentro de la vista que ya atiende la
 # peticion (uso.models): aqui solo se le avisa.
@@ -441,6 +441,35 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
 
         serializer = BusinessListSerializer(result, many=True)
         return Response(serializer.data)
+
+
+@api_view(['GET'])
+def anuncios(request):
+    """Anuncios para la celda destacada de los resultados (DISENO.md a1).
+
+    Rellenan el espacio SOLO cuando la busqueda no tiene destacado de
+    pago — esa decision (destacado primero, anuncio rellena) vive en la
+    web, que pide anuncios cuando ``featured-by-search`` vuelve vacio.
+    Aqui se devuelven los activos y dentro de su ventana de fechas.
+
+    ``category`` opcional: un anuncio sin categoria sirve en cualquier
+    busqueda; con categoria, solo cuando coincide con la de la busqueda
+    (y en "Todas" NO sale, que es cuando no hay categoria que mirar).
+    """
+    hoy = timezone.localdate()
+    qs = Anuncio.objects.filter(activo=True).filter(
+        Q(fecha_inicio__isnull=True) | Q(fecha_inicio__lte=hoy)
+    ).filter(
+        Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=hoy)
+    )
+    categoria = (request.query_params.get('category') or '').strip()
+    if categoria:
+        qs = qs.filter(Q(categoria__isnull=True)
+                       | Q(categoria__slug=categoria))
+    else:
+        qs = qs.filter(categoria__isnull=True)
+    serializer = AnuncioSerializer(qs[:20], many=True)
+    return Response(serializer.data)
 
 
 @api_view(['GET'])
