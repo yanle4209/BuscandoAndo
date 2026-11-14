@@ -3,6 +3,7 @@ from datetime import date
 from django.contrib import admin
 from django import forms
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.http import HttpResponseRedirect
 from django.urls import reverse
@@ -12,7 +13,7 @@ from django.utils import timezone
 from . import geografia
 from .busqueda import BusquedaAdmin
 from .models import (
-    Business, Correction, Colaborador, Envio, Pospuesto,
+    Business, Correction, Cobro, Colaborador, Envio, Pospuesto,
     q_destacado_activo,
 )
 from business_locations.models import BusinessLocation
@@ -38,6 +39,21 @@ class BusinessContactInline(admin.StackedInline):
     formfield_overrides = {
         models.TextField: {'widget': admin.widgets.AdminTextareaWidget(attrs={'rows': 3})},
     }
+
+
+class CobroInline(admin.TabularInline):
+    """Los cobros del negocio, en su propia ficha.
+
+    Para registrar un cobro nuevo sin salir del negocio. `fecha_pago`
+    es de solo lectura: la pone el modelo al pasar a "pagado".
+    """
+    model = Cobro
+    extra = 0
+    fields = ['concepto', 'monto', 'estado', 'nivel', 'semanas',
+              'fecha_cobro', 'fecha_vencimiento', 'fecha_pago', 'metodo',
+              'nota']
+    readonly_fields = ['fecha_pago']
+    ordering = ['-fecha_cobro']
 
 
 @admin.register(Correction)
@@ -150,6 +166,226 @@ class CorrectionAdmin(BusquedaAdmin, admin.ModelAdmin):
     def marcar_como_descartada(self, request, queryset):
         self._cambiar_estado(request, queryset, 'descartada')
     marcar_como_descartada.short_description = 'Marcar seleccionadas como descartadas'
+
+
+@admin.register(Cobro)
+class CobroAdmin(BusquedaAdmin, admin.ModelAdmin):
+    """La caja: control de cobros por negocio.
+
+    El estatus se cambia EN la lista (`list_editable`, igual que en
+    Reportes) o en bloque con las acciones. `fecha_pago` no se teclea:
+    la pone el modelo al pasar a "pagado" y la limpia si cambia. La
+    columna "Aviso" senala los pendientes que ya pasaron de la fecha
+    de vencimiento sin tocar su estatus.
+    """
+
+    list_display = ['negocio', 'concepto', 'monto', 'estado', 'destacado',
+                    'aviso', 'fecha_cobro', 'fecha_vencimiento',
+                    'fecha_pago', 'metodo']
+    list_filter = ['estado', 'metodo', 'fecha_cobro']
+    search_fields = ['negocio__name', 'concepto', 'nota']
+    list_editable = ['estado']
+    list_select_related = ['negocio']
+    date_hierarchy = 'fecha_cobro'
+    ordering = ['-fecha_cobro', '-created_at']
+    actions = [
+        'activar_destacados',
+        'quitar_destacados',
+        'marcar_como_pagado',
+        'marcar_como_pendiente',
+        'marcar_como_vencido',
+        'marcar_como_cancelado',
+        'vencer_vencidos',
+    ]
+    fieldsets = (
+        (None, {
+            'fields': ('negocio', 'concepto', 'monto', 'estado'),
+        }),
+        ('Destacado', {
+            'fields': ('acciones_destacado', 'nivel', 'semanas'),
+            'description': (
+                'La venta se registra aqui y el espacio se activa con el '
+                'boton. Nivel y semanas son los que se aplican a la '
+                'ficha; si el espacio (categoria y municipio) ya esta '
+                'ocupado por otro destacado, no se activa y se avisa. '
+                'Quitar tambien es un click: se acabo el tiempo o el '
+                'contrato.'
+            ),
+        }),
+        ('Fechas y pago', {
+            'fields': ('fecha_cobro', 'fecha_vencimiento', 'fecha_pago',
+                       'metodo'),
+        }),
+        ('Notas', {
+            'fields': ('nota',),
+        }),
+    )
+    # `fecha_pago` es consecuencia del estatus (ver Cobro.save) y las
+    # acciones son botones de POST, no campos: ninguno se teclea.
+    readonly_fields = ['fecha_pago', 'acciones_destacado']
+
+    def aviso(self, obj):
+        if obj.esta_vencido:
+            return format_html(
+                '<strong style="color:#ba2121;">¡Vencido!</strong>')
+        return '-'
+    aviso.short_description = 'Aviso'
+
+    def destacado(self, obj):
+        """La ficha esta en destacados AHORA: lo que dice la venta."""
+        if obj.destacado_activo:
+            return format_html(
+                '<strong style="color:#2e7d32;">Sí</strong>')
+        return 'No'
+    destacado.short_description = 'Destacado'
+
+    def acciones_destacado(self, obj):
+        """El click que activa o quita el destacado de la ficha.
+
+        El boton va DENTRO del form (type=submit): Django guarda el
+        cobro primero —con el nivel y las semanas que se acaben de
+        elegir— y ``response_change`` activa con esos valores ya
+        guardados.
+        """
+        if obj is None:
+            return 'Guarda el cobro para poder activar el destacado.'
+        if obj.destacado_activo:
+            return format_html(
+                '<input type="submit" name="_quitar_destacado" '
+                'value="Quitar de destacados" class="button" '
+                'style="background: var(--delete-button-bg); '
+                'color: var(--button-fg);" '
+                'onclick="return confirm(\'¿Quitar la ficha de '
+                'destacados?\');">'
+            )
+        return format_html(
+            '<input type="submit" name="_activar_destacado" '
+            'value="Activar destacado" class="button">'
+        )
+    acciones_destacado.short_description = 'Acción'
+
+    def response_change(self, request, obj):
+        """Atiende los botones de destacado de la ficha del cobro."""
+        if '_activar_destacado' in request.POST:
+            try:
+                obj.activar_destacado()
+            except ValidationError as error:
+                self.message_user(
+                    request,
+                    ' '.join(str(m) for m in error.messages),
+                    messages.ERROR,
+                )
+            else:
+                self.message_user(
+                    request,
+                    f'«{obj.negocio.name}» está en destacados: '
+                    f'{obj.get_nivel_display()} · {obj.semanas} '
+                    f'semana(s).',
+                    messages.SUCCESS,
+                )
+            return HttpResponseRedirect(request.get_full_path())
+        if '_quitar_destacado' in request.POST:
+            obj.quitar_destacado()
+            self.message_user(
+                request,
+                f'«{obj.negocio.name}» salió de destacados.',
+                messages.SUCCESS,
+            )
+            return HttpResponseRedirect(request.get_full_path())
+        return super().response_change(request, obj)
+
+    def _cambiar_destacado(self, request, queryset, activar):
+        """Acciones masivas: varios cobros, un click (o varios)."""
+        hechos, fallidos = 0, 0
+        for cobro in queryset.select_related('negocio'):
+            try:
+                if activar:
+                    cobro.activar_destacado()
+                else:
+                    cobro.quitar_destacado()
+            except ValidationError:
+                fallidos += 1
+            else:
+                hechos += 1
+        if activar:
+            mensaje = f'{hechos} ficha(s) puesta(s) en destacados.'
+        else:
+            mensaje = f'{hechos} ficha(s) quitada(s) de destacados.'
+        if fallidos:
+            mensaje += (
+                f' {fallidos} no pudieron activarse (espacio de '
+                f'categoria y municipio ya ocupado).'
+            )
+            nivel = messages.WARNING if hechos else messages.ERROR
+        else:
+            nivel = messages.SUCCESS
+        self.message_user(request, mensaje, nivel)
+
+    def activar_destacados(self, request, queryset):
+        self._cambiar_destacado(request, queryset, activar=True)
+    activar_destacados.short_description = (
+        'Activar destacado de los cobros seleccionados')
+
+    def quitar_destacados(self, request, queryset):
+        self._cambiar_destacado(request, queryset, activar=False)
+    quitar_destacados.short_description = (
+        'Quitar destacado de los cobros seleccionados')
+
+    def _cambiar_estado(self, request, queryset, estado):
+        """Solo staff llega aqui (el admin ya lo garantiza).
+
+        ``queryset.update`` NO pasa por ``Cobro.save``, que es donde se
+        calcula ``fecha_pago``: hay que ponerlo aqui a mano, con el
+        mismo criterio.
+        """
+        total = queryset.count()
+        queryset.update(
+            estado=estado,
+            fecha_pago=(timezone.localdate() if estado == 'pagado'
+                        else None),
+            updated_at=timezone.now(),
+        )
+        self.message_user(
+            request,
+            f'{total} cobro(s) marcado(s) como "{estado}".',
+            messages.SUCCESS,
+        )
+
+    def marcar_como_pagado(self, request, queryset):
+        self._cambiar_estado(request, queryset, 'pagado')
+    marcar_como_pagado.short_description = 'Marcar seleccionados como pagados'
+
+    def marcar_como_pendiente(self, request, queryset):
+        self._cambiar_estado(request, queryset, 'pendiente')
+    marcar_como_pendiente.short_description = 'Marcar seleccionados como pendientes'
+
+    def marcar_como_vencido(self, request, queryset):
+        self._cambiar_estado(request, queryset, 'vencido')
+    marcar_como_vencido.short_description = 'Marcar seleccionados como vencidos'
+
+    def marcar_como_cancelado(self, request, queryset):
+        self._cambiar_estado(request, queryset, 'cancelado')
+    marcar_como_cancelado.short_description = 'Marcar seleccionados como cancelados'
+
+    def vencer_vencidos(self, request, queryset):
+        """Los PENDIENTES con fecha ya pasada pasan a "vencido"."""
+        vencidos = queryset.filter(
+            estado='pendiente',
+            fecha_vencimiento__lt=timezone.localdate(),
+        )
+        total = vencidos.count()
+        vencidos.update(
+            estado='vencido',
+            fecha_pago=None,
+            updated_at=timezone.now(),
+        )
+        self.message_user(
+            request,
+            f'{total} cobro(s) vencido(s).',
+            messages.SUCCESS,
+        )
+    vencer_vencidos.short_description = (
+        'Vencer los pendientes con fecha vencida')
 
 
 class MunicipioPorProvincia(admin.SimpleListFilter):
@@ -412,6 +648,7 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
         BusinessContactInline,
         BusinessHoursInline,
         BusinessImageInline,
+        CobroInline,
     ]
 
     fieldsets = (

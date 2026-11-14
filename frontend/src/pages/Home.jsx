@@ -721,11 +721,16 @@ export default function Home() {
     && businesses.length === 0
     && searchFeatured.length === 0;
 
-  // El destacado del fragmento tambien viene dentro de los resultados
-  // normales (la API lo busca igual): se quita de la lista para que el
-  // mismo negocio no salga repetido en la misma pagina (peticion del
-  // usuario: "solo uno por pagina de resultados").
-  const destacadoMostrado = searchFeatured[0];
+  // La fila rota por pagina (peticion del usuario: "que cada destacado
+  // aparezca en las paginas de resultados"): pagina 1 el primero, pagina
+  // 2 el segundo, y si se acaban, se vuelve a empezar. Asi todos los
+  // destacados que coinciden con la busqueda dentro de los 5 km se
+  // llegan a ver. El destacado del fragmento tambien viene dentro de los
+  // resultados normales (la API lo busca igual): se quita de la lista
+  // para que el mismo negocio no salga repetido en la misma pagina.
+  const destacadoMostrado = searchFeatured.length
+    ? searchFeatured[(estado.pagina - 1) % searchFeatured.length]
+    : undefined;
   const esDestacadoMostrado = (biz) => {
     if (!destacadoMostrado) return false;
     if (biz.id != null && destacadoMostrado.id != null) {
@@ -839,24 +844,25 @@ export default function Home() {
                   ))
                 ) : (
                   <>
-                    {/* Destacado DENTRO de la rejilla: 1 columna x 2 filas
-                        (grid-row: span 2), es decir, del tamano de dos
-                        tarjetas normales a lo alto (peticion del usuario).
-                        SOLO UNO por pagina de resultados y siempre el
-                        primero de la izquierda (slice(0,1): el primero
-                        que devuelve la API, el de mejor nivel). Solo si
+                    {/* Destacado DENTRO de la rejilla: celda 2x2
+                        (grid-column y grid-row: span 2), es decir, del
+                        tamano de 4 tarjetas normales (2x2), ancho y alto
+                        (peticion del usuario: "que sean de 2x2, asi se
+                        verian mejor"). SOLO UNO por pagina de resultados y
+                        ROTANDO: cada pagina enseña el siguiente destacado
+                        de la busqueda (destacadoMostrado arriba). Solo si
                         hay destacados que coinciden con la busqueda
                         dentro de los 5 km (a1); no se pinta mientras
                         carga, para no ver el de la consulta anterior
                         saltando. */}
-                    {searchFeatured.slice(0, 1).map((biz) => (
+                    {destacadoMostrado && (
                       <BusinessCard
-                        key={biz.id || biz.slug}
-                        business={biz}
-                        onClick={() => abrirFicha(biz)}
-                        onReport={() => setCorrectionBiz(biz)}
+                        key={destacadoMostrado.id || destacadoMostrado.slug}
+                        business={destacadoMostrado}
+                        onClick={() => abrirFicha(destacadoMostrado)}
+                        onReport={() => setCorrectionBiz(destacadoMostrado)}
                       />
-                    ))}
+                    )}
 
                     {errorRed ? (
                       // La API no contesto. NO es "no hay negocios aqui" y el

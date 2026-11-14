@@ -411,16 +411,23 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
         if search:
             qs = busqueda.filtrar_por_texto(qs, search)
 
-        # If no search filters, return empty
-        if not search and not category:
-            return Response([])
+        # SIN criterio (texto/categoria) tambien se devuelven: es la fila
+        # de destacados de una busqueda normal dentro de su circulo de
+        # 5 km (DISENO.md a1: "fila de destacados solo si hay
+        # destacados... en 5 km" — el criterio es EL CIRCULO, no el
+        # texto). Antes aqui se devolvia [] y la web no pintaba ningun
+        # destacado en las paginas de resultados sin texto tecleado.
 
-        # Escoger hasta 3 destacados, UNO POR CATEGORIA y con el mejor
-        # nivel primero ('1'..'4' ordena acentado; dentro de un nivel, el
-        # mas reciente, igual que el .first() anterior). El queryset ya
-        # esta filtrado por is_featured=True y por no expirado; los
-        # destacados SIN nivel no entran (como antes: el bucle por
-        # niveles tampoco los cogia).
+        # Escoger UNO POR CATEGORIA y con el mejor nivel primero ('1'..'4'
+        # ordena acentado; dentro de un nivel, el mas reciente, igual que el
+        # .first() anterior). El queryset ya esta filtrado por
+        # is_featured=True y por no expirado; los destacados SIN nivel no
+        # entran (como antes: el bucle por niveles tampoco los cogia).
+        #
+        # El tope de 3 se retiro (DISENO.md a2): la web ROTARA uno por
+        # pagina de resultados y, para que "cada destacado se llegue a
+        # ver", la lista tiene que traerlos todos. Android pinta
+        # `take(3)` con lo que llegue, asi que no cambia nada alla.
         result = []
         vistas = set()
         elegibles = qs.filter(
@@ -431,8 +438,6 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
                 continue
             vistas.add(biz.category_id)
             result.append(biz)
-            if len(result) >= 3:
-                break
 
         serializer = BusinessListSerializer(result, many=True)
         return Response(serializer.data)

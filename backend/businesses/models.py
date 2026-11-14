@@ -683,3 +683,170 @@ class Pospuesto(models.Model):
     def __str__(self):
         quien = self.colaborador or self.usuario
         return f'{self.negocio.name} — pospuesto por {quien}'
+
+
+class Cobro(models.Model):
+    """Control de cobros por negocio (destacados y otros conceptos).
+
+    Registro contable independiente del destacado: anota montos,
+    conceptos y estatus SIN tocar la ficha ni el inventario de espacios
+    (1 por categoria y municipio). Se gestiona desde el panel:
+    ``list_editable`` cambia el estatus en la lista y las acciones lo
+    hacen en bloque, igual que en Reportes de usuarios.
+
+    ``fecha_pago`` es CONSECUENCIA del estatus, no un dato que se
+    teclea: se pone sola el dia que el cobro pasa a "pagado" y se limpia
+    en cuanto deja de estarlo. Por eso es de solo lectura en el form.
+    """
+
+    ESTADOS = [
+        ('pendiente', 'Pendiente'),
+        ('pagado', 'Pagado'),
+        ('vencido', 'Vencido'),
+        ('cancelado', 'Cancelado'),
+    ]
+
+    METODOS = [
+        ('efectivo', 'Efectivo'),
+        ('transferencia', 'Transferencia'),
+        ('tarjeta', 'Tarjeta'),
+        ('cheque', 'Cheque'),
+        ('otro', 'Otro'),
+    ]
+
+    negocio = models.ForeignKey(
+        Business,
+        on_delete=models.CASCADE,
+        related_name='cobros',
+        verbose_name='Negocio',
+    )
+    concepto = models.CharField(
+        max_length=200,
+        verbose_name='Concepto',
+        help_text='Que se cobra, por ejemplo: "Destacado 4 semanas - '
+                  'Nivel 1".',
+    )
+    monto = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name='Monto',
+        help_text='En pesos dominicanos.',
+    )
+    estado = models.CharField(
+        max_length=12,
+        choices=ESTADOS,
+        default='pendiente',
+        verbose_name='Estado',
+    )
+    # Lo que se VENDIO en esta venta: son los dos datos que aplican al
+    # activar el destacado desde el cobro (boton en el panel). Van aqui
+    # y no en la ficha porque el contrato es del cobro, no del negocio.
+    nivel = models.CharField(
+        max_length=10,
+        choices=Business.FEATURED_TIERS,
+        default='1',
+        verbose_name='Nivel de destacado',
+        help_text='Nivel que se aplica al activar desde este cobro '
+                  '(1=principal, 4=basico).',
+    )
+    semanas = models.PositiveIntegerField(
+        choices=FEATURED_WEEKS_CHOICES,
+        default=4,
+        verbose_name='Semanas de destacado',
+        help_text='Duracion que se aplica al activar desde este cobro.',
+    )
+    fecha_cobro = models.DateField(
+        default=timezone.localdate,
+        verbose_name='Fecha de cobro',
+        help_text='Fecha en que se registra el cobro.',
+    )
+    fecha_vencimiento = models.DateField(
+        null=True, blank=True,
+        verbose_name='Vence el',
+        help_text='Si se pasa sin pagar, la accion "Vencer vencidos" del '
+                  'panel lo marca como Vencido.',
+    )
+    fecha_pago = models.DateField(
+        null=True, blank=True,
+        verbose_name='Pagado el',
+        help_text='Se pone sola al marcar el cobro como pagado.',
+    )
+    metodo = models.CharField(
+        max_length=15,
+        choices=METODOS,
+        blank=True, default='',
+        verbose_name='Metodo de pago',
+    )
+    nota = models.TextField(
+        blank=True, default='',
+        verbose_name='Nota interna',
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name='Creado el',
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True, verbose_name='Actualizado el',
+    )
+
+    class Meta:
+        verbose_name = 'Cobro'
+        verbose_name_plural = 'Cobros'
+        ordering = ['-fecha_cobro', '-created_at']
+        indexes = [
+            models.Index(fields=['estado'], name='cobro_estado_idx'),
+            models.Index(fields=['fecha_vencimiento'],
+                         name='cobro_vencimiento_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.negocio.name} · {self.concepto} · {self.monto}'
+
+    @property
+    def esta_vencido(self):
+        """Pendiente cuya fecha de vencimiento ya paso.
+
+        No cambia el estatus (eso lo decide el admin con la accion):
+        es el aviso para la columna del listado.
+        """
+        return (
+            self.estado == 'pendiente'
+            and self.fecha_vencimiento is not None
+            and self.fecha_vencimiento < timezone.localdate()
+        )
+
+    @property
+    def destacado_activo(self):
+        """Si la ficha del negocio esta AHORA en destacados."""
+        return self.negocio.is_featured_active
+
+    def activar_destacado(self):
+        """Pone la ficha del negocio en destacados (la venta, el click).
+
+        El nivel y las semanas salen del cobro. Valida el espacio —
+        1 destacado por categoria y municipio — ANTES de tocar la base:
+        si esta ocupado, ``Business.clean`` lanza ``ValidationError`` y
+        no cambia nada (el admin lo enseña como mensaje de error).
+        """
+        negocio = self.negocio
+        negocio.is_featured = True
+        negocio.featured_tier = self.nivel
+        negocio.featured_permanent = False
+        negocio.featured_weeks = self.semanas
+        negocio.featured_start_date = timezone.now()
+        negocio.clean()
+        negocio.save()
+
+    def quitar_destacado(self):
+        """Saca la ficha de destacados: se acabo el tiempo o el contrato."""
+        negocio = self.negocio
+        if negocio.is_featured:
+            negocio.is_featured = False
+            negocio.save()
+
+    def save(self, *args, **kwargs):
+        if self.estado == 'pagado':
+            if not self.fecha_pago:
+                self.fecha_pago = timezone.localdate()
+        else:
+            self.fecha_pago = None
+        super().save(*args, **kwargs)

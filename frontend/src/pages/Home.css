@@ -629,13 +629,15 @@
   background: var(--yellow);
 }
 
-/* ===== DESTACADOS: 2 filas x 1 columna =====
-   Peticion: del tamano de 2 tarjetas a lo alto por 1 a lo ancho. Con
-   `grid-row: span 2` el alto lo fijan las tarjetas normales de las dos
-   filas alrededor: exactamente dos tarjetas + el hueco de 14 px. La foto
-   absorbe todo el aire que sobra (flex-grow) y el cuerpo queda a su alto
-   natural, para que la imagen grande mande y no queden huecos. */
+/* ===== DESTACADOS: 2 filas x 2 columnas (celda 2x2) =====
+   Peticion: que el destacado sea 2x2, del tamano de 4 tarjetas
+   (2x2), para que se vea mejor. El alto lo fijan las dos filas
+   (2 tarjetas + el hueco de 14 px) y el ancho abarca 2 de las 5
+   columnas de la rejilla. La foto absorbe todo el aire que sobra
+   (flex-grow) y el cuerpo queda a su alto natural, para que la
+   imagen grande mande y no queden huecos. */
 .right-results-list .biz-card--featured {
+  grid-column: span 2;
   grid-row: span 2;
 }
 
@@ -749,6 +751,13 @@
   .right-results-list {
     grid-template-columns: 1fr;
     gap: 10px;
+  }
+
+  /* En movil solo hay 1 columna: sin este reset, un `span 2`
+     crearia una segunda columna implicita vacia al lado del
+     destacado (CSS Grid la genera sola para cumplir el span). */
+  .right-results-list .biz-card--featured {
+    grid-column: span 1;
   }
 
   .pagination {

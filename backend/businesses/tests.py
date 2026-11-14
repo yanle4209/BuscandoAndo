@@ -41,7 +41,7 @@ from business_contacts.models import BusinessContact
 from business_hours.models import BusinessHours
 from . import geografia, osm, portar, validacion
 from .levantamiento import LIMITE_ENVIOS_POR_MINUTO, _ip
-from .models import Business, Correction, Colaborador, Envio, Pospuesto, SlugAntiguo
+from .models import Business, Correction, Cobro, Colaborador, Envio, Pospuesto, SlugAntiguo
 from .serializers import compute_operational_status
 
 BUSINESSES_URL = '/api/businesses/'
@@ -296,7 +296,8 @@ class FeaturedApiTests(TestCase):
     def test_featured_by_search_usa_los_tiers_nuevos(self):
         """Los tiers '1'..'4' deben encontrar; los antiguos 'large' no."""
         # Una categoria por negocio: la seleccion es UNO POR CATEGORIA
-        # (hasta 3), asi que con la misma solo entraria el mejor nivel.
+        # (sin tope), asi que los cuatro categorias entran, de mejor a
+        # peor nivel.
         for tier in ['4', '3', '2', '1']:
             cat = Category.objects.create(
                 name=f'Nivel {tier}', slug=f'nivel-{tier}',
@@ -305,12 +306,12 @@ class FeaturedApiTests(TestCase):
 
         data = self.client.get(FEATURED_BY_SEARCH_URL, {'text': 'Negocio'}).json()
 
-        self.assertEqual([b['featured_tier'] for b in data], ['1', '2', '3'])
+        self.assertEqual([b['featured_tier'] for b in data], ['1', '2', '3', '4'])
 
-    def test_featured_by_search_devuelve_como_maximo_tres(self):
-        # Cuatro categorias distintas: sin la regla de una por categoria
-        # estos cuatro serian cuatro niveles de la misma y solo contaria
-        # el tope de tres.
+    def test_sin_tope_pero_uno_por_categoria(self):
+        # Cuatro categorias distintas: la regla es UNO POR CATEGORIA. El
+        # tope de 3 se retiro para que la rotacion por paginas de la web
+        # llegue a enseñar cada destacado de la zona.
         for tier in ['1', '2', '3', '4']:
             cat = Category.objects.create(
                 name=f'Techo {tier}', slug=f'techo-{tier}',
@@ -319,8 +320,7 @@ class FeaturedApiTests(TestCase):
 
         data = self.client.get(FEATURED_BY_SEARCH_URL, {'text': 'Negocio'}).json()
 
-        self.assertEqual(len(data), 3)
-        self.assertNotIn('4', [b['featured_tier'] for b in data])
+        self.assertEqual(len(data), 4)
 
     def test_un_destacado_por_categoria(self):
         """Una categoria no tapa a la otra: un espacio por categoria."""
@@ -335,11 +335,17 @@ class FeaturedApiTests(TestCase):
             ['Restaurantes', 'Tiendas'],
         )
 
-    def test_featured_by_search_sin_filtros_devuelve_vacio(self):
-        """Sin texto/ciudad/categoria no hay criterio de busqueda -> []."""
+    def test_featured_by_search_sin_filtros_devuelve_destacados(self):
+        """a1: sin texto/categoria el criterio ES el circulo de 5 km.
+
+        Regresion de la web: sin esto, las paginas de resultados de una
+        busqueda sin texto no pintaban NINGUN destacado.
+        """
         self.make_business('Negocio Sin Filtro', '1')
 
-        self.assertEqual(self.client.get(FEATURED_BY_SEARCH_URL).json(), [])
+        data = self.client.get(FEATURED_BY_SEARCH_URL).json()
+
+        self.assertEqual([b['name'] for b in data], ['Negocio Sin Filtro'])
 
     def test_featured_by_search_ignora_no_destacados(self):
         """Un negocio con tier pero sin is_featured no es destacado."""
@@ -517,15 +523,15 @@ class RadioDeBusquedaTests(TestCase):
 
         self.assertEqual(len(data), 2)
 
-    def test_featured_by_search_sigue_vacio_sin_criterio(self):
-        """El lat/lng es un recorte adicional, no un criterio de busqueda."""
+    def test_featured_by_search_sin_criterio_respeta_el_radio(self):
+        """El lat/lng recorta tambien cuando no hay texto ni categoria."""
         self.make_business('Destacado Cerca', 19.4000, MOCA_LNG, tier='1')
 
         data = self.client.get(
             FEATURED_BY_SEARCH_URL, {'lat': MOCA_LAT, 'lng': MOCA_LNG}
         ).json()
 
-        self.assertEqual(data, [])
+        self.assertEqual([b['name'] for b in data], ['Destacado Cerca'])
 
 
 class BusquedaPorTextoTests(TestCase):
@@ -894,11 +900,15 @@ class FiltroCityTests(TestCase):
 
         self.assertEqual(len(data), 1)
 
-    def test_sin_criterio_sigue_devolviendo_vacio(self):
-        """Quitar `city` no rompe la regla de que sin criterio no haya nada."""
+    def test_sin_criterio_los_destacados_siguen_saliendo(self):
+        """Quitar `city` no toca a1: sin criterio la fila de destacados
+        sale si hay destacados en el circulo (paginas de resultados de
+        una busqueda sin texto)."""
         self.make_business('De Moca', 'Moca', featured=True)
 
-        self.assertEqual(self.client.get(FEATURED_BY_SEARCH_URL).json(), [])
+        data = self.client.get(FEATURED_BY_SEARCH_URL).json()
+
+        self.assertEqual([b['name'] for b in data], ['De Moca'])
 
 
 class EspacioDestacadoTests(TestCase):
@@ -4931,3 +4941,273 @@ class FiltrosDelListadoSeConservan(TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(
             respuesta, 'href="/admin/businesses/business/?q=Pan"')
+
+
+@override_settings(STORAGES=STATIC_SIN_MANIFEST)
+class CobroTests(TestCase):
+    """Control de cobros: estatus, fechas y gestion desde el panel."""
+
+    URL = '/admin/businesses/cobro/'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = get_user_model().objects.create_superuser(
+            'admin', 'admin@example.com', 'x')
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado')
+        cls.restaurantes = Category.objects.create(
+            name='Restaurantes', slug='restaurantes')
+        cls.negocio = Business.objects.create(
+            name='Panaderia Luna', description='Descripcion',
+            category=cls.restaurantes, publication_status=cls.publicado)
+
+    def make(self, **kwargs):
+        datos = {
+            'negocio': self.negocio,
+            'concepto': 'Destacado 4 semanas - Nivel 1',
+            'monto': 2500,
+        }
+        datos.update(kwargs)
+        return Cobro.objects.create(**datos)
+
+    def _accion(self, accion, cobros):
+        """Dispara una accion del listado como lo hace el admin."""
+        return self.client.post(self.URL, {
+            'action': accion,
+            '_selected_action': [str(c.pk) for c in cobros],
+        })
+
+    # --- El modelo ---
+
+    def test_el_estado_por_defecto_es_pendiente(self):
+        cobro = self.make()
+
+        self.assertEqual(cobro.estado, 'pendiente')
+
+    def test_al_marcar_pagado_se_pone_la_fecha_de_pago(self):
+        cobro = self.make()
+
+        cobro.estado = 'pagado'
+        cobro.save()
+        cobro.refresh_from_db()
+
+        self.assertEqual(cobro.fecha_pago, timezone.localdate())
+
+    def test_alta_directa_como_pagado_tambien_fecha(self):
+        cobro = self.make(estado='pagado')
+
+        self.assertEqual(cobro.fecha_pago, timezone.localdate())
+
+    def test_si_deja_de_estar_pagado_se_limpia_la_fecha(self):
+        cobro = self.make(estado='pagado')
+
+        cobro.estado = 'pendiente'
+        cobro.save()
+        cobro.refresh_from_db()
+
+        self.assertIsNone(cobro.fecha_pago)
+
+    def test_esta_vencido_solo_si_pendiente_y_paso_la_fecha(self):
+        ayer = timezone.localdate() - datetime.timedelta(days=1)
+        pendiente = self.make(fecha_vencimiento=ayer)
+        pagado = self.make(concepto='Otro', estado='pagado',
+                           fecha_vencimiento=ayer)
+        futuro = self.make(
+            concepto='Otro 2',
+            fecha_vencimiento=timezone.localdate() + datetime.timedelta(
+                days=5))
+
+        self.assertTrue(pendiente.esta_vencido)
+        self.assertFalse(pagado.esta_vencido)
+        self.assertFalse(futuro.esta_vencido)
+
+    # --- En el panel ---
+
+    def test_se_puede_cambiar_el_estado_en_la_lista(self):
+        cobro = self.make()
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.post(self.URL, {
+            # `_save` es lo que manda el boton del listado: sin el,
+            # Django no procesa la edicion masiva y solo re-pinta.
+            '_save': 'Guardar',
+            'form-TOTAL_FORMS': '1',
+            'form-INITIAL_FORMS': '1',
+            'form-MIN_NUM_FORMS': '0',
+            'form-MAX_NUM_FORMS': '0',
+            'form-0-id': str(cobro.pk),
+            'form-0-estado': 'pagado',
+        })
+
+        self.assertEqual(respuesta.status_code, 302)
+        cobro.refresh_from_db()
+        self.assertEqual(cobro.estado, 'pagado')
+        self.assertEqual(cobro.fecha_pago, timezone.localdate())
+
+    def test_la_accion_marcar_pagado_tambien_pone_la_fecha(self):
+        cobro = self.make()
+        self.client.force_login(self.admin)
+
+        self._accion('marcar_como_pagado', [cobro])
+
+        cobro.refresh_from_db()
+        self.assertEqual(cobro.estado, 'pagado')
+        self.assertEqual(cobro.fecha_pago, timezone.localdate())
+
+    def test_la_accion_cancelar_limpia_la_fecha_de_pago(self):
+        cobro = self.make(estado='pagado')
+        self.client.force_login(self.admin)
+
+        self._accion('marcar_como_cancelado', [cobro])
+
+        cobro.refresh_from_db()
+        self.assertEqual(cobro.estado, 'cancelado')
+        self.assertIsNone(cobro.fecha_pago)
+
+    def test_la_accion_vencer_solo_toca_los_pendientes_vencidos(self):
+        ayer = timezone.localdate() - datetime.timedelta(days=1)
+        viejo = self.make(fecha_vencimiento=ayer)
+        pagado = self.make(concepto='Pagado', estado='pagado',
+                           fecha_vencimiento=ayer)
+        futuro = self.make(
+            concepto='Futuro',
+            fecha_vencimiento=timezone.localdate() + datetime.timedelta(
+                days=5))
+        self.client.force_login(self.admin)
+
+        self._accion('vencer_vencidos', [viejo, pagado, futuro])
+
+        viejo.refresh_from_db()
+        pagado.refresh_from_db()
+        futuro.refresh_from_db()
+        self.assertEqual(viejo.estado, 'vencido')
+        self.assertEqual(pagado.estado, 'pagado')
+        self.assertEqual(futuro.estado, 'pendiente')
+
+    def test_la_lista_senala_los_que_ya_vencieron(self):
+        ayer = timezone.localdate() - datetime.timedelta(days=1)
+        self.make(fecha_vencimiento=ayer)
+        self.client.force_login(self.admin)
+
+        html = self.client.get(self.URL).content.decode()
+
+        self.assertIn('¡Vencido!', html)
+
+    def test_los_cobros_se_ven_en_la_ficha_del_negocio(self):
+        self.make()
+        self.client.force_login(self.admin)
+
+        html = self.client.get(
+            f'/admin/businesses/business/{self.negocio.pk}/change/',
+        ).content.decode()
+
+        self.assertIn('Destacado 4 semanas - Nivel 1', html)
+
+    # --- La venta manda: activar y quitar con un click ---
+
+    def test_el_cobro_trae_nivel_y_semanas(self):
+        cobro = self.make()
+
+        self.assertEqual(cobro.nivel, '1')
+        self.assertEqual(cobro.semanas, 4)
+
+    def test_activar_destacado_aplica_el_nivel_y_las_semanas_del_cobro(self):
+        cobro = self.make(nivel='3', semanas=1)
+
+        cobro.activar_destacado()
+
+        self.negocio.refresh_from_db()
+        self.assertTrue(self.negocio.is_featured)
+        self.assertEqual(self.negocio.featured_tier, '3')
+        self.assertEqual(self.negocio.featured_weeks, 1)
+        self.assertIsNotNone(self.negocio.featured_start_date)
+        self.assertIsNotNone(self.negocio.featured_end_date)
+        self.assertTrue(cobro.destacado_activo)
+
+    def test_quitar_destacado_saca_la_ficha(self):
+        cobro = self.make(nivel='3', semanas=1)
+        cobro.activar_destacado()
+
+        cobro.quitar_destacado()
+
+        self.negocio.refresh_from_db()
+        self.assertFalse(self.negocio.is_featured)
+        self.assertFalse(cobro.destacado_activo)
+
+    def test_activar_con_el_espacio_ocupado_no_cambia_nada(self):
+        # Ocupante del mismo espacio: misma categoria y (sin municipio).
+        Business.objects.create(
+            name='Ocupante', description='Descripcion',
+            category=self.restaurantes, publication_status=self.publicado,
+            is_featured=True, featured_tier='1', featured_permanent=True,
+        )
+        cobro = self.make()
+
+        with self.assertRaises(ValidationError) as fallo:
+            cobro.activar_destacado()
+
+        self.assertIn('Espacio ocupado', str(fallo.exception))
+        self.negocio.refresh_from_db()
+        self.assertFalse(self.negocio.is_featured)
+
+    def test_el_boton_de_la_ficha_activa_el_destacado(self):
+        cobro = self.make(nivel='2', semanas=2)
+        self.client.force_login(self.admin)
+        url = f'{self.URL}{cobro.pk}/change/'
+        datos = _datos_del_formulario_admin(self.client, url)
+        datos['_activar_destacado'] = 'Activar destacado'
+
+        respuesta = self.client.post(url, datos, follow=True)
+
+        self.negocio.refresh_from_db()
+        self.assertTrue(self.negocio.is_featured)
+        self.assertEqual(self.negocio.featured_tier, '2')
+        self.assertEqual(self.negocio.featured_weeks, 2)
+        self.assertContains(respuesta, 'está en destacados')
+
+    def test_el_boton_de_la_ficha_quita_el_destacado(self):
+        cobro = self.make(nivel='2', semanas=2)
+        cobro.activar_destacado()
+        self.client.force_login(self.admin)
+        url = f'{self.URL}{cobro.pk}/change/'
+        datos = _datos_del_formulario_admin(self.client, url)
+        datos['_quitar_destacado'] = 'Quitar de destacados'
+
+        respuesta = self.client.post(url, datos, follow=True)
+
+        self.negocio.refresh_from_db()
+        self.assertFalse(self.negocio.is_featured)
+        self.assertContains(respuesta, 'salió de destacados')
+
+    def test_el_boton_sin_espacio_libre_avisa_y_no_activa(self):
+        Business.objects.create(
+            name='Ocupante', description='Descripcion',
+            category=self.restaurantes, publication_status=self.publicado,
+            is_featured=True, featured_tier='1', featured_permanent=True,
+        )
+        cobro = self.make()
+        self.client.force_login(self.admin)
+        url = f'{self.URL}{cobro.pk}/change/'
+        datos = _datos_del_formulario_admin(self.client, url)
+        datos['_activar_destacado'] = 'Activar destacado'
+
+        respuesta = self.client.post(url, datos, follow=True)
+
+        self.negocio.refresh_from_db()
+        self.assertFalse(self.negocio.is_featured)
+        self.assertContains(respuesta, 'Espacio ocupado')
+
+    def test_las_acciones_del_listado_activan_y_quitan(self):
+        cobro = self.make(nivel='2', semanas=2)
+        self.client.force_login(self.admin)
+
+        self._accion('activar_destacados', [cobro])
+
+        self.negocio.refresh_from_db()
+        self.assertTrue(self.negocio.is_featured)
+        self.assertEqual(self.negocio.featured_tier, '2')
+
+        self._accion('quitar_destacados', [cobro])
+
+        self.negocio.refresh_from_db()
+        self.assertFalse(self.negocio.is_featured)

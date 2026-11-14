@@ -118,9 +118,11 @@ Principio rector: **si hay resultados disponibles, se enseñan — nunca tapados
   búsqueda dentro de 5 km**; si no, no se dibuja.
 - **a2** — **un destacado por categoría y municipio**: es el espacio que se
   vende. El panel no deja ocupar dos veces el mismo hueco (antes: máx. 3 por
-  nivel y categoría, **global**) y `featured-by-search` devuelve **hasta 3,
-  uno por categoría** (el mejor nivel de cada una). Si el destacado caduca,
-  el hueco se libera solo.
+  nivel y categoría, **global**) y `featured-by-search` devuelve **uno por
+  categoría, sin tope** (el mejor nivel de cada una primero; la web rota
+  uno por página de resultados para que cada destacado de la zona se llegue
+  a ver — antes era un tope de 3 que dejaba destacados sin enseñar). Si el
+  destacado caduca, el hueco se libera solo.
 - **m2** — mapa siempre junto a la lista en escritorio; en móvil **solo cuando
   no hay resultados**.
 - **0 destacadas + 0 normales** → **overlay** sustituyendo a
