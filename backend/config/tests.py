@@ -562,7 +562,12 @@ class CabecerasCSPTests(TestCase):
       cargaba Leaflet desde unpkg y hacia ``fetch`` a nominatim, y la
       CSP se lo impedía — auto-alojado el primero en
       ``/static/admin/leaflet/`` y declarado el segundo en
-      ``connect-src``.
+      ``connect-src``;
+    * el VIDEO del anuncio de la celda no reproducia: sin
+      ``media-src`` las fuentes de video caen a ``default-src 'self'``
+      y el navegador bloqueaba el de Cloudinary (15/nov/2026 — mismo
+      sintoma visible que una URL mala: "formato y tipo MIME
+      compatibles").
     """
 
     def _csp(self):
@@ -579,6 +584,12 @@ class CabecerasCSPTests(TestCase):
 
     def test_scripts_sigue_solo_self(self):
         self.assertIn("script-src 'self';", self._csp())
+
+    def test_el_video_de_cloudinary_esta_en_media_src(self):
+        """Sin media-src, el <video> del anuncio cae a default-src
+        'self' y el navegador bloquea el de Cloudinary."""
+        self.assertIn(
+            "media-src 'self' https://res.cloudinary.com;", self._csp())
 
     def test_leaflet_del_admin_esta_en_static(self):
         """Los ficheros que business_admin.js pide tienen que existir:
@@ -684,6 +695,34 @@ class MediaStorageVideoTests(TestCase):
         recurso.return_value.url = 'https://res.cloudinary.com/x/f.jpg'
 
         self._storage().url('business_images/f.jpg')
+
+        self.assertEqual(
+            recurso.call_args.kwargs['default_resource_type'], 'image')
+
+    @mock.patch('cloudinary.CloudinaryResource')
+    def test_el_video_de_la_bd_se_reconoce_sin_extension(self, recurso):
+        """Lo que queda guardado en el campo es el public_id que
+        devuelve Cloudinary, SIN la extension (el15/nov:
+        media/anuncios/video/anuncio_promo_da1d14b6_odpi1e). Solo con
+        la extension, la URL saldria .../image/upload/... y Cloudinary
+        devolveria 404 (JSON) — el <video> de la celda con "formato y
+        tipo MIME compatibles". La ruta del public_id es lo que la
+        identifica (cuadra con el upload_to del campo)."""
+        recurso.return_value.url = 'https://res.cloudinary.com/x/v.mp4'
+
+        self._storage().url(
+            'media/anuncios/video/anuncio_promo_da1d14b6_odpi1e')
+
+        self.assertEqual(
+            recurso.call_args.kwargs['default_resource_type'], 'video')
+
+    @mock.patch('cloudinary.CloudinaryResource')
+    def test_una_imagen_sin_extension_sigue_siendo_de_imagen(self, recurso):
+        """Las fotos de las fichas se guardan igual, sin extension
+        (public_id de Cloudinary) y no tienen que confundirse."""
+        recurso.return_value.url = 'https://res.cloudinary.com/x/f.jpg'
+
+        self._storage().url('media/business_images/2026/11/san1_rkooeg')
 
         self.assertEqual(
             recurso.call_args.kwargs['default_resource_type'], 'image')

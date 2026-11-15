@@ -29,12 +29,24 @@ from cloudinary_storage.storage import (
 #: con las que ``Business.clean()`` deja subir en ``ad_video``.
 VIDEO_EXTS = {'mp4', 'm4v', 'webm', 'mov'}
 
+#: Carpetas que identifican un video AUN SIN extension. Cloudinary
+#: quita la extension al subir y lo que queda guardado en el campo es
+#: el public_id suyo (``media/anuncios/video/anuncio_promo_da1d14b6_
+#: odpi1e``, sin .mp4): solo con la extension, ``.url()`` construiria
+#: ``.../image/upload/...`` y Cloudinary responderia 404 (JSON) — el
+#: <video> de la celda falla con "formato y tipo MIME compatibles".
+#: Cuadra con el ``upload_to`` de ``Business.ad_video``; la imagen del
+#: anuncio de panel (``Anuncio.imagen``) sube a ``anuncios/`` a secas
+#: y no entra aqui.
+VIDEO_PATHS = ('anuncios/video/',)
+
 
 class MediaStorage(MediaCloudinaryStorage):
     """Cloudinary por tipo de archivo: video donde hay video."""
 
     def _get_resource_type(self, name):
-        ext = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
-        if ext in VIDEO_EXTS:
+        nombre = name.replace('\\', '/')
+        ext = nombre.rsplit('.', 1)[-1].lower() if '.' in nombre else ''
+        if ext in VIDEO_EXTS or any(ruta in nombre for ruta in VIDEO_PATHS):
             return RESOURCE_TYPES['VIDEO']
         return super()._get_resource_type(name)

@@ -26,6 +26,11 @@ class CabecerasSeguridadMiddleware:
       asi que no queda ningun tercero aqui.
     * ``img-src ... https:`` — Cloudinary (fotos) y las teselas del
       mapa (Leaflet/osmdroid) vienen por https.
+    * ``media-src 'self' ...`` — el VIDEO del anuncio de la celda viene
+      de Cloudinary: sin esta linea cae a ``default-src 'self'`` y el
+      navegador lo bloquea (el <video> falla con "formato y tipo MIME
+      compatibles", el mismo sintoma que una URL mala — incidencia
+      del 15/nov).
     * ``connect-src 'self' ...`` — la API es del mismo origen y
       Cloudinary por si el widget subiera desde el navegador;
       nominatim es el geocodificador del MAPA DEL ADMIN
@@ -44,6 +49,7 @@ class CabecerasSeguridadMiddleware:
         "script-src 'self'; "
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: blob: https:; "
+        "media-src 'self' https://res.cloudinary.com; "
         "font-src 'self' data:; "
         "connect-src 'self' https://res.cloudinary.com "
         "https://nominatim.openstreetmap.org; "

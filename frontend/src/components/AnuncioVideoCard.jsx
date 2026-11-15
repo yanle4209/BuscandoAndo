@@ -12,7 +12,9 @@ import './AnuncioCard.css';
  *
  * La ficha se abre con su propio botón, no envolviendo la tarjeta:
  * los controles del video necesitan los clicks para pausar y subir
- * volumen.
+ * volumen. El botón dice «Contactar» (petición del usuario) y abre
+ * la ficha completa (/business/<slug>), donde están el teléfono y el
+ * WhatsApp del negocio.
  */
 export default function AnuncioVideoCard({ anuncio, onVerFicha }) {
   return (
@@ -36,7 +38,7 @@ export default function AnuncioVideoCard({ anuncio, onVerFicha }) {
           className="anuncio-card__cta"
           onClick={() => onVerFicha(anuncio)}
         >
-          Ver ficha<span aria-hidden="true"> →</span>
+          Contactar<span aria-hidden="true"> →</span>
         </button>
       </div>
     </article>
