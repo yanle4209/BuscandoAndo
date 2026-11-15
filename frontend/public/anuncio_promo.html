@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BuscandoAndo - Anúnciate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --yellow: #FBBF24;
+            --yellow-light: #FCD34D;
+            --yellow-ink: #8F6C14;
+            --brown: #513E0C;
+            --ink: #1F1A1A;
+            --ink-soft: #5B564D;
+            --border: #E2E1C9;
+            --bg: #FFFFFF;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg);
+            color: var(--ink);
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .scene-container {
+            width: 1200px;
+            height: 675px;
+            background: #FFFFFF;
+            border: 2px solid var(--border);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(31, 26, 26, 0.1);
+        }
+
+        /* Fondo animado dinámico con cuadrícula en movimiento continuo */
+        .bg-grid {
+            position: absolute;
+            inset: -40px;
+            background-image: linear-gradient(to right, #f2f0dc 1px, transparent 1px),
+                              linear-gradient(to bottom, #f2f0dc 1px, transparent 1px);
+            background-size: 40px 40px;
+            opacity: 0.65;
+            animation: gridMove 25s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(40px, 40px); }
+        }
+
+        /* Resplandores ambientales decorativos */
+        .ambient-glow-1 {
+            position: absolute;
+            top: -100px;
+            right: -100px;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(251, 191, 36, 0.18) 0%, rgba(255, 255, 255, 0) 70%);
+            border-radius: 50%;
+            animation: floatGlow 8s ease-in-out infinite alternate;
+        }
+
+        .ambient-glow-2 {
+            position: absolute;
+            bottom: -120px;
+            left: -100px;
+            width: 450px;
+            height: 450px;
+            background: radial-gradient(circle, rgba(251, 191, 36, 0.15) 0%, rgba(255, 255, 255, 0) 70%);
+            border-radius: 50%;
+            animation: floatGlow 10s ease-in-out infinite alternate-reverse;
+        }
+
+        @keyframes floatGlow {
+            0% { transform: scale(1) translate(0, 0); }
+            100% { transform: scale(1.2) translate(30px, -20px); }
+        }
+
+        /* Estructura de Escenas de 11s exactos en loop */
+        .scene {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            animation: showScene 11s infinite;
+        }
+
+        .scene-1 { animation-delay: 0s; }
+        .scene-2 { animation-delay: 2.75s; }
+        .scene-3 { animation-delay: 5.5s; }
+        .scene-4 { animation-delay: 8.25s; }
+
+        @keyframes showScene {
+            0% { opacity: 0; transform: scale(0.96) translateY(12px); filter: blur(4px); }
+            4% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0px); }
+            22% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0px); }
+            25% { opacity: 0; transform: scale(1.03) translateY(-10px); filter: blur(3px); }
+            100% { opacity: 0; }
+        }
+
+        /* Micro-animaciones internas de elementos */
+        .badge {
+            background-color: var(--yellow);
+            color: var(--brown);
+            font-weight: 800;
+            font-size: 1rem;
+            padding: 9px 24px;
+            border-radius: 50px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 22px;
+            box-shadow: 0 4px 15px rgba(251, 191, 36, 0.35);
+            display: inline-block;
+            animation: badgePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes badgePulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 4px 15px rgba(251, 191, 36, 0.35); }
+            50% { transform: scale(1.04); box-shadow: 0 6px 20px rgba(251, 191, 36, 0.5); }
+        }
+
+        h1 {
+            font-size: 3.3rem;
+            font-weight: 900;
+            line-height: 1.15;
+            color: var(--ink);
+            max-width: 920px;
+            margin-bottom: 20px;
+        }
+
+        h1 span {
+            color: #D99A0B;
+            background: linear-gradient(120deg, #FBBF24 0%, #D99A0B 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+            animation: textGlow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes textGlow {
+            0% { filter: drop-shadow(0 0 0px rgba(251, 191, 36, 0)); }
+            100% { filter: drop-shadow(0 2px 12px rgba(251, 191, 36, 0.4)); }
+        }
+
+        p.subtitle {
+            font-size: 1.45rem;
+            color: var(--ink-soft);
+            max-width: 780px;
+            line-height: 1.5;
+            font-weight: 500;
+        }
+
+        /* Escena 2: Tarjetas dinámicas con elevación */
+        .grid-cards {
+            display: flex;
+            gap: 22px;
+            margin-top: 32px;
+        }
+
+        .mini-card {
+            background: #FFFFFF;
+            border: 2px solid var(--border);
+            padding: 22px 28px;
+            border-radius: 16px;
+            box-shadow: 0 12px 30px rgba(31, 26, 26, 0.06);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-weight: 800;
+            font-size: 1.25rem;
+            color: var(--ink);
+            transition: transform 0.3s ease;
+            animation: cardFloat 3s ease-in-out infinite alternate;
+        }
+
+        .mini-card:nth-child(1) { animation-delay: 0s; }
+        .mini-card:nth-child(2) { animation-delay: 0.4s; }
+        .mini-card:nth-child(3) { animation-delay: 0.8s; }
+
+        @keyframes cardFloat {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-6px); box-shadow: 0 16px 36px rgba(31, 26, 26, 0.09); }
+        }
+
+        .mini-card span.icon {
+            font-size: 2rem;
+            background: #FFFBEB;
+            border: 1px solid #FDE68A;
+            padding: 10px 12px;
+            border-radius: 12px;
+            display: inline-block;
+            animation: iconWiggle 2.5s ease-in-out infinite;
+        }
+
+        @keyframes iconWiggle {
+            0%, 100% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(-6deg) scale(1.08); }
+            75% { transform: rotate(6deg) scale(1.08); }
+        }
+
+        /* Escena 3: Tarjeta de Contacto elegante */
+        .contact-box {
+            background: linear-gradient(135deg, #FFFFFF 0%, #FFFBEB 100%);
+            border: 2px solid var(--yellow);
+            padding: 32px 55px;
+            border-radius: 22px;
+            margin-top: 15px;
+            box-shadow: 0 14px 35px rgba(251, 191, 36, 0.2);
+            text-align: center;
+            animation: boxPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .contact-box h2 {
+            font-size: 2.3rem;
+            color: var(--brown);
+            margin-bottom: 16px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+        }
+
+        .contact-details {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            font-size: 1.35rem;
+            color: var(--ink);
+            font-weight: 700;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: #FFFFFF;
+            padding: 10px 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(31, 26, 26, 0.03);
+        }
+
+        .contact-item strong {
+            color: var(--brown);
+        }
+
+        /* Escena 4: Cierre potente con la animación grande del mapa */
+        .map-overlay__icon {
+            width: 160px;
+            height: 160px;
+            margin-bottom: 18px;
+            filter: drop-shadow(0 10px 20px rgba(81, 62, 12, 0.15));
+        }
+
+        .map-overlay__circle {
+            stroke-dasharray: 345;
+            stroke-dashoffset: 345;
+            animation: drawCircle 2s ease-out forwards, spinSlow 20s linear 2s infinite;
+            transform-origin: center;
+        }
+
+        .map-overlay__circle-inner {
+            animation: spinSlow 15s linear infinite reverse;
+            transform-origin: center;
+        }
+
+        .map-overlay__pin {
+            animation: pinBounce 1.8s ease-in-out infinite;
+            transform-origin: center bottom;
+        }
+
+        .map-overlay__pulse {
+            animation: pulseRing 1.8s ease-out infinite;
+        }
+        .map-overlay__pulse--delay {
+            animation-delay: 0.9s;
+        }
+
+        @keyframes drawCircle {
+            to { stroke-dashoffset: 0; }
+        }
+
+        @keyframes spinSlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pinBounce {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-10px) scale(1.05); }
+        }
+
+        @keyframes pulseRing {
+            0% { r: 8; opacity: 0.9; stroke-width: 2.5; }
+            100% { r: 34; opacity: 0; stroke-width: 0.5; }
+        }
+
+        .promo-final-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .promo-final-text {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--ink);
+            letter-spacing: 1.5px;
+            margin-top: 10px;
+            text-shadow: 0 2px 10px rgba(31, 26, 26, 0.08);
+        }
+
+        .promo-final-text span {
+            color: #D99A0B;
+            background: linear-gradient(120deg, #FBBF24 0%, #D99A0B 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .promo-final-sub {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--ink-soft);
+            margin-top: 12px;
+            max-width: 680px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scene-container">
+        <!-- Fondo animado dinámico -->
+        <div class="bg-grid"></div>
+        <div class="ambient-glow-1"></div>
+        <div class="ambient-glow-2"></div>
+
+        <!-- ESCENA 1: Gancho Profesionales -->
+        <div class="scene scene-1">
+            <div class="badge">🚀 Impulsa tu Negocio</div>
+            <h1>¿Eres <span>Plomero, Electricista, Ebanista</span> o cualquier tipo de profesional independiente?</h1>
+            <p class="subtitle">Miles de clientes buscan tus servicios profesionales todos los días en tu zona.</p>
+        </div>
+
+        <!-- ESCENA 2: Beneficios clave -->
+        <div class="scene scene-2">
+            <div class="badge">⭐ Máxima Visibilidad</div>
+            <h1>Destaca frente a tu competencia</h1>
+            <div class="grid-cards">
+                <div class="mini-card">
+                    <span class="icon">📍</span> Ubicación y Mapa
+                </div>
+                <div class="mini-card">
+                    <span class="icon">📞</span> Contacto Directo WhatsApp
+                </div>
+                <div class="mini-card">
+                    <span class="icon">📈</span> Más Clientes Reales
+                </div>
+            </div>
+        </div>
+
+        <!-- ESCENA 3: Contacto Directo -->
+        <div class="scene scene-3">
+            <div class="badge">📞 Contáctanos Directamente</div>
+            <div class="contact-box">
+                <h2>Herling Rodríguez</h2>
+                <div class="contact-details">
+                    <div class="contact-item">📱 Tel / WhatsApp: <strong>809-353-7242</strong></div>
+                    <div class="contact-item">✉️ Email: <strong>herlingls@hotmail.com</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ESCENA 4: Cierre de Impacto -->
+        <div class="scene scene-4">
+            <div class="promo-final-container">
+                <svg viewBox="0 0 120 120" class="map-overlay__icon">
+                    <circle cx="60" cy="60" r="55" fill="none" stroke="#513e0c" strokeWidth="2" class="map-overlay__circle" />
+                    <circle cx="60" cy="60" r="45" fill="none" stroke="#513e0c" strokeWidth="1" opacity="0.35" class="map-overlay__circle-inner" />
+                    <g transform="translate(60, 35)">
+                        <g class="map-overlay__pin">
+                            <path d="M0,-20 C-11,-20 -20,-11 -20,0 C-20,13 0,30 0,30 C0,30 20,13 20,0 C20,-11 11,-20 0,-20Z"
+                              fill="#FBBF24" stroke="#513e0c" strokeWidth="2" opacity="0.95" />
+                            <circle cx="0" cy="-2" r="7" fill="#1F1A1A" />
+                        </g>
+                    </g>
+                    <circle cx="60" cy="63" r="8" fill="none" stroke="#513e0c" strokeWidth="1.5" class="map-overlay__pulse" />
+                    <circle cx="60" cy="63" r="8" fill="none" stroke="#513e0c" strokeWidth="1" class="map-overlay__pulse map-overlay__pulse--delay" />
+                </svg>
+                <div class="promo-final-text">ANUNCIATE EN <span>BuscandoAndo</span></div>
+                <div class="promo-final-sub">Haz crecer tus negocios y tus ingresos. Anunciándote con nosotros!</div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
