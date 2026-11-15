@@ -40,7 +40,7 @@
    usuario; era 3px y lo subio a 5). Specificity doble para ganar
    pase lo que pase el orden de hojas. */
 .biz-card.biz-card--featured {
-  border: 5px solid var(--grass);   /* verde hierba #87b332 */
+  border: 5px solid var(--black);   /* Negro #ooo*/
 }
 
 /* ===== IMAGEN (arriba, limpia) =====
