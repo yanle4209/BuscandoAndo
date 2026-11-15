@@ -537,8 +537,9 @@ export default function Home() {
         api.get('/businesses/featured-by-search/', { params: searchParams })
           .catch(() => ({ data: [] })),
         // El video del negocio marcado viaja con los MISMOS parametros
-        // que los destacados (5 km, categoria, texto): el backend lo
-        // espeja igual.
+        // que los destacados (5 km, categoria, texto): el backend aplica
+        // radio —y el municipio del punto— y categoria; el texto no
+        // recorta la publicidad.
         api.get('/video-anuncios/', { params: searchParams })
           .catch(() => ({ data: [] })),
         api.get('/anuncios/', {

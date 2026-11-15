@@ -709,11 +709,11 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
             'description': (
                 'Al marcarlo solo se pide el VIDEO: nombre, descripción, '
                 'estado y ubicación quedan opcionales. La celda de '
-                'resultados pone su video en vez de su tarjeta, con las '
-                'mismas reglas que los destacados (5 km si tiene '
-                'ubicación, categoría si tiene; sin ellas el anuncio es '
-                'global) y solo si la búsqueda no tiene destacado de '
-                'pago.'
+                'resultados pone su video en vez de su tarjeta: 5 km '
+                'del punto o dentro de SU municipio, categoría si '
+                'tiene —sin ubicación o sin categoría es global—, el '
+                'texto no lo recorta, y solo si la búsqueda no tiene '
+                'destacado de pago.'
             ),
         }),
         # `procedencia` es el UNICO campo que pide R5 y no aparecia en

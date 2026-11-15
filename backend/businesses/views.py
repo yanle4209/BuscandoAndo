@@ -26,8 +26,10 @@ from business_locations.models import BusinessLocation
 from .serializers import AnuncioSerializer, AnuncioVideoSerializer, BusinessListSerializer, BusinessDetailSerializer, CorrectionCreateSerializer, CorrectionSerializer
 
 # Las metricas de uso se cuentan dentro de la vista que ya atiende la
-# peticion (uso.models): aqui solo se le avisa.
-from uso.models import registrar
+# peticion (uso.models): aqui solo se le avisa. De ahi sale tambien el
+# radio con el que un punto se asigna a su municipio (la misma regla
+# que usa la web para mostrar el lugar).
+from uso.models import RADIO_LUGAR_KM, registrar
 
 # Se traen los nombres sueltos y no el modulo: la vista se llama
 # ``pendientes`` igual que el modulo, y dentro de la funcion el nombre
@@ -113,6 +115,46 @@ def negocios_en_radio(qs, lat, lng, radius_km):
             dentro.append(biz_id)
 
     return qs.filter(id__in=dentro)
+
+
+def negocios_en_municipio(qs, lat, lng):
+    """Los negocios de ``qs`` del MISMO municipio que el punto.
+
+    El complemento del radio: la busqueda es a 5 km del punto, pero un
+    anuncio no puede esconderse en SU propia ciudad. El de El Mamey
+    (Moca) esta a 5,5 km de la cabecera de Moca, asi que con el radio
+    solo no salia en NINGUNA busqueda de Moca — el usuario veia la
+    celda vacia (peticion del 15/nov/2026: «no aparece en destacado»).
+
+    El municipio del punto se resuelve como el de cualquier otro lugar
+    del proyecto: la cabecera mas cercana dentro de ``RADIO_LUGAR_KM``
+    (la misma que ``uso`` reparte a los puntos de las metricas). Se
+    comparan municipio Y provincia —dos municipios homonimos no
+    deberian cruzarse— normalizados, porque las dos columnas son texto
+    libre (mayusculas y tildes a mano en el panel).
+    """
+    try:
+        punto_lat, punto_lng = float(lat), float(lng)
+    except (TypeError, ValueError):
+        return qs.none()
+    cab = geografia.cabecera_mas_cercana(punto_lat, punto_lng,
+                                         RADIO_LUGAR_KM)
+    if not cab or not normalizar(cab['municipio']):
+        return qs.none()
+    municipio = normalizar(cab['municipio'])
+    provincia = normalizar(cab['provincia'])
+
+    # Mismo patron que negocios_en_radio: solo id y las dos columnas,
+    # sin arrastrar el prefetch de la celda a un values().
+    filas = qs.prefetch_related(None).values_list(
+        'id', 'location__municipality', 'location__province'
+    )
+    ids = [
+        biz_id for biz_id, mun, prov in filas
+        if normalizar(mun or '') == municipio
+        and normalizar(prov or '') == provincia
+    ]
+    return qs.filter(id__in=ids)
 
 
 class CorrectionViewSet(viewsets.ModelViewSet):
@@ -483,24 +525,32 @@ def anuncios(request):
 def video_anuncios(request):
     """Negocios marcados como anuncio de video (DISENO.md a1).
 
-    Mismas reglas que los destacados: el MISMO filtro de 5 km, la
-    misma categoria de la busqueda, el mismo criterio de texto y UNO
-    POR CATEGORIA (la web rota uno por pagina). La prioridad la decide
-    la web: el destacado de pago siempre manda y el video solo entra si
+    Mismas reglas que los destacados: el MISMO filtro de 5 km (mas su
+    MUNICIPIO, abajo), la misma categoria de la busqueda y UNO POR
+    CATEGORIA (la web rota uno por pagina). La prioridad la decide la
+    web: el destacado de pago siempre manda y el video solo entra si
     el hueco no tiene destacado.
 
-    Dos huecos que el panel NO pide al crear un anuncio ("solo el
+    El TEXTO no recorta el anuncio: la celda es espacio de
+    publicidad, no un resultado de la busqueda (a1: sin categoria el
+    anuncio es global y «sale en cualquier busqueda»). Cualquier
+    termino que no casara con su nombre lo escondia —«no aparece en
+    destacado», peticion del 15/nov/2026—.
+
+    Tres huecos que el panel NO pide al crear un anuncio ("solo el
     video") no pueden esconderlo: sin UBICACION el anuncio es global
-    (se muestra en cualquier busqueda, como el de imagen) y sin
-    CATEGORIA entra en cualquier busqueda de categoria. Con datos,
-    se recortan igual que siempre.
+    (se muestra en cualquier busqueda, como el de imagen), sin
+    CATEGORIA entra en cualquier busqueda de categoria y DENTRO DE SU
+    MUNICIPIO no lo esconde el radio (5 km del punto, pero el de El
+    Mamey esta a 5,5 km de la cabecera de Moca: sin la excepcion no
+    salia en ninguna busqueda de Moca). Con datos, se recortan igual
+    que siempre.
 
     El anuncio SIEMPRE esta publicado: al marcarlo sin estado,
     ``Business.clean`` le pone "publicado" — su tarjeta enlaza a la
     ficha, y una ficha en borrador no se anuncia.
     """
     params = request.query_params
-    search = params.get('text') or params.get('search')
     category = params.get('category')
 
     qs = Business.objects.filter(
@@ -539,7 +589,10 @@ def video_anuncios(request):
 
     # Mismo radio de 5 km que los resultados y los destacados — pero
     # el anuncio SIN ubicacion no se recorta (es global): solo los que
-    # tienen coordenadas entran en la distancia.
+    # tienen coordenadas entran en la distancia. El que esta en su
+    # MUNICIPIO tampoco se recorta por distancia: con el radio solo,
+    # el de El Mamey (5,5 km de la cabecera de Moca) no salia en
+    # NINGUNA busqueda de Moca.
     lat = params.get('lat')
     lng = params.get('lng')
     if lat and lng:
@@ -555,11 +608,13 @@ def video_anuncios(request):
                 | Q(location__longitude__isnull=True)
             ).values_list('id', flat=True)
         )
-        qs = qs.filter(id__in=dentro | sin_ubicacion)
+        en_municipio = set(
+            negocios_en_municipio(qs, lat, lng).values_list('id', flat=True)
+        )
+        qs = qs.filter(id__in=dentro | sin_ubicacion | en_municipio)
 
-    # Mismo criterio de texto que el listado (y los destacados).
-    if search:
-        qs = busqueda.filtrar_por_texto(qs, search)
+    # El texto NO recorta el anuncio (arriba): es publicidad en la
+    # celda, no un resultado que tenga que casar con lo tecleado.
 
     # Uno por categoria, mas reciente primero: el mismo criterio de
     # seleccion que featured-by-search, para que la fila de la celda

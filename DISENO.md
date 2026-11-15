@@ -120,9 +120,12 @@ Principio rector: **si hay resultados disponibles, se enseñan — nunca tapados
   video" en su ficha (`GET /api/video-anuncios/`; **al crearlo en el panel
   solo se pide el video** —nombre, descripción, estado y ubicación quedan
   opcionales con valores por defecto—, y con las mismas reglas que los
-  destacados: 5 km **si tiene ubicación**, categoría **si tiene**, texto,
-  uno por categoría y ficha publicada; **sin ubicación o sin categoría el
-  anuncio es global** y sale en cualquier búsqueda) y, si no hay video,
+  destacados: 5 km **si tiene ubicación** —o **su municipio**: el punto
+  busca a 5 km, pero un anuncio no se esconde en su propia ciudad—,
+  categoría **si tiene**, uno por categoría y ficha publicada; **el texto
+  no lo recorta** (es publicidad en la celda, no un resultado) y **sin
+  ubicación o sin categoría el anuncio es global** y sale en cualquier
+  búsqueda) y, si no hay video,
   **el anuncio de imagen del panel**
   (`GET /api/anuncios/`, activo y en su ventana de fechas; sin categoría
   sirve en cualquier búsqueda, con categoría solo si coincide). El destacado
@@ -184,6 +187,7 @@ web → `a9142b7` Android).
 | Las frases del overlay dejan de nombrar Moca/Espaillat: se ven en los 158 | `MapOverlay.jsx` |
 | Efecto de `center` después del de marcas, para que el mapa reciente solo (R2.1) | `MapView.jsx` |
 | Guardia de secuencia para que una respuesta vieja no pise una nueva | `Home.jsx` |
+| El anuncio de vídeo no lo esconde el radio en su municipio ni el texto de la búsqueda (a1) | `businesses/views.py` |
 
 ---
 

@@ -5377,11 +5377,12 @@ class AnuncioTests(TestCase):
 class VideoAnuncioTests(TestCase):
     """``GET /api/video-anuncios/`` — el negocio marcado como anuncio.
 
-    Mismas reglas y condiciones que los destacados (DISENO.md a1):
-    mismo filtro de 5 km, misma categoria de la busqueda, mismo criterio
-    de texto y uno por categoria. Quien no sale de aqui, la celda no lo
-    pinta — y la web aun asi solo lo pinta si el hueco no tiene
-    destacado de pago (destacado > video > anuncio de imagen).
+    Reglas del DISENO.md a1: mismo filtro de 5 km —mas su MUNICIPIO,
+    que el radio solo escondia en el propio pueblo—, misma categoria de
+    la busqueda y uno por categoria; el TEXTO no lo recorta (es
+    publicidad en la celda, no un resultado). Quien no sale de aqui, la
+    celda no lo pinta — y la web aun asi solo lo pinta si el hueco no
+    tiene destacado de pago (destacado > video > anuncio de imagen).
     """
 
     URL = '/api/video-anuncios/'
@@ -5403,7 +5404,7 @@ class VideoAnuncioTests(TestCase):
 
     def make(self, name, *, lat=MOCA_LAT, lng=MOCA_LNG, ad=True,
              video='anuncios/video/promo.mp4', publication_status=None,
-             category=None):
+             category=None, muni='Moca', prov='Espaillat'):
         """Negocio en Moca, marcado como anuncio (o no) con su video."""
         biz = Business.objects.create(
             name=name,
@@ -5416,7 +5417,7 @@ class VideoAnuncioTests(TestCase):
             ad_video=video if ad else None,
         )
         BusinessLocation.objects.create(
-            business=biz, municipality='Moca', province='Espaillat',
+            business=biz, municipality=muni, province=prov,
             latitude=lat, longitude=lng,
         )
         return biz
@@ -5462,11 +5463,38 @@ class VideoAnuncioTests(TestCase):
 
     def test_el_mismo_filtro_de_5_km(self):
         self.make('Video Cerca', lat=19.4000)
-        self.make('Video Lejos', lat=19.4500)
+        # Fuera de los 5 km Y de otro municipio: la excepcion de
+        # municipio no lo salva (es lo unico que el radio sigue
+        # recortando).
+        self.make('Video Lejos', lat=19.4500,
+                  muni='Santiago de los Caballeros', prov='Santiago')
 
         nombres = self.nombres(lat=MOCA_LAT, lng=MOCA_LNG)
 
         self.assertEqual(nombres, ['Video Cerca'])
+
+    def test_el_anuncio_de_su_municipio_no_lo_esconde_el_radio(self):
+        """Un anuncio no se esconde en SU municipio («no aparece en
+        destacado», peticion del 15/nov/2026).
+
+        El de El Mamey esta a 5,5-5,9 km de la cabecera de Moca: con
+        el radio de 5 km solo no salia en NINGUNA busqueda de Moca
+        (el punto de la web es la cabecera del pueblo elegido). El
+        radio sigue recortando fuera del municipio.
+        """
+        self.make('Anuncio del Sector', lat=19.4500)  # 5,96 km
+
+        # Desde la cabecera de Moca: es su municipio, sale.
+        self.assertEqual(
+            self.nombres(lat=MOCA_LAT, lng=MOCA_LNG),
+            ['Anuncio del Sector'],
+        )
+        # Desde la cabecera de Santiago: ni radio (17 km) ni municipio
+        # lo salvan.
+        santiago = geografia.cabecera_para(
+            'Santiago de los Caballeros', 'Santiago')
+        self.assertEqual(
+            self.nombres(lat=santiago['lat'], lng=santiago['lng']), [])
 
     def test_la_categoria_de_la_busqueda(self):
         self.make('Video Restaurantes')
@@ -5500,13 +5528,21 @@ class VideoAnuncioTests(TestCase):
         self.assertIn('Restaurante Nuevo', nombres)
         self.assertNotIn('Restaurante Viejo', nombres)
 
-    def test_el_texto_tambien_filtra(self):
+    def test_el_texto_no_esconde_el_anuncio(self):
+        """La celda de publicidad no la recorta el texto de la busqueda.
+
+        El anuncio no es un resultado que tenga que casar con lo
+        tecleado (DISENO.md a1: sin categoria es global y «sale en
+        cualquier busqueda»). Filtrando como los destacados,
+        «contabilidad» escondia el anuncio —«no aparece en destacado»,
+        peticion del 15/nov/2026—.
+        """
         self.make('Corte de Pelo Estilizado')
 
-        # 'restaurante' CASARIA (el texto busca tambien en el nombre de
-        # la categoria, y el negocio es de Restaurantes): para ver que
-        # recorta hace falta un texto que no aparezca en nada.
-        self.assertEqual(self.nombres(text='contabilidad'), [])
+        self.assertEqual(
+            self.nombres(text='contabilidad'),
+            ['Corte de Pelo Estilizado'],
+        )
         self.assertEqual(
             self.nombres(text='corte'), ['Corte de Pelo Estilizado'])
 
@@ -5659,6 +5695,72 @@ class VideoAnuncioTests(TestCase):
         negocio.refresh_from_db()
         self.assertEqual(
             negocio.description, 'Ahora con telefono y direccion')
+
+    def test_guardar_la_ficha_no_borra_el_video(self):
+        """Guardar la ficha desde el panel conserva ``ad_video``.
+
+        Peticion del usuario (15/nov/2026): «al guardar dice que guardo,
+        pero borra el video». Un POST de cambio SIN archivo nuevo no
+        tiene que tocar el campo: ni vaciarlo (el anuncio se quedaria
+        sin video y desapareceria de la celda) ni volver a suberlo (en
+        produccion cada guarda hacia un public_id nuevo, asi que o el
+        form reenviaba algo como archivo o el FieldFile salia sin
+        ``_committed``).
+        """
+        negocio = self._anuncio_global()
+        self.client.force_login(self.admin)
+        datos = {
+            'name': 'BuscandoAndo',
+            'slug': 'buscandoando',
+            'publication_status': str(self.publicado.pk),
+            'operational_status': str(self.op_status.pk),
+            'is_ad': 'on',
+            'description': 'Ficha completada sin tocar el video',
+        }
+        for inline in ('location', 'contact', 'hours', 'images', 'cobros'):
+            datos[f'{inline}-TOTAL_FORMS'] = '0'
+            datos[f'{inline}-INITIAL_FORMS'] = '0'
+
+        respuesta = self.client.post(
+            f'/admin/businesses/business/{negocio.pk}/change/', datos)
+
+        self.assertEqual(
+            respuesta.status_code, 302,
+            'no dejo guardar la ficha: '
+            + respuesta.content[:500].decode(errors='replace'),
+        )
+        negocio.refresh_from_db()
+        self.assertTrue(
+            negocio.ad_video,
+            'guardar la ficha BORRO el video del anuncio',
+        )
+        self.assertEqual(
+            negocio.ad_video.name,
+            'media/anuncios/video/anuncio_promo_da1d14b6_odpi1e',
+            'el video cambio de nombre al guardar: se volvio a subir '
+            '(en produccion eso deja un public_id nuevo en cada guarda)',
+        )
+
+    def test_el_panel_ensena_el_video_que_ya_tiene(self):
+        """El formulario de cambio enseña «Actualmente: <video>».
+
+        Si el campo salia VACIO en el formulario, el usuario veia que
+        «al guardar borra el video» y volvia a subirlo (por eso el
+        public_id cambiaba en cada guarda). El initial del campo tiene
+        que ser el archivo ya guardado.
+        """
+        negocio = self._anuncio_global()
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.get(
+            f'/admin/businesses/business/{negocio.pk}/change/')
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(
+            respuesta, 'anuncio_promo_da1d14b6_odpi1e',
+            msg_prefix='el formulario no enseña el video guardado: '
+                       'el campo aparece vacio',
+        )
 
     def test_completar_con_descripcion_y_contacto_se_guarda_y_se_sirve(self):
         """El flujo COMPLETO: rellenar la ficha en el panel, guardar y
