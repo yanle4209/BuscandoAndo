@@ -53,9 +53,10 @@ def _metas_ficha(slug):
     """Metas de ``/business/<slug>/``.
 
     Devuelve ``None`` si la ficha no existe, no esta publicada o esta
-    fuera de fase (-> 404, misma regla que el ``retrieve`` de la API).
-    En caso contrario devuelve el dict con las metas; a esta altura la
-    ficha siempre se indexa.
+    fuera de fase (-> 404, misma regla que el ``retrieve`` de la API;
+    el anuncio global sin ubicacion SI se sirve, ver
+    ``q_fase_o_anuncio_global``). En caso contrario devuelve el dict
+    con las metas; a esta altura la ficha siempre se indexa.
     """
     from businesses import geografia
     from businesses.models import Business
@@ -63,7 +64,7 @@ def _metas_ficha(slug):
     ficha = (
         Business.objects
         .filter(slug=slug, publication_status__slug='publicado')
-        .filter(geografia.q_fase())
+        .filter(geografia.q_fase_o_anuncio_global())
         .select_related('category', 'location')
         .prefetch_related('images')
         .first()
@@ -74,7 +75,8 @@ def _metas_ficha(slug):
     # `location` es una OneToOne inversa: una ficha SIN fila de
     # ubicacion lanza DoesNotExist al acceder (y ese error hereda de
     # AttributeError, por eso el getattr con default y no un try).
-    # A esta altura la fase ya descarto las fichas sin ubicacion.
+    # La fase descarto las fichas sin ubicacion salvo el anuncio
+    # global: para ese puede llegar hasta aqui con loc en None.
     loc = getattr(ficha, 'location', None)
     municipio = loc.municipality if loc else ''
     provincia = loc.province if loc else ''
@@ -141,7 +143,7 @@ def _destino_slug_anterior(rel):
         SlugAntiguo.objects
         .filter(slug=match.group('slug'),
                 business__publication_status__slug='publicado')
-        .filter(geografia.q_fase('business__'))
+        .filter(geografia.q_fase_o_anuncio_global('business__'))
         .values_list('business__slug', flat=True)
         .first()
     )
@@ -324,10 +326,11 @@ def sitemap_xml(request):
 
     Auditoria C: robots.txt y sitemap devolvian el HTML de la SPA, asi
     que Google no podia leer ni las reglas ni el inventario. Aqui se
-    genera desde la misma base y con el MISMO filtro que el listado
-    (``geografia.q_fase``), asi que lo que esta fuera de fase no se
-    anuncia ni se sirve: la ficha tambien devuelve 404 (ver
-    ``serve_react``).
+    genera desde la misma base y con el MISMO filtro que la ficha
+    (``geografia.q_fase_o_anuncio_global``), asi que lo que esta fuera
+    de fase no se anuncia ni se sirve: la ficha tambien devuelve 404
+    (ver ``serve_react``). El anuncio global, que SI se sirve, aqui
+    tambien se anuncia.
 
     363 <loc> de fase actualmente: un unico fichero, muy por debajo del
     limite de 50.000 que admite el formato.
@@ -348,7 +351,8 @@ def sitemap_xml(request):
 
     fichas = (
         Business.objects
-        .filter(geografia.q_fase(), publication_status__slug='publicado')
+        .filter(geografia.q_fase_o_anuncio_global(),
+                publication_status__slug='publicado')
         .order_by('-created_at')
         .values_list('slug', 'created_at')
     )

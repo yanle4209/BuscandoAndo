@@ -266,14 +266,25 @@ class Business(models.Model):
                 ),
             })
         if self.ad_video:
-            ext = (self.ad_video.name or '').rsplit('.', 1)[-1].lower()
-            if ext not in ('mp4', 'm4v', 'webm', 'mov'):
-                raise ValidationError({
-                    'ad_video': (
-                        'El video tiene que ser MP4 (también WebM/MOV): '
-                        f'se recibió ".{ext}".'
-                    ),
-                })
+            nombre = (self.ad_video.name or '').replace('\\', '/')
+            segmento = nombre.rsplit('/', 1)[-1]
+            # Cloudinary guarda el public_id SIN la extension (su API la
+            # quita al subir): un nombre con ruta y sin punto es un
+            # archivo YA GUARDADO — se valido al subir y aqui no queda
+            # extension que comprobar. Sin esta salvedad, la SEGUNDA
+            # guarda de un anuncio (completar la ficha desde el panel)
+            # rechazaba su propio public_id y no dejaba guardar.
+            guardado = '/' in nombre and '.' not in segmento
+            if not guardado:
+                ext = (segmento.rsplit('.', 1)[-1].lower()
+                       if '.' in segmento else segmento.lower())
+                if ext not in ('mp4', 'm4v', 'webm', 'mov'):
+                    raise ValidationError({
+                        'ad_video': (
+                            'El video tiene que ser MP4 (también WebM/MOV): '
+                            f'se recibió ".{ext}".'
+                        ),
+                    })
 
         if not self.is_featured:
             return

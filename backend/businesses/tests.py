@@ -5610,3 +5610,100 @@ class VideoAnuncioTests(TestCase):
         )
 
         self.assertEqual(nombres, ['Promo Global'])
+
+    # --- Guardar y ABRIR la ficha del anuncio global ---
+
+    def _anuncio_global(self, name='BuscandoAndo', **kwargs):
+        """Anuncio publicado SIN ubicacion, con el public_id que
+        Cloudinary devuelve al subir (SIN extension)."""
+        datos = dict(
+            name=name, description='', short_description=name,
+            category=None, publication_status=self.publicado,
+            operational_status=self.op_status, is_ad=True,
+            ad_video='media/anuncios/video/anuncio_promo_da1d14b6_odpi1e',
+        )
+        datos.update(kwargs)
+        return Business.objects.create(**datos)
+
+    def test_completar_la_ficha_del_anuncio_no_falla_al_guardar(self):
+        """El panel deja GUARDAR una ficha de anuncio ya existente.
+
+        Cloudinary guarda el public_id SIN extension (su API la quita
+        al subir): al volver a guardar, ``Business.clean`` leia el
+        public_id entero como extension y devolvia «El video tiene
+        que ser MP4 ... se recibió ".media/..."» — el panel no dejaba
+        completar el anuncio (peticion del usuario, 15/nov/2026).
+        """
+        negocio = self._anuncio_global()
+        self.client.force_login(self.admin)
+        datos = {
+            'name': 'BuscandoAndo',
+            'slug': 'buscandoando',
+            'publication_status': str(self.publicado.pk),
+            'operational_status': str(self.op_status.pk),
+            'is_ad': 'on',
+            'description': 'Ahora con telefono y direccion',
+        }
+        for inline in ('location', 'contact', 'hours', 'images', 'cobros'):
+            datos[f'{inline}-TOTAL_FORMS'] = '0'
+            datos[f'{inline}-INITIAL_FORMS'] = '0'
+
+        respuesta = self.client.post(
+            f'/admin/businesses/business/{negocio.pk}/change/', datos)
+
+        self.assertEqual(
+            respuesta.status_code, 302,
+            'no dejo guardar la ficha del anuncio: '
+            + respuesta.content[:500].decode(errors='replace'),
+        )
+        negocio.refresh_from_db()
+        self.assertEqual(
+            negocio.description, 'Ahora con telefono y direccion')
+
+    def test_la_ficha_del_anuncio_global_se_abre(self):
+        """El boton «Contactar» de la celda llega a la ficha.
+
+        El anuncio SIN ubicacion es global (lo muestra cualquier
+        busqueda): su ficha tiene que servirse tambien — antes la fase
+        la daba 404 y el boton llevaba a ninguna parte (peticion del
+        usuario, 15/nov/2026: «si tengo un boton de contactar en el
+        anuncio y no me abre la ficha, no me sirve»).
+        """
+        self._anuncio_global(name='Promo Global')
+
+        detalle = self.client.get('/api/businesses/promo-global/')
+        html = self.client.get('/business/promo-global/')
+
+        self.assertEqual(
+            detalle.status_code, 200,
+            detalle.content[:300].decode(errors='replace'))
+        self.assertEqual(html.status_code, 200)
+        self.assertContains(html, 'Promo Global')
+
+    def test_la_ficha_normal_sin_ubicacion_sigue_en_404(self):
+        """La regla de la fase no cambia para las fichas normales
+        (DISENO.md 13): sin fila de ubicacion no se sirven — solo el
+        anuncio, que es global por diseño."""
+        Business.objects.create(
+            name='Normal Sin Ubicacion', description='',
+            short_description='', category=None,
+            publication_status=self.publicado,
+            operational_status=self.op_status,
+        )
+
+        self.assertEqual(
+            self.client.get('/business/normal-sin-ubicacion/').status_code,
+            404)
+        self.assertEqual(
+            self.client.get(
+                '/api/businesses/normal-sin-ubicacion/').status_code, 404)
+
+    def test_el_listado_no_saca_el_anuncio_global_como_tarjeta(self):
+        """La celda pinta su VIDEO (por video-anuncios): si el listado
+        devolviera ademas la tarjeta, saldria dos veces."""
+        self._anuncio_global(name='Promo Global')
+
+        data = self.client.get('/api/businesses/').json()
+        nombres = [b['name'] for b in data.get('results', data)]
+
+        self.assertNotIn('Promo Global', nombres)

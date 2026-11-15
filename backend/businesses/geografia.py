@@ -210,6 +210,36 @@ def q_fase(prefijo=''):
     return q
 
 
+def q_fase_o_anuncio_global(prefijo=''):
+    """``q_fase`` MAS la ficha del anuncio de video global.
+
+    El anuncio SIN ubicacion (o sin provincia) es global: el endpoint
+    ``video-anuncios`` lo muestra en cualquier busqueda y su tarjeta
+    —y su boton «Contactar»— enlaza a la ficha, asi que la ficha
+    tiene que servirse tambien (peticion del usuario, 15/nov/2026:
+    «si tengo un boton de contactar en el anuncio y no me abre la
+    ficha, no me sirve»). Mismas dos condiciones que
+    ``video_anuncios``: sin fila de ubicacion o con la provincia
+    vacia.
+
+    Solo el anuncio (``is_ad``): una ficha NORMAL sin ubicacion sigue
+    sin servirse — la regla de la fase no cambia (DISENO.md 13). En
+    el LISTADO tampoco se usa: el anuncio ya entra por
+    ``video-anuncios`` y aqui duplicaria tarjeta y video.
+    """
+    fase = q_fase(prefijo)
+    if not fase:
+        return fase
+    global_ = (
+        Q(**{f'{prefijo}is_ad': True})
+        & (
+            Q(**{f'{prefijo}location__isnull': True})
+            | Q(**{f'{prefijo}location__province': ''})
+        )
+    )
+    return fase | global_
+
+
 def en_fase(provincia, municipio=None):
     """¿El lugar (texto libre de la base) esta en la fase actual?
 

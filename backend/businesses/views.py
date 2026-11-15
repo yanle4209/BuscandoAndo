@@ -215,7 +215,14 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
         # las provincias y municipios de fase. Nada se borra: lo de
         # fuera sigue en la base y el admin lo ve, pero la web no lo
         # sirve ni por enlace directo.
-        qs = qs.filter(geografia.q_fase())
+        # La FICHA (retrieve) admite ademas el anuncio global sin
+        # ubicacion: su boton «Contactar» tiene que abrir su ficha
+        # (q_fase_o_anuncio_global). El LISTADO no: el anuncio ya
+        # entra por video-anuncios y aqui seria tarjeta Y video.
+        if self.action == 'retrieve':
+            qs = qs.filter(geografia.q_fase_o_anuncio_global())
+        else:
+            qs = qs.filter(geografia.q_fase())
 
         params = self.request.query_params
 
@@ -345,7 +352,7 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
                     SlugAntiguo.objects
                     .filter(slug=origen,
                             business__publication_status__slug='publicado')
-                    .filter(geografia.q_fase('business__'))
+                    .filter(geografia.q_fase_o_anuncio_global('business__'))
                     .values_list('business__slug', flat=True)
                     .first()
                 )
