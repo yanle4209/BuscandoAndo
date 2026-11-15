@@ -5660,6 +5660,61 @@ class VideoAnuncioTests(TestCase):
         self.assertEqual(
             negocio.description, 'Ahora con telefono y direccion')
 
+    def test_completar_con_descripcion_y_contacto_se_guarda_y_se_sirve(self):
+        """El flujo COMPLETO: rellenar la ficha en el panel, guardar y
+        verlo en la API que pinta /business/<slug>.
+
+        Regresion del 15/nov/2026: el public_id sin extension bloqueaba
+        el guardado, la ficha se quedaba VACIA (description '',
+        contact null, updated_at = created_at) y el usuario veia su
+        informacion sin publicar — «deberia aparecer la info que ya
+        puse, como a quien contactar, el telefono, whats, descripcion».
+        """
+        negocio = self._anuncio_global()
+        self.client.force_login(self.admin)
+        datos = {
+            'name': 'BuscandoAndo',
+            'slug': 'buscandoando',
+            'publication_status': str(self.publicado.pk),
+            'operational_status': str(self.op_status.pk),
+            'is_ad': 'on',
+            'description': 'BuscandoAndo encuentra lo tuyo en Moca.',
+            'short_description': 'Directorio local',
+            'contact-TOTAL_FORMS': '1',
+            'contact-INITIAL_FORMS': '0',
+            'contact-0-contact_person': 'Ana de Publicidad',
+            'contact-0-phone': '8095551234; 8095555678',
+            'contact-0-whatsapp': '+18095551234',
+            'contact-0-email': '',
+            'contact-0-website': '',
+        }
+        for inline in ('location', 'hours', 'images', 'cobros'):
+            datos[f'{inline}-TOTAL_FORMS'] = '0'
+            datos[f'{inline}-INITIAL_FORMS'] = '0'
+
+        respuesta = self.client.post(
+            f'/admin/businesses/business/{negocio.pk}/change/', datos)
+
+        self.assertEqual(
+            respuesta.status_code, 302,
+            'no dejo guardar la ficha completada: '
+            + respuesta.content[:500].decode(errors='replace'),
+        )
+        contacto = BusinessContact.objects.get(business=negocio)
+        self.assertEqual(contacto.contact_person, 'Ana de Publicidad')
+        self.assertEqual(contacto.whatsapp, '+18095551234')
+
+        # Lo que la ficha publica pinta: mismos campos en la API.
+        detalle = self.client.get('/api/businesses/buscandoando/').json()
+        self.assertEqual(
+            detalle['description'],
+            'BuscandoAndo encuentra lo tuyo en Moca.')
+        self.assertEqual(
+            detalle['contact']['phone'], '8095551234; 8095555678')
+        self.assertEqual(
+            detalle['contact']['contact_person'], 'Ana de Publicidad')
+        self.assertEqual(detalle['contact']['whatsapp'], '+18095551234')
+
     def test_la_ficha_del_anuncio_global_se_abre(self):
         """El boton «Contactar» de la celda llega a la ficha.
 
