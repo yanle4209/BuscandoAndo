@@ -117,9 +117,13 @@ Principio rector: **si hay resultados disponibles, se enseñan — nunca tapados
 - **a1** — fila de destacados solo si **hay destacados que coinciden con la
   búsqueda dentro de 5 km**; si no, **la celda 2×2 la rellena un anuncio en
   dos niveles**: primero el **video del negocio marcado** como "Anuncio de
-  video" en su ficha (`GET /api/video-anuncios/`, mismas reglas que los
-  destacados: 5 km, categoría, texto, uno por categoría y ficha publicada)
-  y, si no hay video, **el anuncio de imagen del panel**
+  video" en su ficha (`GET /api/video-anuncios/`; **al crearlo en el panel
+  solo se pide el video** —nombre, descripción, estado y ubicación quedan
+  opcionales con valores por defecto—, y con las mismas reglas que los
+  destacados: 5 km **si tiene ubicación**, categoría **si tiene**, texto,
+  uno por categoría y ficha publicada; **sin ubicación o sin categoría el
+  anuncio es global** y sale en cualquier búsqueda) y, si no hay video,
+  **el anuncio de imagen del panel**
   (`GET /api/anuncios/`, activo y en su ventana de fechas; sin categoría
   sirve en cualquier búsqueda, con categoría solo si coincide). El destacado
   de pago siempre manda: los anuncios solo entran cuando la búsqueda no
@@ -258,8 +262,9 @@ teléfono publican solas (§10).
   a 5 km del punto activo; (2) su fallback también a 5 km; (3) sin punto activo →
   solo overlay.
 - **a1** — fila de destacados solo si hay destacados en 5 km; si no, la
-  celda la rellena un anuncio (video del negocio marcado, o imagen del
-  panel; destacado primero).
+  celda la rellena un anuncio (video del negocio marcado —crear uno en el
+  panel solo pide el video, lo demás opcional—, o imagen del panel;
+  destacado primero).
 - **m2** — mapa siempre junto a la lista en escritorio; en móvil solo sin resultados.
 
 ---

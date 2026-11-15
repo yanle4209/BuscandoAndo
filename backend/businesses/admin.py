@@ -602,10 +602,42 @@ class CategoriaDesplegable(admin.SimpleListFilter):
         return datos
 
 
+class BusinessAdminForm(forms.ModelForm):
+    """Ficha del negocio en el panel.
+
+    Al marcar "Anuncio de video" todos los campos dejan de ser
+    obligatorios menos el video: los anuncios se crean para promocionar
+    los espacios publicitarios y no pueden exigir una ficha completa
+    ("todas las reglas de necesarios anuladas, solo el video"). Lo que
+    la BD no admite vacio lo rellena ``Business.clean`` con valores por
+    defecto (nombre, procedencia y estado de publicacion).
+    """
+
+    class Meta:
+        model = Business
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self._marcado_como_anuncio():
+            for nombre, campo in self.fields.items():
+                if nombre != 'ad_video':
+                    campo.required = False
+
+    def _marcado_como_anuncio(self):
+        # En un POST manda lo que llego del form (la casilla puede
+        # acabar de marcarse en este mismo envio); en GET, lo que ya
+        # tiene la ficha.
+        if self.is_bound:
+            return bool(self.data.get('is_ad'))
+        return bool(self.instance.is_ad)
+
+
 @admin.register(Business)
 class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
     change_list_template = 'admin/businesses/business/changelist.html'
     change_form_template = 'admin/businesses/business/change_form.html'
+    form = BusinessAdminForm
 
     list_display = [
         'name', 'get_category', 'publication_status',
@@ -675,11 +707,13 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
         ('Anuncio de video', {
             'fields': ('is_ad', 'ad_video'),
             'description': (
-                'El negocio marcado deja de salir como tarjeta normal: '
-                'la celda de resultados pone su video, con las mismas '
-                'reglas que los destacados (5 km, categoría, rotación) '
-                'y solo si la búsqueda no tiene destacado de pago. La '
-                'ficha debe estar publicada y el video subido en MP4.'
+                'Al marcarlo solo se pide el VIDEO: nombre, descripción, '
+                'estado y ubicación quedan opcionales. La celda de '
+                'resultados pone su video en vez de su tarjeta, con las '
+                'mismas reglas que los destacados (5 km si tiene '
+                'ubicación, categoría si tiene; sin ellas el anuncio es '
+                'global) y solo si la búsqueda no tiene destacado de '
+                'pago.'
             ),
         }),
         # `procedencia` es el UNICO campo que pide R5 y no aparecia en

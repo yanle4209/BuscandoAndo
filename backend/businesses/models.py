@@ -168,16 +168,17 @@ class Business(models.Model):
         default=False,
         verbose_name='Anuncio de video',
         help_text='La celda de resultados pone su video en vez de su '
-                  'tarjeta. Solo entra si la búsqueda no tiene destacado '
-                  'de pago.',
+                  'tarjeta; al marcarlo solo se pide el video, todo lo '
+                  'demas queda opcional. Solo entra si la búsqueda no '
+                  'tiene destacado de pago.',
     )
     ad_video = models.FileField(
         upload_to='anuncios/video/',
         blank=True,
         null=True,
         verbose_name='Video',
-        help_text='MP4 (también WebM/MOV), ideal corto y apaisado. La '
-                  'ficha debe estar publicada.',
+        help_text='MP4 (también WebM/MOV), ideal corto y apaisado: es '
+                  'lo unico obligatorio del anuncio.',
     )
 
     # === PROCEDENCIA (R5, DISENO.md seccion 10) ===
@@ -229,10 +230,34 @@ class Business(models.Model):
         """Validar el espacio de destacado: UNO por categoria y municipio."""
         super().clean()
 
-        # Anuncio de video: sin video no hay anuncio que pintar en la
-        # celda, y el archivo tiene que ser algo que el navegador sepa
-        # reproducir. Antes del atajo de destacados: el caso del
-        # anuncio no es destacado y no llegaria aqui si no.
+        # Anuncio de video: al marcarlo, SOLO cuenta el video (peticion
+        # del panel: "todas las reglas de necesarios anuladas, solo el
+        # video"). Lo que la BD no admite vacio se rellena aqui con
+        # valores por defecto —nombre, procedencia y estado de
+        # publicacion—; el slug sale del nombre en save(). El resto de
+        # campos obligatorios lo relaja el formulario del panel al
+        # marcar la casilla.
+        if self.is_ad:
+            if not self.name:
+                self.name = 'Anuncio'
+            if not self.procedencia:
+                self.procedencia = 'manual'
+            if not self.publication_status_id:
+                estado = (
+                    PublicationStatus.objects.filter(slug='publicado')
+                    .first()
+                    or PublicationStatus.objects.order_by('pk').first()
+                )
+                if estado is None:
+                    estado = PublicationStatus.objects.create(
+                        name='Publicado', slug='publicado',
+                    )
+                self.publication_status = estado
+
+        # Sin video no hay anuncio que pintar en la celda, y el archivo
+        # tiene que ser algo que el navegador sepa reproducir. Antes del
+        # atajo de destacados: el caso del anuncio no es destacado y no
+        # llegaria aqui si no.
         if self.is_ad and not self.ad_video:
             raise ValidationError({
                 'is_ad': (

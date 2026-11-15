@@ -476,15 +476,21 @@ def anuncios(request):
 def video_anuncios(request):
     """Negocios marcados como anuncio de video (DISENO.md a1).
 
-    Mismas reglas y condiciones que los destacados: el MISMO filtro de
-    5 km, la misma categoria de la busqueda, el mismo criterio de texto
-    y UNO POR CATEGORIA (la web rota uno por pagina). La prioridad la
-    decide la web: el destacado de pago siempre manda y el video solo
-    entra si el hueco no tiene destacado.
+    Mismas reglas que los destacados: el MISMO filtro de 5 km, la
+    misma categoria de la busqueda, el mismo criterio de texto y UNO
+    POR CATEGORIA (la web rota uno por pagina). La prioridad la decide
+    la web: el destacado de pago siempre manda y el video solo entra si
+    el hueco no tiene destacado.
 
-    A diferencia de los destacados, el anuncio SIEMPRE esta publicado:
-    su tarjeta enlaza a la ficha, y una ficha en borrador no se
-    anuncia.
+    Dos huecos que el panel NO pide al crear un anuncio ("solo el
+    video") no pueden esconderlo: sin UBICACION el anuncio es global
+    (se muestra en cualquier busqueda, como el de imagen) y sin
+    CATEGORIA entra en cualquier busqueda de categoria. Con datos,
+    se recortan igual que siempre.
+
+    El anuncio SIEMPRE esta publicado: al marcarlo sin estado,
+    ``Business.clean`` le pone "publicado" — su tarjeta enlaza a la
+    ficha, y una ficha en borrador no se anuncia.
     """
     params = request.query_params
     search = params.get('text') or params.get('search')
@@ -497,25 +503,52 @@ def video_anuncios(request):
         ad_video=''
     ).filter(
         ad_video__isnull=False,
-    ).filter(
-        # Fase geografica: recorta igual que el listado y los
-        # destacados (estan sobre "0 resultados" si no).
-        geografia.q_fase()
     ).select_related(
         'category', 'publication_status'
     ).prefetch_related('location', 'images')
 
-    if category:
-        try:
-            qs = qs.filter(category__id=int(category))
-        except (ValueError, TypeError):
-            qs = qs.filter(category__slug=category)
+    # Fase geografica: recorta igual que el listado y los destacados
+    # (estan sobre "0 resultados" si no) — salvo el anuncio SIN
+    # ubicacion (o sin provincia): si el panel no pide donde se
+    # muestra, la fase no puede esconderlo.
+    fase = geografia.q_fase()
+    if fase:
+        qs = qs.filter(
+            fase | Q(location__isnull=True) | Q(location__province='')
+        )
 
-    # Mismo radio de 5 km que los resultados y los destacados.
+    if category:
+        # Sin categoria el anuncio es global: entra en cualquier
+        # busqueda (mismo criterio que el anuncio de imagen).
+        try:
+            cat_id = int(category)
+            qs = qs.filter(
+                Q(category__isnull=True) | Q(category__id=cat_id)
+            )
+        except (ValueError, TypeError):
+            qs = qs.filter(
+                Q(category__isnull=True) | Q(category__slug=category)
+            )
+
+    # Mismo radio de 5 km que los resultados y los destacados — pero
+    # el anuncio SIN ubicacion no se recorta (es global): solo los que
+    # tienen coordenadas entran en la distancia.
     lat = params.get('lat')
     lng = params.get('lng')
     if lat and lng:
-        qs = negocios_en_radio(qs, lat, lng, parse_radio(params.get('radius')))
+        dentro = set(
+            negocios_en_radio(
+                qs, lat, lng, parse_radio(params.get('radius')),
+            ).values_list('id', flat=True)
+        )
+        sin_ubicacion = set(
+            qs.filter(
+                Q(location__isnull=True)
+                | Q(location__latitude__isnull=True)
+                | Q(location__longitude__isnull=True)
+            ).values_list('id', flat=True)
+        )
+        qs = qs.filter(id__in=dentro | sin_ubicacion)
 
     # Mismo criterio de texto que el listado (y los destacados).
     if search:

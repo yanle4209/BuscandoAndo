@@ -5550,3 +5550,63 @@ class VideoAnuncioTests(TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(respuesta, 'name="is_ad"')
         self.assertContains(respuesta, 'name="ad_video"')
+
+    # --- Crear el anuncio: SOLO se pide el video ---
+
+    def test_crear_anuncio_solo_pide_el_video(self):
+        """El alta en el panel no pide nada mas que el video.
+
+        Peticion del usuario: al marcar "Anuncio de video", todas las
+        reglas de obligatoriedad anuladas —"solo el video deberia ser
+        [necesario]". Sin nombre, sin descripcion, sin estado, sin
+        categoria y sin ubicacion se crea igual.
+        """
+        self.client.force_login(self.admin)
+        archivo = SimpleUploadedFile('promo.mp4', b'fake-mp4')
+        # El navegador siempre manda el ManagementForm de los inlines:
+        # el test lo pone igual, con 0 filas (sin ubicacion, contacto,
+        # horario, imagenes ni cobros).
+        datos = {'is_ad': 'on', 'ad_video': archivo}
+        for inline in ('location', 'contact', 'hours', 'images', 'cobros'):
+            datos[f'{inline}-TOTAL_FORMS'] = '0'
+            datos[f'{inline}-INITIAL_FORMS'] = '0'
+
+        with tempfile.TemporaryDirectory() as tmp, \
+                self.settings(MEDIA_ROOT=tmp):
+            respuesta = self.client.post(
+                '/admin/businesses/business/add/', datos)
+
+        self.assertEqual(
+            respuesta.status_code, 302,
+            'no dejo crear el anuncio minimo: '
+            + respuesta.content[:500].decode(errors='replace'),
+        )
+        negocio = Business.objects.get()
+        self.assertTrue(negocio.is_ad)
+        self.assertTrue(str(negocio.ad_video).endswith('promo.mp4'))
+        # Lo que la BD no admite vacio: valores por defecto.
+        self.assertEqual(negocio.name, 'Anuncio')
+        self.assertEqual(negocio.description, '')
+        self.assertEqual(negocio.publication_status.slug, 'publicado')
+        self.assertTrue(negocio.slug)
+
+    def test_un_anuncio_sin_ubicacion_ni_categoria_es_global(self):
+        """El anuncio creado "solo con video" se ve en cualquier busqueda.
+
+        Sin ubicacion no hay radio que recortarle (el filtro de 5 km
+        dejaria FUERA a los negocios sin coordenadas) y sin categoria
+        entra en cualquier busqueda de categoria: si el panel no pide
+        esos datos al crearlo, no pueden esconderlo despues.
+        """
+        Business.objects.create(
+            name='Promo Global', description='',
+            category=None, publication_status=self.publicado,
+            operational_status=self.op_status,
+            is_ad=True, ad_video='anuncios/video/promo-global.mp4',
+        )
+
+        nombres = self.nombres(
+            lat=MOCA_LAT, lng=MOCA_LNG, category='restaurantes',
+        )
+
+        self.assertEqual(nombres, ['Promo Global'])
