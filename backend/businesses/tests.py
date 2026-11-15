@@ -8,6 +8,9 @@ Cubren los dos puntos que usa la app (web y Android):
 * ``GET /api/businesses/?featured=true``     -> destacados ordenados por nivel.
 * ``GET /api/anuncios/``                     -> anuncios que rellenan la celda
   destacada cuando la busqueda no tiene destacado de pago.
+* ``GET /api/video-anuncios/``               -> negocios marcados como anuncio
+  de video, con las mismas reglas que los destacados (5 km, categoria,
+  uno por categoria).
 
 Historial: ambos endpoints filtraban por ``'large'/'medium'/'small'`` (tiers
 heredados), pero ``Business.FEATURED_TIERS`` solo admite ``'1'..'4'``. Por eso
@@ -5368,3 +5371,182 @@ class AnuncioTests(TestCase):
         creado = Anuncio.objects.get(titulo='Anuncio de prueba')
         self.assertTrue(creado.activo)
         self.assertTrue(creado.vigente)
+
+
+@override_settings(STORAGES=STATIC_SIN_MANIFEST)
+class VideoAnuncioTests(TestCase):
+    """``GET /api/video-anuncios/`` — el negocio marcado como anuncio.
+
+    Mismas reglas y condiciones que los destacados (DISENO.md a1):
+    mismo filtro de 5 km, misma categoria de la busqueda, mismo criterio
+    de texto y uno por categoria. Quien no sale de aqui, la celda no lo
+    pinta — y la web aun asi solo lo pinta si el hueco no tiene
+    destacado de pago (destacado > video > anuncio de imagen).
+    """
+
+    URL = '/api/video-anuncios/'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado')
+        cls.borrador = PublicationStatus.objects.create(
+            name='Borrador', slug='borrador')
+        cls.op_status = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto')
+        cls.restaurantes = Category.objects.create(
+            name='Restaurantes', slug='restaurantes')
+        cls.tiendas = Category.objects.create(
+            name='Tiendas', slug='tiendas-video')
+        cls.admin = get_user_model().objects.create_superuser(
+            'admin_video', 'video@example.com', 'x')
+
+    def make(self, name, *, lat=MOCA_LAT, lng=MOCA_LNG, ad=True,
+             video='anuncios/video/promo.mp4', publication_status=None,
+             category=None):
+        """Negocio en Moca, marcado como anuncio (o no) con su video."""
+        biz = Business.objects.create(
+            name=name,
+            description=f'Descripcion de {name}',
+            short_description=name,
+            category=category or self.restaurantes,
+            publication_status=publication_status or self.publicado,
+            operational_status=self.op_status,
+            is_ad=ad,
+            ad_video=video if ad else None,
+        )
+        BusinessLocation.objects.create(
+            business=biz, municipality='Moca', province='Espaillat',
+            latitude=lat, longitude=lng,
+        )
+        return biz
+
+    def nombres(self, **params):
+        data = self.client.get(self.URL, params).json()
+        return [b['name'] for b in data]
+
+    # --- Quien entra ---
+
+    def test_el_negocio_marcado_sale_con_su_video(self):
+        self.make('Video de Gimnasio')
+
+        data = self.client.get(self.URL).json()
+
+        self.assertEqual(len(data), 1)
+        anuncio = data[0]
+        self.assertEqual(anuncio['name'], 'Video de Gimnasio')
+        self.assertTrue(anuncio['slug'])
+        self.assertTrue(
+            str(anuncio['video_url']).endswith('anuncios/video/promo.mp4'),
+            f'video_url rara: {anuncio["video_url"]}',
+        )
+        # Sin fotos no hay poster: la celda se apaña con el fondo.
+        self.assertIsNone(anuncio['poster_url'])
+
+    def test_sin_marcar_no_sale(self):
+        self.make('Ficha normal', ad=False)
+
+        self.assertEqual(self.nombres(), [])
+
+    def test_sin_video_no_sale(self):
+        self.make('Marcado sin video', video=None)
+
+        self.assertEqual(self.nombres(), [])
+
+    def test_la_ficha_tiene_que_estar_publicada(self):
+        self.make('En borrador', publication_status=self.borrador)
+
+        self.assertEqual(self.nombres(), [])
+
+    # --- Las mismas reglas que los destacados ---
+
+    def test_el_mismo_filtro_de_5_km(self):
+        self.make('Video Cerca', lat=19.4000)
+        self.make('Video Lejos', lat=19.4500)
+
+        nombres = self.nombres(lat=MOCA_LAT, lng=MOCA_LNG)
+
+        self.assertEqual(nombres, ['Video Cerca'])
+
+    def test_la_categoria_de_la_busqueda(self):
+        self.make('Video Restaurantes')
+        self.make('Video Tiendas', category=self.tiendas)
+
+        # Mismo criterio que los destacados: con categoria, solo la de
+        # esa categoria (la de Restaurantes no sale en una busqueda de
+        # Tiendas, aunque si en "Todas").
+        self.assertEqual(
+            self.nombres(category='tiendas-video'), ['Video Tiendas'])
+        self.assertEqual(
+            self.nombres(category='restaurantes'), ['Video Restaurantes'])
+        # En "Todas" (sin categoria) salen todos: no hay categoria que
+        # recortar, igual que los destacados.
+        self.assertEqual(
+            sorted(self.nombres()),
+            ['Video Restaurantes', 'Video Tiendas'],
+        )
+
+    def test_uno_por_categoria(self):
+        self.make('Restaurante Viejo')
+        self.make('Restaurante Nuevo')
+        self.make('Tienda Unica', category=self.tiendas)
+
+        nombres = self.nombres()
+
+        # De los dos restaurantes, solo el mas reciente; la tienda, en
+        # su propia categoria, tambien entra.
+        self.assertEqual(len(nombres), 2)
+        self.assertIn('Tienda Unica', nombres)
+        self.assertIn('Restaurante Nuevo', nombres)
+        self.assertNotIn('Restaurante Viejo', nombres)
+
+    def test_el_texto_tambien_filtra(self):
+        self.make('Corte de Pelo Estilizado')
+
+        # 'restaurante' CASARIA (el texto busca tambien en el nombre de
+        # la categoria, y el negocio es de Restaurantes): para ver que
+        # recorta hace falta un texto que no aparezca en nada.
+        self.assertEqual(self.nombres(text='contabilidad'), [])
+        self.assertEqual(
+            self.nombres(text='corte'), ['Corte de Pelo Estilizado'])
+
+    # --- El modelo ---
+
+    def test_marcar_sin_video_es_un_error(self):
+        negocio = self.make('Sin video aun', video=None)
+
+        with self.assertRaises(ValidationError) as fallo:
+            negocio.full_clean()
+
+        self.assertIn('is_ad', fallo.exception.message_dict)
+
+    def test_un_video_que_no_es_video_es_un_error(self):
+        negocio = self.make('Video raro', video='anuncios/video/notas.txt')
+
+        with self.assertRaises(ValidationError) as fallo:
+            negocio.full_clean()
+
+        self.assertIn('ad_video', fallo.exception.message_dict)
+
+    # --- El panel ---
+
+    def test_el_listado_del_panel_tiene_el_interruptor(self):
+        self.make('Negocio Anuncio')
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.get('/admin/businesses/business/')
+
+        self.assertEqual(respuesta.status_code, 200)
+        # Interruptor de la columna ANUNCIO DE VIDEO (list_editable).
+        self.assertContains(respuesta, 'form-0-is_ad')
+
+    def test_la_ficha_del_panel_tiene_el_video(self):
+        negocio = self.make('Negocio Anuncio')
+        self.client.force_login(self.admin)
+
+        respuesta = self.client.get(
+            f'/admin/businesses/business/{negocio.pk}/change/')
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, 'name="is_ad"')
+        self.assertContains(respuesta, 'name="ad_video"')

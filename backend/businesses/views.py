@@ -23,7 +23,7 @@ from .geografia import (
 )
 from .models import Anuncio, Business, Correction, SlugAntiguo, Pospuesto
 from business_locations.models import BusinessLocation
-from .serializers import AnuncioSerializer, BusinessListSerializer, BusinessDetailSerializer, CorrectionCreateSerializer, CorrectionSerializer
+from .serializers import AnuncioSerializer, AnuncioVideoSerializer, BusinessListSerializer, BusinessDetailSerializer, CorrectionCreateSerializer, CorrectionSerializer
 
 # Las metricas de uso se cuentan dentro de la vista que ya atiende la
 # peticion (uso.models): aqui solo se le avisa.
@@ -469,6 +469,70 @@ def anuncios(request):
     else:
         qs = qs.filter(categoria__isnull=True)
     serializer = AnuncioSerializer(qs[:20], many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+def video_anuncios(request):
+    """Negocios marcados como anuncio de video (DISENO.md a1).
+
+    Mismas reglas y condiciones que los destacados: el MISMO filtro de
+    5 km, la misma categoria de la busqueda, el mismo criterio de texto
+    y UNO POR CATEGORIA (la web rota uno por pagina). La prioridad la
+    decide la web: el destacado de pago siempre manda y el video solo
+    entra si el hueco no tiene destacado.
+
+    A diferencia de los destacados, el anuncio SIEMPRE esta publicado:
+    su tarjeta enlaza a la ficha, y una ficha en borrador no se
+    anuncia.
+    """
+    params = request.query_params
+    search = params.get('text') or params.get('search')
+    category = params.get('category')
+
+    qs = Business.objects.filter(
+        publication_status__slug='publicado',
+        is_ad=True,
+    ).exclude(
+        ad_video=''
+    ).filter(
+        ad_video__isnull=False,
+    ).filter(
+        # Fase geografica: recorta igual que el listado y los
+        # destacados (estan sobre "0 resultados" si no).
+        geografia.q_fase()
+    ).select_related(
+        'category', 'publication_status'
+    ).prefetch_related('location', 'images')
+
+    if category:
+        try:
+            qs = qs.filter(category__id=int(category))
+        except (ValueError, TypeError):
+            qs = qs.filter(category__slug=category)
+
+    # Mismo radio de 5 km que los resultados y los destacados.
+    lat = params.get('lat')
+    lng = params.get('lng')
+    if lat and lng:
+        qs = negocios_en_radio(qs, lat, lng, parse_radio(params.get('radius')))
+
+    # Mismo criterio de texto que el listado (y los destacados).
+    if search:
+        qs = busqueda.filtrar_por_texto(qs, search)
+
+    # Uno por categoria, mas reciente primero: el mismo criterio de
+    # seleccion que featured-by-search, para que la fila de la celda
+    # ruede igual (una pagina, una categoria).
+    result = []
+    vistas = set()
+    for biz in qs.order_by('-created_at'):
+        if biz.category_id in vistas:
+            continue
+        vistas.add(biz.category_id)
+        result.append(biz)
+
+    serializer = AnuncioVideoSerializer(result, many=True)
     return Response(serializer.data)
 
 

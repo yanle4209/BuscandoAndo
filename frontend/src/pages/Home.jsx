@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import SearchBar from '../components/SearchBar';
 import BusinessCard from '../components/BusinessCard';
 import AnuncioCard from '../components/AnuncioCard';
+import AnuncioVideoCard from '../components/AnuncioVideoCard';
 import CorrectionModal from '../components/CorrectionModal';
 import HeroCollage from '../components/HeroCollage';
 import MapOverlay from '../components/MapOverlay';
@@ -310,6 +311,10 @@ export default function Home() {
   // Anuncios para la celda destacada: entran solo cuando la busqueda no
   // tiene destacado de pago (destacado primero, anuncio rellena).
   const [searchAds, setSearchAds] = useState([]);
+  // Anuncios de VIDEO (negocio marcado): mismas reglas que los
+  // destacados (5 km, categoria, texto) y entran solo si el hueco no
+  // tiene destacado de pago — la cadena es destacado > video > imagen.
+  const [searchVideoAds, setSearchVideoAds] = useState([]);
   const [businesses, setBusinesses] = useState([]);
   const [showContact, setShowContact] = useState(false);
   // Negocio del que el visitante ha pulsado "Corregir" (null = sin modal).
@@ -528,8 +533,13 @@ export default function Home() {
       };
       if (estado.filters.text) searchParams.text = estado.filters.text;
       if (estado.filters.category) searchParams.category = estado.filters.category;
-      const [feat, anun] = await Promise.all([
+      const [feat, vid, anun] = await Promise.all([
         api.get('/businesses/featured-by-search/', { params: searchParams })
+          .catch(() => ({ data: [] })),
+        // El video del negocio marcado viaja con los MISMOS parametros
+        // que los destacados (5 km, categoria, texto): el backend lo
+        // espeja igual.
+        api.get('/video-anuncios/', { params: searchParams })
           .catch(() => ({ data: [] })),
         api.get('/anuncios/', {
           params: estado.filters.category
@@ -539,6 +549,7 @@ export default function Home() {
       ]);
       if (!vigente()) return;
       setSearchFeatured(Array.isArray(feat.data) ? feat.data : []);
+      setSearchVideoAds(Array.isArray(vid.data) ? vid.data : []);
       setSearchAds(Array.isArray(anun.data) ? anun.data : []);
     } catch (err) {
       if (!vigente()) return;
@@ -547,6 +558,7 @@ export default function Home() {
       setTotalResults(0);
       setTotalPages(1);
       setSearchFeatured([]);
+      setSearchVideoAds([]);
       setSearchAds([]);
       // Sin esto el visitante veia la lista vacia y creia que la zona no
       // tenia negocios: un corte de red y un sitio sin resultados se
@@ -572,6 +584,7 @@ export default function Home() {
     if (estado.punto) return undefined;
     setBusinesses([]);
     setSearchFeatured([]);
+    setSearchVideoAds([]);
     setSearchAds([]);
     setTotalResults(0);
     setTotalPages(1);
@@ -736,6 +749,7 @@ export default function Home() {
     && !errorRed
     && businesses.length === 0
     && searchFeatured.length === 0
+    && searchVideoAds.length === 0
     && searchAds.length === 0;
 
   // La fila rota por pagina (peticion del usuario: "que cada destacado
@@ -748,11 +762,16 @@ export default function Home() {
   const destacadoMostrado = searchFeatured.length
     ? searchFeatured[(estado.pagina - 1) % searchFeatured.length]
     : undefined;
-  // Si NO hay destacado, la celda la rellena un anuncio (destacado
-  // primero, anuncio rellena — decision del panel): rota igual, por su
-  // propia lista, y SOLO cuando searchFeatured esta vacia — un negocio
-  // que pago nunca pierde su celda.
-  const anuncioMostrado = searchFeatured.length === 0 && searchAds.length
+  // La celda tiene TRES niveles: destacado de pago primero; si no hay,
+  // el anuncio de VIDEO del negocio marcado; y si tampoco, el anuncio
+  // de imagen del panel (destacado > video > imagen). Cada nivel rota
+  // por su propia lista y solo entra si los anteriores estan vacios —
+  // un negocio que pago nunca pierde su celda.
+  const videoMostrado = searchFeatured.length === 0 && searchVideoAds.length
+    ? searchVideoAds[(estado.pagina - 1) % searchVideoAds.length]
+    : undefined;
+  const anuncioMostrado = searchFeatured.length === 0
+    && searchVideoAds.length === 0 && searchAds.length
     ? searchAds[(estado.pagina - 1) % searchAds.length]
     : undefined;
   const esDestacadoMostrado = (biz) => {
@@ -761,6 +780,16 @@ export default function Home() {
       return biz.id === destacadoMostrado.id;
     }
     return biz.slug === destacadoMostrado.slug;
+  };
+  // El negocio del video tampoco sale repetido: mientras su tarjeta
+  // ocupa la celda, se quita de la lista normal (mismo candado que el
+  // destacado de arriba).
+  const esVideoMostrado = (biz) => {
+    if (!videoMostrado) return false;
+    if (biz.id != null && videoMostrado.id != null) {
+      return biz.id === videoMostrado.id;
+    }
+    return biz.slug === videoMostrado.slug;
   };
   // Sin punto activo no hay circulo de 5 km que trazar. El overlay es toda
   // la pantalla, asi que tiene que decir ademas como salir de ahi.
@@ -888,9 +917,20 @@ export default function Home() {
                       />
                     )}
 
-                    {/* Mismo hueco 2x2, con publicidad cuando no hay
-                        destacado que mostrar (la celda del anuncio). */}
-                    {!destacadoMostrado && anuncioMostrado && (
+                    {/* Segundo nivel de la celda: el VIDEO del negocio
+                        marcado como anuncio, cuando no hay destacado
+                        que mostrar (destacado > video > imagen). */}
+                    {!destacadoMostrado && videoMostrado && (
+                      <AnuncioVideoCard
+                        key={videoMostrado.id || videoMostrado.slug}
+                        anuncio={videoMostrado}
+                        onVerFicha={abrirFicha}
+                      />
+                    )}
+
+                    {/* Tercer nivel: publicidad de imagen del panel,
+                        solo si tampoco hay video. */}
+                    {!destacadoMostrado && !videoMostrado && anuncioMostrado && (
                       <AnuncioCard
                         key={anuncioMostrado.id}
                         anuncio={anuncioMostrado}
@@ -919,7 +959,8 @@ export default function Home() {
                       <div className="sin-resultados">
                         <MapOverlay visible hint={avisoSinPunto} />
                       </div>
-                    ) : businesses.filter((biz) => !esDestacadoMostrado(biz)).map((biz) => (
+                    ) : businesses.filter((biz) => !esDestacadoMostrado(biz)
+                      && !esVideoMostrado(biz)).map((biz) => (
                       <BusinessCard
                         key={biz.id || biz.slug}
                         business={biz}

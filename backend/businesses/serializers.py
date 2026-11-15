@@ -94,6 +94,36 @@ class AnuncioSerializer(serializers.ModelSerializer):
         return obj.imagen.url if obj.imagen else None
 
 
+class AnuncioVideoSerializer(serializers.ModelSerializer):
+    """El negocio marcado como anuncio: la celda de video.
+
+    Solo lo que pinta la tarjeta de video: nombre, slug (para abrir la
+    ficha), el video y la primera foto como poster mientras carga.
+    """
+
+    video_url = serializers.SerializerMethodField()
+    poster_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Business
+        fields = ['id', 'slug', 'name', 'video_url', 'poster_url']
+
+    def get_video_url(self, obj):
+        url = str(obj.ad_video)
+        if url.startswith('http'):
+            return url
+        return obj.ad_video.url if obj.ad_video else None
+
+    def get_poster_url(self, obj):
+        imagen = obj.images.first()
+        if not imagen:
+            return None
+        url = str(imagen.image)
+        if url.startswith('http'):
+            return url
+        return imagen.image.url
+
+
 class BusinessImageSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
 

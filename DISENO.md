@@ -115,11 +115,15 @@ page                     ← se resetea a 1 en cada refresco (R2)
 Principio rector: **si hay resultados disponibles, se enseñan — nunca tapados.**
 
 - **a1** — fila de destacados solo si **hay destacados que coinciden con la
-  búsqueda dentro de 5 km**; si no, **un anuncio del panel rellena la misma
-  celda 2×2** (`GET /api/anuncios/`, activo y en su ventana de fechas; sin
-  categoría sirve en cualquier búsqueda, con categoría solo si coincide). El
-  destacado de pago siempre manda: el anuncio solo entra cuando la búsqueda
-  no tiene destacado.
+  búsqueda dentro de 5 km**; si no, **la celda 2×2 la rellena un anuncio en
+  dos niveles**: primero el **video del negocio marcado** como "Anuncio de
+  video" en su ficha (`GET /api/video-anuncios/`, mismas reglas que los
+  destacados: 5 km, categoría, texto, uno por categoría y ficha publicada)
+  y, si no hay video, **el anuncio de imagen del panel**
+  (`GET /api/anuncios/`, activo y en su ventana de fechas; sin categoría
+  sirve en cualquier búsqueda, con categoría solo si coincide). El destacado
+  de pago siempre manda: los anuncios solo entran cuando la búsqueda no
+  tiene destacado (destacado > video > imagen).
 - **a2** — **un destacado por categoría y municipio**: es el espacio que se
   vende. El panel no deja ocupar dos veces el mismo hueco (antes: máx. 3 por
   nivel y categoría, **global**) y `featured-by-search` devuelve **uno por
@@ -253,8 +257,9 @@ teléfono publican solas (§10).
   solo con overlay. Asimetría intencional. Condiciones: (1) destacados de portada
   a 5 km del punto activo; (2) su fallback también a 5 km; (3) sin punto activo →
   solo overlay.
-- **a1** — fila de destacados solo si hay destacados en 5 km; si no, un
-  anuncio del panel rellena la celda (destacado primero).
+- **a1** — fila de destacados solo si hay destacados en 5 km; si no, la
+  celda la rellena un anuncio (video del negocio marcado, o imagen del
+  panel; destacado primero).
 - **m2** — mapa siempre junto a la lista en escritorio; en móvil solo sin resultados.
 
 ---

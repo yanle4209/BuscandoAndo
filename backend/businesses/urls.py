@@ -18,6 +18,9 @@ urlpatterns = [
     # Anuncios de la celda destacada de resultados (DISENO.md a1): la
     # web los pide solo cuando la busqueda no tiene destacado de pago.
     path('anuncios/', views.anuncios, name='anuncios'),
+    # Negocios marcados como anuncio de VIDEO (DISENO.md a1): mismas
+    # reglas que los destacados (5 km, categoria, uno por categoria).
+    path('video-anuncios/', views.video_anuncios, name='video_anuncios'),
     # Aviso de lista de espera del banner de fuera de fase (FASE1):
     # solo suma la metrica aviso_interes, sin datos del usuario.
     path('interes/', views.interes, name='interes'),

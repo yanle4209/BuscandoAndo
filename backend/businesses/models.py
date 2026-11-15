@@ -158,6 +158,28 @@ class Business(models.Model):
         verbose_name='Fin destacado',
     )
 
+    # === ANUNCIO DE VIDEO ===
+    # El negocio marcado deja de salir como tarjeta normal: su espacio
+    # en la celda de resultados es un VIDEO, con las mismas reglas que
+    # los destacados (5 km, categoria, rotacion) y solo cuando el hueco
+    # no tiene destacado de pago (destacado > video > anuncio de
+    # imagen). DISENO.md a1.
+    is_ad = models.BooleanField(
+        default=False,
+        verbose_name='Anuncio de video',
+        help_text='La celda de resultados pone su video en vez de su '
+                  'tarjeta. Solo entra si la búsqueda no tiene destacado '
+                  'de pago.',
+    )
+    ad_video = models.FileField(
+        upload_to='anuncios/video/',
+        blank=True,
+        null=True,
+        verbose_name='Video',
+        help_text='MP4 (también WebM/MOV), ideal corto y apaisado. La '
+                  'ficha debe estar publicada.',
+    )
+
     # === PROCEDENCIA (R5, DISENO.md seccion 10) ===
     # Lo que viene del servicio entra marcado: el usuario ve la calidad de
     # la ficha sin que se pierda el control. Es el UNICO campo nuevo que
@@ -206,6 +228,28 @@ class Business(models.Model):
     def clean(self):
         """Validar el espacio de destacado: UNO por categoria y municipio."""
         super().clean()
+
+        # Anuncio de video: sin video no hay anuncio que pintar en la
+        # celda, y el archivo tiene que ser algo que el navegador sepa
+        # reproducir. Antes del atajo de destacados: el caso del
+        # anuncio no es destacado y no llegaria aqui si no.
+        if self.is_ad and not self.ad_video:
+            raise ValidationError({
+                'is_ad': (
+                    'Marcaste el anuncio pero falta el video: sube un '
+                    'MP4 (o desmarca la casilla).'
+                ),
+            })
+        if self.ad_video:
+            ext = (self.ad_video.name or '').rsplit('.', 1)[-1].lower()
+            if ext not in ('mp4', 'm4v', 'webm', 'mov'):
+                raise ValidationError({
+                    'ad_video': (
+                        'El video tiene que ser MP4 (también WebM/MOV): '
+                        f'se recibió ".{ext}".'
+                    ),
+                })
+
         if not self.is_featured:
             return
 

@@ -76,9 +76,23 @@
 .anuncio-card__cta {
   background: var(--yellow);
   color: var(--ink);
+  border: none;
   border-radius: 6px;
+  font-family: inherit;
   font-size: 14px;
   font-weight: 800;
   text-align: center;
   padding: 11px 14px;
+  cursor: pointer;
+}
+
+/* El anuncio de VIDEO reusa la tarjeta: mismo borde ámbar, misma
+   pastilla y los mismos spans 2x2 (que viven en Home.css). Solo cambia
+   el cuerpo de la foto: ahora es un <video> que cubre la celda igual
+   que cubriria la imagen. */
+.anuncio-card--video .anuncio-card__media video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }

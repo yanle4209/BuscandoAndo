@@ -610,7 +610,7 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
     list_display = [
         'name', 'get_category', 'publication_status',
         'get_operational_status', 'is_featured', 'featured_tier',
-        'get_featured_duration', 'get_city', 'get_created_short',
+        'is_ad', 'get_featured_duration', 'get_city', 'get_created_short',
     ]
     list_filter = [
         # Primero lo de municipio, que es con lo que se busca: lo demas
@@ -622,6 +622,7 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
         'is_featured',
         'featured_tier',
         'featured_permanent',
+        'is_ad',
         'created_at',
     ]
     # Los MISMOS campos que busca la API publica: si aqui no esta la
@@ -630,7 +631,8 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
     # en cualquier orden y con una errata de holgura.
     search_fields = ['name', 'category__name', 'short_description',
                      'description']
-    list_editable = ['publication_status', 'is_featured', 'featured_tier']
+    list_editable = ['publication_status', 'is_featured', 'featured_tier',
+                     'is_ad']
     list_per_page = 25
     ordering = ['-is_featured', '-created_at']
     # Sin esto cada fila del listado abria sus PROPIAS queries para la
@@ -668,6 +670,16 @@ class BusinessAdmin(BusquedaAdmin, admin.ModelAdmin):
                 'is_featured', 'featured_tier', 'featured_permanent',
                 'featured_weeks', 'featured_start_date', 'featured_end_date',
                 'get_featured_stats',
+            ),
+        }),
+        ('Anuncio de video', {
+            'fields': ('is_ad', 'ad_video'),
+            'description': (
+                'El negocio marcado deja de salir como tarjeta normal: '
+                'la celda de resultados pone su video, con las mismas '
+                'reglas que los destacados (5 km, categoría, rotación) '
+                'y solo si la búsqueda no tiene destacado de pago. La '
+                'ficha debe estar publicada y el video subido en MP4.'
             ),
         }),
         # `procedencia` es el UNICO campo que pide R5 y no aparecia en
