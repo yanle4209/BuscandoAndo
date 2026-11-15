@@ -203,10 +203,15 @@ if REACT_BUILD_DIR.exists():
 # BusinessImageInline: el panel tenia que ser usable en una maquina sin
 # secretos (los tests ya lo parcheaban a mano con STORAGES_DE_PRUEBA).
 # Con credenciales —produccion— no cambia nada; sin ellas, disco local.
+# MediaCloudinaryStorage (la clase base) manda TODO como image: un MP4
+# la API de Cloudinary lo rechaza con 400 "Invalid image file" — el 500
+# al guardar un anuncio de video. config.storage.MediaStorage clasifica
+# por extension (video donde hay video) en los tres caminos: subida,
+# URL y borrado.
 STORAGES = {
     'default': {
         'BACKEND': (
-            'cloudinary_storage.storage.MediaCloudinaryStorage'
+            'config.storage.MediaStorage'
             if CLOUDINARY_STORAGE['CLOUD_NAME']
             else 'django.core.files.storage.FileSystemStorage'
         ),

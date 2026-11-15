@@ -127,7 +127,11 @@ Principio rector: **si hay resultados disponibles, se enseñan — nunca tapados
   (`GET /api/anuncios/`, activo y en su ventana de fechas; sin categoría
   sirve en cualquier búsqueda, con categoría solo si coincide). El destacado
   de pago siempre manda: los anuncios solo entran cuando la búsqueda no
-  tiene destacado (destacado > video > imagen).
+  tiene destacado (destacado > video > imagen). El MP4 viaja a Cloudinary
+  como `resource_type: video` (`config/storage.py`): subirlo como imagen —el
+  default de `MediaCloudinaryStorage`— devuelve 400 *Invalid image file* y
+  el guardado cae en 500 (incidencia del 15/nov; en local, sin credenciales,
+  el storage va a disco y no se ve).
 - **a2** — **un destacado por categoría y municipio**: es el espacio que se
   vende. El panel no deja ocupar dos veces el mismo hueco (antes: máx. 3 por
   nivel y categoría, **global**) y `featured-by-search` devuelve **uno por

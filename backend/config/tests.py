@@ -38,6 +38,7 @@ from unittest import mock
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.files.base import ContentFile
 from django.db import connection
 from django.http import Http404
 from django.test import RequestFactory, SimpleTestCase, TestCase
@@ -614,3 +615,75 @@ class CabecerasPermisosTests(TestCase):
                         'usb=()'):
             with self.subTest(feature=apagado):
                 self.assertIn(apagado, permisos)
+
+
+class MediaStorageVideoTests(TestCase):
+    """El storage de media sube los MP4 a Cloudinary como video.
+
+    Regresion del 15/nov/2026: guardar un anuncio de video en el panel
+    de produccion devolvia 500. La causa no era el formulario sino el
+    storage: ``MediaCloudinaryStorage`` manda TODO como
+    ``resource_type='image'`` y la API de Cloudinary rechaza un MP4 con
+    400 *Invalid image file* (sus propias docs: un video subido como
+    imagen falla). En local nunca se ve: sin credenciales,
+    ``settings.py`` cae a disco (FileSystemStorage).
+
+    Se mockea ``cloudinary.uploader.upload``: estos tests no tocan red
+    ni credenciales reales.
+    """
+
+    def _storage(self):
+        from .storage import MediaStorage
+        return MediaStorage()
+
+    @mock.patch('cloudinary.uploader.upload')
+    def test_un_mp4_se_sube_como_video(self, subir):
+        subir.return_value = {'public_id': 'media/anuncios/video/promo'}
+
+        guardado = self._storage()._save(
+            'anuncios/video/promo.mp4', ContentFile(b'\x00' * 16))
+
+        self.assertEqual(subir.call_args.kwargs['resource_type'], 'video')
+        self.assertEqual(guardado, 'media/anuncios/video/promo')
+
+    @mock.patch('cloudinary.uploader.upload')
+    def test_las_demas_extensiones_de_video_tambien(self, subir):
+        """Las mismas que Business.clean() deja subir en ad_video."""
+        subir.return_value = {'public_id': 'media/v'}
+        for ext in ('webm', 'mov', 'm4v'):
+            with self.subTest(ext=ext):
+                subir.reset_mock()
+                self._storage()._save(
+                    'anuncios/video/v.%s' % ext, ContentFile(b'x'))
+                self.assertEqual(
+                    subir.call_args.kwargs['resource_type'], 'video')
+
+    @mock.patch('cloudinary.uploader.upload')
+    def test_una_imagen_sigue_subiendose_como_imagen(self, subir):
+        """No se toca lo que hoy funciona: las fotos de las fichas."""
+        subir.return_value = {'public_id': 'media/foto'}
+
+        self._storage()._save(
+            'business_images/foto.jpg', ContentFile(b'x'))
+
+        self.assertEqual(subir.call_args.kwargs['resource_type'], 'image')
+
+    @mock.patch('cloudinary.CloudinaryResource')
+    def test_la_url_del_video_es_de_video(self, recurso):
+        """La URL de la ficha tambien: si no, el <video> de la celda
+        pediria .../image/upload/... y Cloudinary devolveria 404."""
+        recurso.return_value.url = 'https://res.cloudinary.com/x/v.mp4'
+
+        self._storage().url('anuncios/video/promo.mp4')
+
+        self.assertEqual(
+            recurso.call_args.kwargs['default_resource_type'], 'video')
+
+    @mock.patch('cloudinary.CloudinaryResource')
+    def test_la_url_de_una_imagen_sigue_siendo_de_imagen(self, recurso):
+        recurso.return_value.url = 'https://res.cloudinary.com/x/f.jpg'
+
+        self._storage().url('business_images/f.jpg')
+
+        self.assertEqual(
+            recurso.call_args.kwargs['default_resource_type'], 'image')
