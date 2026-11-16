@@ -211,6 +211,23 @@ class CorrectionViewSet(viewsets.ModelViewSet):
             return CorrectionCreateSerializer
         return CorrectionSerializer
 
+    def create(self, request, *args, **kwargs):
+        """Honeypot anti-bot del formulario publico.
+
+        El campo ``website`` es invisible para una persona (CSS fuera
+        de pantalla, tabindex=-1, aria-hidden) y no viaja ni como nombre
+        visible ni en ningun paso del flujo: solo lo rellenan los bots
+        que autocompletan todos los inputs del DOM. Si llega con algo
+        dentro, se finge un 201 y NO se guarda nada — el bot se cree
+        que paso, asi no adapta su ataque — y se suma uno a la metrica
+        ``freno`` del dia, igual que un 429.
+        """
+        trampa = (request.data.get('website') or '').strip()
+        if trampa:
+            registrar('freno', request)
+            return Response({'ok': True}, status=status.HTTP_201_CREATED)
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         """El aviso entra y de paso se cuenta, sin frenar el formulario."""
         super().perform_create(serializer)

@@ -156,3 +156,18 @@
     width: 100%;
   }
 }
+
+/* Honeypot anti-bot: fuera de la pantalla y sin foco posible, pero en
+   el DOM como cualquier otro input — los bots que autocompletan todos
+   los campos lo llenan; un humano no llega a verlo ni a tocarlo. El
+   nombre "website" viaja en el POST; si llega con algo, el servidor
+   finge el 201 y descarta el aviso. No quitar sin avisar al backend
+   (businesses/views.py, CorrectionViewSet.create). */
+.correction__honeypot {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}

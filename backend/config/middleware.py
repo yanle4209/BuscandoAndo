@@ -11,6 +11,7 @@ from django.core.cache import cache
 from django.http import HttpResponse, JsonResponse
 
 from businesses.levantamiento import _ip
+from uso.models import registrar
 
 
 class CabecerasSeguridadMiddleware:
@@ -142,7 +143,10 @@ class ThrottleLoginAdmin:
             cache.set(clave, 1, timeout=ventana)
             return 1
 
-    def _respuesta_de_bloqueo(self, ventana):
+    def _respuesta_de_bloqueo(self, ventana, request):
+        # Cada bloqueo suma uno al contador del dia (evento 'freno'),
+        # igual que los 429 de los frenos de la API.
+        registrar('freno', request)
         respuesta = HttpResponse(
             '<!doctype html><html lang="es"><head><meta charset="utf-8">'
             '<title>Demasiados intentos</title></head><body>'
@@ -163,7 +167,7 @@ class ThrottleLoginAdmin:
                 if cache.get(self.PREFIJO + clave, 0) >= techo:
                     # Antes de CsrfViewMiddleware y de la vista: la
                     # contrasena no se toca.
-                    return self._respuesta_de_bloqueo(ventana)
+                    return self._respuesta_de_bloqueo(ventana, request)
 
         respuesta = self.get_response(request)
 
@@ -217,7 +221,12 @@ class _ThrottlePorIP:
             # expiro justo entre el add y el incr: se empieza de cero.
             cache.set(clave, 1, timeout=self.VENTANA)
 
-    def _bloqueada(self):
+    def _bloqueada(self, request):
+        # Cada 429 suma uno al contador del dia (evento 'freno'): asi el
+        # panel de uso ensena cuantas veces salto cada freno y el admin
+        # ve si hay un ataque en curso o si los techos estan cortos.
+        # La metrica nunca tumba la respuesta (registrar no lanza).
+        registrar('freno', request)
         respuesta = JsonResponse({'detail': self.MENSAJE}, status=429)
         respuesta['Retry-After'] = str(self.VENTANA)
         return respuesta
@@ -229,7 +238,7 @@ class _ThrottlePorIP:
 
         # Antes de la vista: lo que llega de mas ni se valida.
         if clave and cache.get(clave, 0) >= self.TECHO:
-            return self._bloqueada()
+            return self._bloqueada(request)
 
         respuesta = self.get_response(request)
         if clave:

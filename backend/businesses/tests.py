@@ -49,6 +49,7 @@ from . import geografia, osm, portar, validacion
 from .levantamiento import LIMITE_ENVIOS_POR_MINUTO, _ip
 from .models import Anuncio, Business, Correction, Cobro, Colaborador, Envio, Pospuesto, SlugAntiguo
 from .serializers import compute_operational_status
+from uso.models import UsoDiario
 
 BUSINESSES_URL = '/api/businesses/'
 FEATURED_BY_SEARCH_URL = '/api/businesses/featured-by-search/'
@@ -345,6 +346,105 @@ class FrenoPendientesTests(TestCase):
         response = self.client.get(CABECERAS_URL)
 
         self.assertEqual(response.status_code, 200)
+
+
+class HoneypotCorreccionTests(TestCase):
+    """El campo invisible «website» del formulario «Corregir».
+
+    Una persona nunca lo rellena (fuera de pantalla, tabindex=-1);
+    un bot que autocompleta el DOM lo llena siempre. Si llega relleno,
+    el backend finge un 201 y no guarda nada —ni valida, ni cuenta
+    como «correccion»— sino que suma a la métrica «freno».
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado')
+        cls.category = Category.objects.create(
+            name='Restaurantes', slug='restaurantes')
+        cls.op_status = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto')
+        cls.business = Business.objects.create(
+            name='Cafeteria Central',
+            description='Descripcion de prueba',
+            category=cls.category,
+            publication_status=cls.publicado,
+            operational_status=cls.op_status,
+        )
+
+    def setUp(self):
+        from config.middleware import ThrottleCorrecciones
+        clave = ThrottleCorrecciones.PREFIJO + 'ip:127.0.0.1'
+        self.addCleanup(cache.delete, clave)
+
+    def _payload(self, **extra):
+        payload = {
+            'business': self.business.id,
+            'campo': 'telefono',
+            'mensaje': 'El telefono bueno es 809-555-0000.',
+        }
+        payload.update(extra)
+        return payload
+
+    def test_un_bot_recibe_un_201_falso_y_no_deja_rastro(self):
+        response = self.client.post(
+            CORRECTIONS_URL,
+            self._payload(website='https://spam.example.com'),
+            content_type='application/json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertFalse(
+            Correction.objects.filter(business=self.business).exists(),
+            'El honeypot descarta el aviso: no se guarda nada')
+        self.assertFalse(
+            UsoDiario.objects.filter(evento='correccion').exists(),
+            'Un bot no cuenta como aviso enviado')
+        # Pero sí suma a la métrica del freno.
+        self.assertEqual(
+            UsoDiario.objects.get(evento='freno').total, 1)
+
+    def test_un_envio_real_sigue_funcionando(self):
+        response = self.client.post(
+            CORRECTIONS_URL, self._payload(),
+            content_type='application/json')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertTrue(
+            Correction.objects.filter(business=self.business).exists())
+        self.assertFalse(
+            UsoDiario.objects.filter(evento='freno').exists(),
+            'Un envío real no cuenta como freno')
+
+
+class ConteoDeFrenosTests(TestCase):
+    """Cada 429 suma uno a la métrica «freno» del día.
+
+    El panel de uso es donde el admin ve si un freno saltó y con qué
+    frecuencia: si no suman aquí, es como si no existieran.
+    """
+
+    def setUp(self):
+        from config.middleware import ThrottleInteres
+        self.freno = ThrottleInteres
+        clave = ThrottleInteres.PREFIJO + 'ip:127.0.0.1'
+        self.addCleanup(cache.delete, clave)
+
+    def test_un_429_suma_uno_a_la_metrica_freno(self):
+        clave = self.freno.PREFIJO + 'ip:127.0.0.1'
+        cache.set(clave, self.freno.TECHO, timeout=self.freno.VENTANA)
+
+        response = self.client.post(INTERES_URL)
+
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(UsoDiario.objects.get(evento='freno').total, 1)
+
+    def test_un_200_no_suma_al_freno(self):
+        response = self.client.post(INTERES_URL)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            UsoDiario.objects.filter(evento='freno').exists())
 
 
 class FeaturedApiTests(TestCase):

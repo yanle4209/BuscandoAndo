@@ -37,6 +37,10 @@ EVENTOS = [
     ('correccion', 'Correccion enviada'),
     ('fuera_zona', 'Intento fuera de la fase'),
     ('aviso_interes', 'Aviso de lista de espera'),
+    # Lo dispara la capa de frenos (middleware) y el honeypot del
+    # formulario "Corregir": cada vez que algo se corta en seco. Suma
+    # uno por bloqueo (429) o por trampa activada.
+    ('freno', 'Freno saltado (429 o honeypot)'),
 ]
 
 PLATAFORMAS = [

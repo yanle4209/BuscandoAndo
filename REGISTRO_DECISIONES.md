@@ -384,3 +384,38 @@
   APK reexportado al escritorio (se instala como actualización).
   **Ojo**: sin emulador no he podido VER el amarillo; es una decisión
   del dueño "a ver qué tal se ve", reversible con un revert.
+
+---
+
+## Blindaje de los endpoints públicos (D-2026-11-16)
+
+- **Decisión del dueño**: con el audit §8 ya cerrado (frenos de
+  `/api/interes/` y `/api/pendientes/`, ALLOWED_HOSTS sin comodín), se
+  añadieron las dos capas que faltan antes de la actualización de la
+  app: honeypot en el formulario «Corregir» y visibilidad de los
+  frenos en el panel de uso.
+- **Honeypot en «Corregir»** (web): campo `website` invisible (fuera de
+  pantalla, `tabindex=-1`, `aria-hidden`, `autoComplete=off`) que solo
+  rellenan los bots que autocompletan el DOM. Si llega relleno, el
+  backend (`CorrectionViewSet.create`) finge un 201 y NO guarda nada ni
+  cuenta como «corrección»: suma a la métrica «freno». El frontend
+  siempre envía `website` (vacío para una persona); `CorrectionModal.css`
+  `.correction__honeypot` lo esconde. Cuentan igual los envíos
+  auto-completados que los 429.
+- **Métrica «freno»** (`uso`): cada 429 de cualquier freno (login admin,
+  correcciones, interés, pendientes) y cada honeypot activado suma 1 al
+  contador del día, evento `freno` («Freno saltado (429 o honeypot)»).
+  Sale sola en el panel «Uso: últimos 14 días» y en
+  `/admin/uso/usodiario/`. Migración `uso/0002_alter_usodiario_evento.py`
+  (solo choices, sin esquema).
+- **Qué NO se hizo** (y por qué): `DatabaseCache` en Neon para contadores
+  compartidos entre workers (mete una lectura/escritura en la BD en cada
+  petición de esos endpoints; en esta escala no compensa) y
+  Turnstile/Cloudflare propio (exige cuenta Cloudflare + abrir la CSP —
+  hoy `script-src 'self'` — + un tercero en la página; solo si el spam
+  llega de verdad). El dominio propio + Cloudflare delante va con la
+  actualización de Android, no antes.
+- **Verificación**: 418 tests OK (6 nuevos: honeypot → 201 falso sin
+  dejar rastro ni contar «corrección», envío real intacto, 429 suma a
+  «freno», 200 no suma); migración `--check` limpia; lint y build
+  frontend limpios. (`dist/` está ignorado: el build no viaja en el repo.)

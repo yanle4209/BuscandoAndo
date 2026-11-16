@@ -37,6 +37,7 @@ const MIN_CARACTERES = 10;
 export default function CorrectionModal({ business, onClose }) {
   const [campo, setCampo] = useState(CAMPOS[0][0]);
   const [mensaje, setMensaje] = useState('');
+  const [sitioWeb, setSitioWeb] = useState(''); // honeypot: vacío para humanos
   const [fase, setFase] = useState('escribiendo'); // escribiendo | enviando | error | listo
   const [error, setError] = useState('');
 
@@ -52,6 +53,9 @@ export default function CorrectionModal({ business, onClose }) {
         business: business.id,
         campo,
         mensaje: mensaje.trim(),
+        // Honeypot: siempre vacío para una persona; si un bot lo
+        // rellena, el backend lo descarta fingiendo un 201.
+        website: sitioWeb,
       });
       setFase('listo');
     } catch (err) {
@@ -134,6 +138,22 @@ export default function CorrectionModal({ business, onClose }) {
                 Mínimo {MIN_CARACTERES} caracteres (te faltan {restantes}).
               </p>
             )}
+
+            {/* Honeypot: fuera de la pantalla y sin foco. No borrarlo:
+                el backend (CorrectionViewSet.create) descarta en
+                silencio los envíos que llegan con "website" relleno. */}
+            <div className="correction__honeypot" aria-hidden="true">
+              <label htmlFor="correction-website">Sitio web</label>
+              <input
+                id="correction-website"
+                type="text"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                value={sitioWeb}
+                onChange={e => setSitioWeb(e.target.value)}
+              />
+            </div>
 
             {fase === 'error' && (
               <p className="correction__error" role="alert">{error}</p>
