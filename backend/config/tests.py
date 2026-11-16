@@ -31,6 +31,7 @@ Dos cosas distintas que viven en la misma carpeta:
 """
 
 import os
+import re
 import tempfile
 from pathlib import Path
 from unittest import mock
@@ -726,3 +727,31 @@ class MediaStorageVideoTests(TestCase):
 
         self.assertEqual(
             recurso.call_args.kwargs['default_resource_type'], 'image')
+
+
+class AllowedHostsProduccionTests(SimpleTestCase):
+    """El ALLOWED_HOSTS de produccion no acepta cualquier onrender.
+
+    Hallazgo de AUDITORIA_SEGURIDAD §8: el valor del panel era
+    ``.onrender.com``, que casa con CUALQUIER subdominio de onrender y
+    no solo con el del sitio. No explota nada grave — no hay flujos de
+    correo ni de contrasena que usen el Host — pero es un comodin que
+    sobra. Este test mira el valor declarado en render.yaml, que es la
+    referencia del servicio (el valor vivo esta en el panel de Render).
+    """
+
+    def test_el_host_es_el_del_sitio_y_no_un_comodin(self):
+        ruta = Path(settings.BASE_DIR).parent / 'render.yaml'
+        if not ruta.exists():
+            self.skipTest('render.yaml no esta en el repo')
+
+        texto = ruta.read_text(encoding='utf-8')
+        bloque = re.search(
+            r'- key: ALLOWED_HOSTS\s*\n\s*value:\s*"([^"]*)"', texto)
+        self.assertIsNotNone(
+            bloque, 'No se encuentra ALLOWED_HOSTS en render.yaml')
+
+        entradas = [v.strip() for v in bloque.group(1).split(',')]
+        self.assertIn('buscandoando.onrender.com', entradas)
+        # El comodin: una entrada que empieza por punto.
+        self.assertNotIn('.onrender.com', entradas)

@@ -36,7 +36,7 @@ se auditaron servicios de terceros (Render, Cloudinary, Cloudflare).
 | 5 | Sin límite de intentos en `/admin/login/` | Media | **Corregido** (freno en la app) |
 | 6 | Confirmar `SECRET_KEY` en el panel de Render | Media | **Verificado** (existe, valor aleatorio) |
 | 7 | Keystore de firmas dentro de la carpeta sincronizada con OneDrive | Media | **Mitigado** (copia offline hecha) |
-| 8 | Varios menores (ver §8) | Baja/Info | Documentados |
+| 8 | Varios menores (ver §8) | Baja/Info | En parte corregidos (16/nov/2026); el resto sigue |
 
 ---
 
@@ -258,22 +258,38 @@ que protege de verdad es la copia sin conexión, que ya existe.
 
 ---
 
-## 8. Hallazgos menores (documentados, sin corregir)
+## 8. Hallazgos menores
 
-* **`.onrender.com` como comodín en `ALLOWED_HOSTS`** (render.yaml): acepta
-  cualquier subdominio de onrender.com. Conviendría restringir a
-  `buscandoando.onrender.com` (y los previews de PR si se usan). Impacto
-  bajo: no hay flujos de correo ni de restablecimiento de contraseña que
-  exploten el Host.
+Corregidos el 16/nov/2026:
+
+* **`.onrender.com` como comodín en `ALLOWED_HOSTS`** (render.yaml) —
+  corregido: ahora `buscandoando.onrender.com,localhost,127.0.0.1`
+  (localhost/127.0.0.1 se quedan: solo son alcanzables desde dentro del
+  propio contenedor —health check, runserver— y no abren nada al
+  exterior). *Ojo:* el valor vivo del servicio está en el panel de
+  Render (Settings → Environment); render.yaml no gobierna el servicio
+  ya creado, así que el cambio hay que hacerlo allí también a mano.
 * **Sin techo de peticiones en `GET /api/pendientes/`** (requiere token
-  válido o sesión de admin; es solo lectura del reporte) **ni en
-  `POST /api/corrections/`** (público a propósito: el riesgo es spam en la
-  cola de revisión, no compromiso). El endpoint de envío del colaborador
-  **sí** tiene techo: 30/min por token.
-* **`requirements.txt` sin fijar versiones** (rangos `>=`): para
-  reproducibilidad y para poder vigilar CVEs con calma convendría un lock o
-  versiones exactas. Hoy la instalación trae Django 5.2.18, el parche
-  actual de la rama 5.2.
+  válido o sesión de admin; es solo lectura del reporte) — corregido:
+  `ThrottlePendientes`, 60/hora por IP, 429 JSON con `Retry-After`.
+* **`POST /api/interes/` público sin techo** — corregido:
+  `ThrottleInteres`, 30/hora por IP. El riesgo era inflar
+  `aviso_interes`, el contador que decide dónde abrir después.
+* **Sin techo en `POST /api/corrections/`** — este documento estaba
+  desactualizado: ya tenía `ThrottleCorrecciones` (30/hora por IP).
+  Ahora las tres vistas comparten la receta `_ThrottlePorIP` del
+  middleware. El endpoint de envío del colaborador **sí** tiene techo
+  desde antes: 30/min por token.
+* **`requirements.txt` sin fijar versiones** (rangos `>=`) — este
+  documento estaba desactualizado: ya está fijado con `==`. Sigue
+  pendiente vigilar CVEs con calma.
+* **Throttling solo en proceso (sin `CACHES`)** — se mantiene a
+  propósito: los contadores viven en la memoria del proceso (un
+  reinicio los borra), igual que el freno del login. Para un techo es
+  aceptable; lo que no es, era no tenerlo.
+
+Siguen abiertos:
+
 * **`backend/export_data.py`** (no trackeado) contiene la contraseña de la
   BD local de desarrollo. No está en git ni en el historial, pero es un
   recordatorio de no dejar contraseñas ni siquiera en ficheros locales.

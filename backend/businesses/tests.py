@@ -53,6 +53,7 @@ from .serializers import compute_operational_status
 BUSINESSES_URL = '/api/businesses/'
 FEATURED_BY_SEARCH_URL = '/api/businesses/featured-by-search/'
 ANUNCIOS_URL = '/api/anuncios/'
+INTERES_URL = '/api/interes/'
 CORRECTIONS_URL = '/api/corrections/'
 CABECERAS_URL = '/api/cabeceras/'
 PENDIENTES_URL = '/api/pendientes/'
@@ -265,6 +266,85 @@ class CorrectionApiTests(TestCase):
             'El freno del POST publico se esta colando en la lista '
             'solo-staff',
         )
+
+
+class FrenoInteresTests(TestCase):
+    """El freno del contador publico del banner de fuera de fase.
+
+    ``POST /api/interes/`` solo suma una metrica, pero es publico: sin
+    techo un bot infla ``aviso_interes``, el contador que decide donde
+    abrir despues. El freno corta ANTES de la vista, asi que lo que
+    llega de mas ni se cuenta.
+    """
+
+    def setUp(self):
+        from config.middleware import ThrottleInteres
+        self.freno = ThrottleInteres
+        clave = ThrottleInteres.PREFIJO + 'ip:127.0.0.1'
+        self.addCleanup(cache.delete, clave)
+
+    def _llenar(self):
+        cache.set(self.freno.PREFIJO + 'ip:127.0.0.1',
+                  self.freno.TECHO, timeout=self.freno.VENTANA)
+
+    def test_al_llegar_al_techo_no_cuenta(self):
+        self._llenar()
+        with patch('businesses.views.registrar') as registrar:
+            response = self.client.post(INTERES_URL)
+
+        self.assertEqual(response.status_code, 429)
+        self.assertIn('Retry-After', response)
+        cuerpo = json.loads(response.content.decode('utf-8'))
+        self.assertIn('Demasiados', cuerpo['detail'])
+        registrar.assert_not_called()
+
+    def test_un_uso_normal_si_cuenta(self):
+        with patch('businesses.views.registrar') as registrar:
+            response = self.client.post(INTERES_URL)
+
+        self.assertEqual(response.status_code, 200)
+        registrar.assert_called_once()
+
+    def test_no_toca_a_otras_rutas(self):
+        self._llenar()
+
+        response = self.client.get(CABECERAS_URL)
+
+        self.assertEqual(response.status_code, 200)
+
+
+class FrenoPendientesTests(TestCase):
+    """El freno de la lectura del reporte (la consulta mas cara).
+
+    ``GET /api/pendientes/`` repasa las 158 cabeceras y solo requiere
+    token de colaborador o sesion de admin; sin techo, un rastreador lo
+    pedia una y otra vez. El freno va antes de la vista.
+    """
+
+    def setUp(self):
+        from config.middleware import ThrottlePendientes
+        self.freno = ThrottlePendientes
+        clave = ThrottlePendientes.PREFIJO + 'ip:127.0.0.1'
+        self.addCleanup(cache.delete, clave)
+
+    def _llenar(self):
+        cache.set(self.freno.PREFIJO + 'ip:127.0.0.1',
+                  self.freno.TECHO, timeout=self.freno.VENTANA)
+
+    def test_al_llegar_al_techo_devuelve_429(self):
+        self._llenar()
+
+        response = self.client.get(PENDIENTES_URL)
+
+        self.assertEqual(response.status_code, 429)
+        self.assertIn('Retry-After', response)
+
+    def test_no_toca_a_otras_rutas(self):
+        self._llenar()
+
+        response = self.client.get(CABECERAS_URL)
+
+        self.assertEqual(response.status_code, 200)
 
 
 class FeaturedApiTests(TestCase):

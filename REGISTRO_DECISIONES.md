@@ -235,10 +235,14 @@
 - **Bugs menores frontend** (informe del agente): ver D-04.
 - **MIGRACION_SERV00.md**: migración opcional a serv00 (registro en
   revisión); hoy manda el puente Render+Neon (DISENO §16).
-- **Hallazgos "sin corregir" de AUDITORIA_SEGURIDAD §8**: comodín
-  `.onrender.com` en ALLOWED_HOSTS (render.yaml), sin techo en
-  `GET /api/pendientes/` ni `POST /api/interes/`, throttling solo en
-  proceso (sin CACHES). Bajos, documentados.
+- **Hallazgos de AUDITORIA_SEGURIDAD §8**: corregidos el 16/nov/2026
+  los de severidad baja (ALLOWED_HOSTS sin el comodín `.onrender.com`
+  —pendiente cambiarlo también en el panel de Render—, techo en
+  `GET /api/pendientes/` y `POST /api/interes/`); `corrections` ya
+  tenía freno y `requirements.txt` ya estaba fijado (el documento estaba
+  desactualizado). Siguen abiertos: `Throttling` solo en proceso, el
+  SHA en `/api/health/` (a propósito), `localStorage` del token y
+  `export_data.py` local.
 
 ---
 

@@ -177,33 +177,27 @@ class ThrottleLoginAdmin:
         return respuesta
 
 
-class ThrottleCorrecciones:
-    """Freno de envios al formulario publico «Corregir» (auditoria E).
+class _ThrottlePorIP:
+    """Receta comun de los frenos por IP: cuenta en la cache del proceso.
 
-    ``POST /api/corrections/`` es PUBLICO a proposito: cualquier
-    visitante puede avisar de un dato malo sin login. Sin techo, eso
-    tambien significa que un bot puede inundar la bandeja del admin en
-    minutos — el mensaje de «demasiados envios» del frontend existia,
-    pero nada del servidor lo devolvia nunca.
+    Vive aqui, y no en DRF, por lo mismo que ``ThrottleLoginAdmin``:
+    el techo no debe depender de que la vista pase por el ``initial()``
+    del framework ni de que quien llama este autenticado. Los contadores
+    son del proceso (un reinicio los borra), igual que el freno del
+    login: aceptable para un techo, que es lo que hace.
 
-    Cuenta envios **por IP**, en la cache, con la misma receta que
-    ``ThrottleLoginAdmin``: 30 por hora. Un humano normal no se acerca
-    (el formulario pide campo y una frase); el spam sostenido se corta
-    en seco. Cuentan tambien los que la validacion rechaza (400): el
-    tanteo es parte del abuso. Al saltarse, 429 JSON con ``Retry-After``
-    — el modal del frontend lo pinta como «Demasiados envios» — y solo
-    al ``create``: el listado es solo staff y no toca esta cuenta.
-
-    En pruebas la suite entera manda ~18 envios desde 127.0.0.1, por
-    debajo del techo: el limite no se cruza solo. El test del freno
-    pone el contador al techo a mano y lo borra al terminar, asi no
-    depende del orden.
+    El contador sube **tambien cuando la peticion es rechazada**: el
+    tanteo es parte del abuso. Al llegar al techo, la peticion ni llega
+    a la vista (429 JSON con ``Retry-After``).
     """
 
-    RUTA = '/api/corrections/'
+    RUTA = ''
+    METODO = 'POST'
     TECHO = 30
     VENTANA = 60 * 60
-    PREFIJO = 'ba-correcciones:'
+    PREFIJO = 'ba:'
+    MENSAJE = ('Demasiados envios: espera unos minutos y vuelve a '
+               'intentarlo.')
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -214,27 +208,99 @@ class ThrottleCorrecciones:
             return None
         return self.PREFIJO + 'ip:' + ip
 
-    def __call__(self, request):
-        es_post = request.method == 'POST' and request.path == self.RUTA
-        clave = self._clave(request) if es_post else None
+    def _subir(self, clave):
+        if cache.add(clave, 1, timeout=self.VENTANA):
+            return
+        try:
+            cache.incr(clave)
+        except ValueError:
+            # expiro justo entre el add y el incr: se empieza de cero.
+            cache.set(clave, 1, timeout=self.VENTANA)
 
-        # Antes de la vista: el envio ni se valida.
+    def _bloqueada(self):
+        respuesta = JsonResponse({'detail': self.MENSAJE}, status=429)
+        respuesta['Retry-After'] = str(self.VENTANA)
+        return respuesta
+
+    def __call__(self, request):
+        activa = (request.method == self.METODO
+                  and request.path == self.RUTA)
+        clave = self._clave(request) if activa else None
+
+        # Antes de la vista: lo que llega de mas ni se valida.
         if clave and cache.get(clave, 0) >= self.TECHO:
-            respuesta = JsonResponse(
-                {'detail': 'Demasiados envios: espera unos minutos '
-                           'y vuelve a intentarlo.'},
-                status=429)
-            respuesta['Retry-After'] = str(self.VENTANA)
-            return respuesta
+            return self._bloqueada()
 
         respuesta = self.get_response(request)
-
         if clave:
-            if not cache.add(clave, 1, timeout=self.VENTANA):
-                try:
-                    cache.incr(clave)
-                except ValueError:
-                    # expiro justo entre el add y el incr: se empieza
-                    # de cero.
-                    cache.set(clave, 1, timeout=self.VENTANA)
+            self._subir(clave)
         return respuesta
+
+
+class ThrottleCorrecciones(_ThrottlePorIP):
+    """Freno de envios al formulario publico «Corregir» (auditoria E).
+
+    ``POST /api/corrections/`` es PUBLICO a proposito: cualquier
+    visitante puede avisar de un dato malo sin login. Sin techo, eso
+    tambien significa que un bot puede inundar la bandeja del admin en
+    minutos — el mensaje de «demasiados envios» del frontend existia,
+    pero nada del servidor lo devolvia nunca.
+
+    30 por hora por IP. Un humano normal no se acerca (el formulario pide
+    campo y una frase); el spam sostenido se corta en seco. Solo al
+    ``create``: el listado es solo staff y no toca esta cuenta.
+
+    En pruebas la suite entera manda ~18 envios desde 127.0.0.1, por
+    debajo del techo: el limite no se cruza solo. El test del freno
+    pone el contador al techo a mano y lo borra al terminar, asi no
+    depende del orden.
+    """
+
+    RUTA = '/api/corrections/'
+    METODO = 'POST'
+    TECHO = 30
+    VENTANA = 60 * 60
+    PREFIJO = 'ba-correcciones:'
+
+
+class ThrottleInteres(_ThrottlePorIP):
+    """Freno del contador publico del banner de fuera de fase.
+
+    ``POST /api/interes/`` es publico y solo suma una metrica, pero sin
+    techo un bot puede inflar ``aviso_interes`` — que es justamente el
+    contador que decide donde abrir despues (DISENO.md 13) — y el admin
+    acabaria leyendo un interesse que nadie tuvo.
+
+    30 por hora por IP: una persona pulsa el boton una vez; el spam
+    sostenido se corta antes de tocar la metrica.
+    """
+
+    RUTA = '/api/interes/'
+    METODO = 'POST'
+    TECHO = 30
+    VENTANA = 60 * 60
+    PREFIJO = 'ba-interes:'
+    MENSAJE = ('Demasiados avisos: espera unos minutos y vuelve a '
+               'intentarlo.')
+
+
+class ThrottlePendientes(_ThrottlePorIP):
+    """Freno de la lectura del reporte de pendientes (DISENO.md 11.1).
+
+    ``GET /api/pendientes/`` es la consulta mas cara del sitio: calcula
+    el trabajo municipio a municipio sobre las 158 cabeceras y, sin
+    ``?municipio=``, entero. Requiere token de colaborador o sesion de
+    admin (§11-i), pero sin techo un rastreador lo pedia una y otra vez
+    — cada respuesta es un repaso completo del padron.
+
+    60 por hora por IP: de sobra para una sesion de trabajo real (el
+    reporte se relee al completar cada ficha) y un tope claro para
+    quien solo quiere golpear. La suite manda ~12 lecturas desde
+    127.0.0.1, por debajo del techo.
+    """
+
+    RUTA = '/api/pendientes/'
+    METODO = 'GET'
+    TECHO = 60
+    VENTANA = 60 * 60
+    PREFIJO = 'ba-pendientes:'

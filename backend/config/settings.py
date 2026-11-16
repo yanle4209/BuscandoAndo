@@ -66,6 +66,8 @@ MIDDLEWARE = [
     'config.middleware.CabecerasSeguridadMiddleware',
     'config.middleware.ThrottleLoginAdmin',
     'config.middleware.ThrottleCorrecciones',
+    'config.middleware.ThrottleInteres',
+    'config.middleware.ThrottlePendientes',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
