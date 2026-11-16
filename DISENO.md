@@ -776,15 +776,17 @@ municipios pequeños de RD.
 
 ## 13. Fase geográfica (FASE1)
 
-**Decidido:** BuscandoAndo solo se enseña en **Espaillat y Santiago**
-— las provincias con fichas cargadas y trabajo de campo — y, dentro
-de ellas, en **Moca y Santiago de los Caballeros**, que son los dos
-municipios con volumen para la beta. Web, app y levantamiento leen los
-mismos endpoints, así que el recorte es **uno** y llega a los tres.
+**Decidido:** BuscandoAndo solo se enseña en **Espaillat** y, dentro
+de ella, en **Moca** — el único municipio de la beta. Web, app y
+levantamiento leen los mismos endpoints, así que el recorte es **uno**
+y llega a los tres.
 
-Con el recorte actual, el listado cubre las fichas publicadas de esos
-dos municipios. El resto de las dos provincias sigue en la base y el
-admin lo ve, pero no se sirve.
+Con el recorte actual, el listado cubre las fichas publicadas de Moca.
+El resto sigue en la base y el admin lo ve, pero no se sirve.
+
+**16/nov/2026:** se cerró el alcance a un solo municipio (antes eran
+Moca y Santiago de los Caballeros): la beta la maneja una sola persona
+y todavía no hay anunciantes, así que no se abre más de uno.
 
 ### La regla
 
@@ -796,7 +798,7 @@ admin lo ve, pero no se sirve.
   directo, sea de otra provincia o de un municipio vecino. Nada se
   borra ni se despublica: sigue en la base y el admin la ve.
 - **Las cabeceras también.** `GET /api/cabeceras/` devuelve solo las de
-  fase (hoy 2); el padrón completo de 158 sigue en
+  fase (hoy 1: Moca); el padrón completo de 158 sigue en
   `geografia.cabeceras()` y lo usan admin, importador y reporte de
   pendientes.
 - **Sin ubicación = fuera del listado.** Una ficha sin fila de
@@ -809,11 +811,11 @@ admin lo ve, pero no se sirve.
 ### El interruptor
 
 `FASE1_PROVINCIAS` (settings, leído con `env_csv`): por defecto
-Espaillat y Santiago. `FASE1_MUNICIPIOS`: por defecto Moca y Santiago
-de los Caballeros; **refina** la lista de provincias. Vaciar
-`FASE1_MUNICIPIOS` devuelve los 15 municipios de las dos provincias;
-vaciar `FASE1_PROVINCIAS` devuelve el país entero. Cada uno es un solo
-deploy, probado con `override_settings` en los tests. Solo lo leen
+Espaillat. `FASE1_MUNICIPIOS`: por defecto Moca; **refina** la lista
+de provincias. Vaciar `FASE1_MUNICIPIOS` devuelve los municipios de
+Espaillat; vaciar `FASE1_PROVINCIAS` devuelve el país entero. Cada uno
+es un solo deploy, probado con `override_settings` en los tests. Solo
+lo leen
 `businesses/geografia.py` (`en_fase`, `cabeceras_en_fase`,
 `punto_en_fase`, `q_fase`) y los tests.
 

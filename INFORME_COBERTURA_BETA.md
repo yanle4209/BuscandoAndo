@@ -2,6 +2,12 @@
 
 **Fecha:** 2026-11-09  
 **Alcance:** fichas publicadas de las provincias Espaillat y Santiago. La beta sirve **Moca y Santiago de los Caballeros**; el resto de municipios queda fuera de la web y se mantiene aquí para decidir la expansión.  
+
+> **Actualización 16/nov/2026:** la fase se cerró a **solo Moca**
+> (antes Moca y Santiago de los Caballeros): la beta la maneja una
+> sola persona y todavía no hay anunciantes. Las cifras de abajo
+> siguen valiendo para Moca; lo de Santiago queda fuera de la web y
+> este informe pasa a ser material de cuando se decida ampliar.
 **Fuente:** API de producción (`https://buscandoando.onrender.com/api/businesses/?page_size=100`, páginas 1-7). Son **651 fichas publicadas** en las dos provincias; **594 entran en la beta**.  
 **Importante:** la base local tiene 363 fichas (Moca 37, Santiago 269) y está desactualizada: le faltan 288 fichas de Moca. No uses las cifras locales para planificar.
 

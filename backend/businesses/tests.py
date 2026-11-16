@@ -831,6 +831,7 @@ class BusquedaEnAdminTests(TestCase):
                         html.index('La Paz Panadería'))
 
 
+@override_settings(FASE1_PROVINCIAS=(), FASE1_MUNICIPIOS=())
 class FiltroCityTests(TestCase):
     """R3.5: `city` dejo de ser filtro por nombre.
 
@@ -838,6 +839,10 @@ class FiltroCityTests(TestCase):
     `city=Moca` (cliente con el JS cacheado) el parametro se ignora:
     recortar por nombre seria un segundo radio encubierto, con un tamano
     distinto en cada municipio.
+
+    La fase geografica se apaga aqui: este test mide `city`, no la
+    fase, y con la fase activa la ficha de otro municipio (que es la
+    que demuestra que `city` no recorta) quedaria fuera por otra razon.
     """
 
     @classmethod
@@ -862,9 +867,9 @@ class FiltroCityTests(TestCase):
         BusinessLocation.objects.create(
             business=biz,
             municipality=municipio,
-            # Moca y Santiago de los Caballeros son los municipios de
-            # fase (FASE1): este test no mira la fase, mira que `city`
-            # no recorte — y asi ambos salen.
+            # Con la fase apagada en este test (arriba) da igual: lo que
+            # se mira es que `city` no recorte, y para eso hace falta
+            # una ficha de OTRO municipio.
             province='Espaillat' if municipio == 'Moca' else 'Santiago',
             latitude=MOCA_LAT,
             longitude=MOCA_LNG,
@@ -1040,8 +1045,8 @@ class CabecerasApiTests(TestCase):
         padron = geografia.cabeceras()
 
         # FASE1: el publico ve solo las cabeceras de las provincias de
-        # fase (22 de 158 hoy) y, si hay municipios configurados, solo
-        # esos municipios.
+        # fase y, si hay municipios configurados, solo esos municipios
+        # (hoy: la unica cabecera, Moca).
         provincias = {
             geografia.normalizar(p) for p in settings.FASE1_PROVINCIAS
         }
@@ -1092,27 +1097,28 @@ class CabecerasApiTests(TestCase):
         self.assertEqual(len(moca), 1)
         self.assertEqual(moca[0]['provincia'], 'Espaillat')
 
-    def test_incluye_santiago_de_los_caballeros_y_no_punal(self):
-        """Santiago de los Caballeros entra; Puñal, misma provincia,
-        queda fuera por el filtro de municipio."""
+    def test_solo_ofrece_moca_no_los_vecinos(self):
+        """La fase es SOLO Moca (16/nov/2026): Santiago de los
+        Caballeros y Puñal, vecinos de la misma provincia, quedan
+        fuera por el filtro de municipio."""
         municipios = {c['municipio'] for c in self.cabeceras()}
 
-        self.assertIn('Santiago de los Caballeros', municipios)
+        self.assertIn('Moca', municipios)
+        self.assertNotIn('Santiago de los Caballeros', municipios)
         self.assertNotIn('Puñal', municipios)
 
 
 class FaseGeograficaTests(TestCase):
     """FASE1: el listado, el selector y la ficha recortan.
 
-    Las provincias de fase (Espaillat y Santiago) y, dentro de ellas,
-    los municipios de fase (Moca y Santiago de los Caballeros) son lo
-    unico que se enseña HOY en web, app y levantamiento — los tres leen
-    los mismos endpoints, asi que el recorte llega a todas de una sola
-    vez. Las fichas de fuera siguen en la base (nada se borra), pero su
+    La fase es SOLO el municipio de Moca (16/nov/2026: la beta la
+    maneja una sola persona y no hay anunciantes, asi que no se abre
+    mas de un municipio). Web, app y levantamiento leen los mismos
+    endpoints, asi que el recorte llega a las tres de una sola vez.
+    Las fichas de fuera siguen en la base (nada se borra), pero su
     enlace directo tambien da 404; vaciar ``FASE1_MUNICIPIOS`` devuelve
-    los 15 municipios de las dos provincias, y vaciar
-    ``FASE1_PROVINCIAS`` devuelve el pais entero, cada uno en un solo
-    deploy.
+    los municipios de Espaillat, y vaciar ``FASE1_PROVINCIAS`` devuelve
+    el pais entero, cada uno en un solo deploy.
     """
 
     @classmethod
@@ -1128,9 +1134,11 @@ class FaseGeograficaTests(TestCase):
         cls.fuera = cls.ficha('Dulce Hogar', 'Santo Domingo',
                               'Santo Domingo', 18.4861, -69.9312)
         # Misma provincia de fase, municipio que no lo es: la prueba de
-        # que el filtro no se queda en la provincia.
+        # que el filtro no se queda en la provincia. Gaspar Hernandez
+        # esta en el padron de Espaillat y no es Moca.
         cls.fuera_municipio = cls.ficha(
-            'Panaderia Puñal', 'Puñal', 'Santiago', 19.4247, -70.6509)
+            'Panaderia Gaspar', 'Gaspar Hernández', 'Espaillat',
+            19.6275, -70.2780)
 
     @classmethod
     def ficha(cls, nombre, municipio, provincia, lat, lng):
@@ -1201,29 +1209,31 @@ class FaseGeograficaTests(TestCase):
                          ['La Receta'])
 
     def test_el_selector_de_municipio_solo_ofrece_la_fase(self):
-        """El mismo endpoint leen web, app y levantamiento."""
+        """El mismo endpoint leen web, app y levantamiento: con la
+        fase en SOLO Moca, el selector no ofrece nada mas."""
         municipios = {
             c['municipio']
             for c in self.client.get(CABECERAS_URL).json()
         }
 
-        self.assertIn('Moca', municipios)
-        self.assertIn('Santiago de los Caballeros', municipios)
+        self.assertEqual(municipios, {'Moca'})
+        self.assertNotIn('Santiago de los Caballeros', municipios)
         self.assertNotIn('Puñal', municipios)
         self.assertNotIn('Santo Domingo', municipios)
 
     @override_settings(FASE1_MUNICIPIOS=())
-    def test_sin_municipios_configurados_entran_las_dos_provincias(self):
-        """Vaciar los municipios devuelve los 15 de las provincias: la
-        ficha de Puñal vuelve, la de Santo Domingo sigue fuera."""
+    def test_sin_municipios_configurados_entran_los_de_la_provincia(self):
+        """Vaciar los municipios devuelve todos los de Espaillat: la
+        ficha de Gaspar Hernandez vuelve, la de Santo Domingo sigue
+        fuera (es otra provincia)."""
         self.assertEqual(sorted(self.nombres()),
-                         ['La Receta', 'Panaderia Puñal'])
+                         ['La Receta', 'Panaderia Gaspar'])
 
     @override_settings(FASE1_PROVINCIAS=())
     def test_sin_fase_configurada_entra_el_pais_entero(self):
         """La reversibilidad es un solo deploy: tupla vacia = antes."""
         self.assertEqual(sorted(self.nombres()),
-                         ['Dulce Hogar', 'La Receta', 'Panaderia Puñal'])
+                         ['Dulce Hogar', 'La Receta', 'Panaderia Gaspar'])
         self.assertEqual(
             len(self.client.get(CABECERAS_URL).json()),
             len(geografia.cabeceras()),

@@ -138,8 +138,8 @@ def cabecera_mas_cercana(lat, lng, radio_km):
 # ---------------------------------------------------------------------------
 # Fase geografica (DISENO.md FASE1).
 #
-# El proyecto abre por PROVINCIAS — hoy Espaillat y Santiago — y, dentro
-# de ellas, por MUNICIPIOS — hoy Moca y Santiago de los Caballeros. La
+# El proyecto abre por PROVINCIAS — hoy Espaillat — y, dentro
+# de ellas, por MUNICIPIOS — hoy solo Moca. La
 # fase NO borra nada: recorta vistas (listado, destacados, cabeceras,
 # ficha, sitemap) y las fichas de fuera quedan fuera de la web; siguen
 # en la base y el admin las ve. Sin provincias configuradas (tupla
