@@ -405,9 +405,38 @@
   min-width: 0;
 }
 
-.lev-horario-fila input[type='time'] {
+/* Selector de tiempo de 12 horas (hora : minuto + AM/PM). Sustituye al
+   input nativo type="time", que dependia del idioma del sistema y no
+   mostraba AM/PM ni el reloj. Mismo aspecto y tamano que los selects
+   de al lado. */
+.lev-tiempo {
+  display: flex;
+  gap: 5px;
+  flex: 1.7;
+  min-width: 0;
+  align-items: center;
+}
+
+.lev-tiempo select {
+  width: 100%;
   flex: 1;
   min-width: 0;
+  font-size: 14px;
+  padding: 11px 4px 11px 6px;
+  text-align: center;
+}
+
+.lev-tiempo select[aria-label$='minutos'] {
+  flex: 1.1;
+}
+
+.lev-tiempo-ampm {
+  flex: 1.3;
+  padding-left: 2px;
+}
+
+.lev-tiempo-sep {
+  color: var(--grey);
 }
 
 .lev-horario-sep {

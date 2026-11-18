@@ -102,6 +102,62 @@ const aCoordenada = (valor) => {
   return Number.isFinite(n) ? n : null;
 };
 
+// El input nativo type="time" no muestra AM/PM ni abre el reloj en
+// varios navegadores/idiomas (depende del SO). Se guarda el MISMO
+// valor de siempre —"HH:MM" en 24h— pero en pantalla se pinta un
+// select hora / minuto / AM-PM, que se entiende y se toca igual en
+// cualquier equipo y cualquier idioma.
+const HORAS12 = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+const MINUTOS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+
+const aHora12 = (valor) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(valor || '');
+  if (!m) return null;
+  const h24 = Number(m[1]);
+  if (h24 > 23) return null;
+  let h12 = h24 % 12;
+  if (h12 === 0) h12 = 12;
+  return { h12: String(h12), min: m[2], ampm: h24 >= 12 ? 'PM' : 'AM' };
+};
+
+const a24 = (h12, min, ampm) => {
+  let h = Number(h12);
+  if (ampm === 'AM' && h === 12) h = 0;
+  if (ampm === 'PM' && h !== 12) h += 12;
+  return `${String(h).padStart(2, '0')}:${min}`;
+};
+
+function SelectorTiempo({ valor, onCambio, etiqueta }) {
+  const partes = aHora12(valor);
+  const elegir = (campo, v) => {
+    const base = partes || { h12: '9', min: '00', ampm: 'AM' };
+    const siguiente = { ...base, [campo]: v };
+    onCambio(a24(siguiente.h12, siguiente.min, siguiente.ampm));
+  };
+  return (
+    <div className="lev-tiempo" role="group" aria-label={etiqueta}>
+      <select aria-label={`${etiqueta}: hora`} value={partes ? partes.h12 : ''}
+              onChange={(e) => elegir('h12', e.target.value)}>
+        <option value="">--</option>
+        {HORAS12.map((h) => <option key={h} value={h}>{h}</option>)}
+      </select>
+      <span className="lev-tiempo-sep">:</span>
+      <select aria-label={`${etiqueta}: minutos`} value={partes ? partes.min : ''}
+              onChange={(e) => elegir('min', e.target.value)}>
+        <option value="">--</option>
+        {MINUTOS.map((mi) => <option key={mi} value={mi}>{mi}</option>)}
+      </select>
+      <select className="lev-tiempo-ampm" aria-label={`${etiqueta}: AM/PM`}
+              value={partes ? partes.ampm : ''}
+              onChange={(e) => elegir('ampm', e.target.value)}>
+        <option value="">--</option>
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
+  );
+}
+
 export default function Levantamiento() {
   const [token, setToken] = useState('');
   const [tokenVisible, setTokenVisible] = useState(false);
@@ -593,6 +649,9 @@ export default function Levantamiento() {
 
   const cambiarFranja = (i, campo) => (e) => {
     const valor = e.target.value;
+    setFranjas((f) => f.map((fila, j) => (j === i ? { ...fila, [campo]: valor } : fila)));
+  };
+  const cambiarFranjaValor = (i, campo, valor) => {
     setFranjas((f) => f.map((fila, j) => (j === i ? { ...fila, [campo]: valor } : fila)));
   };
 
@@ -1442,9 +1501,11 @@ export default function Levantamiento() {
                   <option value="">Día</option>
                   {DIAS.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
-                <input aria-label="Desde" type="time" step={60} value={f.desde} onChange={cambiarFranja(i, 'desde')} />
+                <SelectorTiempo etiqueta="Desde" valor={f.desde}
+                  onCambio={(v) => cambiarFranjaValor(i, 'desde', v)} />
                 <span className="lev-horario-sep">—</span>
-                <input aria-label="Hasta" type="time" step={60} value={f.hasta} onChange={cambiarFranja(i, 'hasta')} />
+                <SelectorTiempo etiqueta="Hasta" valor={f.hasta}
+                  onCambio={(v) => cambiarFranjaValor(i, 'hasta', v)} />
                 <button
                   type="button"
                   className="lev-horario-copiar"
