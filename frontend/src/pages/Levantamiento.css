@@ -334,16 +334,8 @@
   margin-bottom: 12px;
 }
 
-/* ------------------------- el selector y lo que falta --------------- */
-.lev-elegir {
-  margin-top: 16px;
-}
-
-.lev-elegir select {
-  border-color: var(--yellow);
-}
-
-.lev-field .lev-elegir-nota {
+/* ------------------------- el aviso de ficha abierta ------------------ */
+.lev-field .lev-ficha-abierta-nota {
   font-size: 12px;
   line-height: 1.5;
   color: var(--yellow-ink);
@@ -1179,4 +1171,85 @@
     width: 100%;
     justify-content: center;
   }
+}
+
+/* ===== Encabezados plegables de las listas =====
+   Las dos listas (En revisión y Pospuestos) colapsan/expanden con
+   aria-expanded; así el colaborador puede apañar lo que necesita
+   rápido. El conteo viaja en la derecha, visible aún cerradas. */
+.lev-grupo-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 6px 2px;
+  margin: 14px 0 8px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.lev-grupo-toggle:hover {
+  color: var(--yellow-ink);
+}
+
+.lev-grupo-toggle:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+.lev-grupo-caret {
+  flex: 0 0 12px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.lev-grupo-n {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 1px 10px;
+  background: var(--surface-2);
+  color: var(--ink-soft);
+}
+
+/* Botones «Revisar» y «Posponer» lado a lado: la acción de abrir la
+   ficha (amarilla, la de la casa) y la de apartarla (discreta). */
+.lev-ficha-acciones {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lev-ficha-revisar {
+  background: var(--yellow);
+  border: 1px solid rgba(135, 100, 0, 0.35);
+  border-radius: 6px;
+  padding: 3px 12px;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #3a2f0b;
+  cursor: pointer;
+}
+
+.lev-ficha-revisar:hover {
+  filter: brightness(0.96);
+}
+
+.lev-ficha-revisar:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
 }

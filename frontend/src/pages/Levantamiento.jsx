@@ -195,6 +195,9 @@ export default function Levantamiento() {
   const [faltanFicha, setFaltanFicha] = useState([]);
   const [cargandoFicha, setCargandoFicha] = useState(false);
   const [avisoFicha, setAvisoFicha] = useState(null);
+  // Listas plegables: por defecto abiertas como hasta ahora.
+  const [mostrarRevision, setMostrarRevision] = useState(true);
+  const [mostrarPospuestos, setMostrarPospuestos] = useState(true);
 
   // ------------------------------ las fotos ---------------------------
   // Las fotos nuevas que estan por mandar, con su URL de preview para
@@ -533,8 +536,7 @@ export default function Levantamiento() {
     }
   };
 
-  // El desplegable del reporte: mismo camino, el id llega como cadena.
-  const elegirFicha = (e) => abrirFichaPorId(e.target.value);
+
 
   // La API pagina (12 por hoja): con solo la primera, el desplegable
   // esconde categorias reales — y quien teclea una que existe en otra
@@ -1149,36 +1151,10 @@ export default function Levantamiento() {
                 </p>
               )}
 
-              {/* El selector: la puerta al modo completar. Elegir una
-                  ficha puebla el formulario con lo que ya hay y le marca
-                  lo que falta; el envío va con su id. Entra con las de
-                  AMBAS listas: si no, abrir una publicada dejaria en el
-                  desplegable un valor que no esta en sus opciones. */}
-              {reporte.detalle && (
-                reporte.detalle.fichas.length > 0
-                || (reporte.detalle.publicadas || []).length > 0
-              ) && (
-                <div className="lev-field lev-elegir">
-                  <label htmlFor="lev-elegir">Negocio a completar</label>
-                  <select id="lev-elegir" value={fichaId ?? ''} onChange={elegirFicha}>
-                    <option value="">— Elige uno de la lista —</option>
-                    {[...reporte.detalle.fichas, ...(reporte.detalle.publicadas || [])].map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.nombre}
-                        {f.faltan.length > 0 ? ` — le falta ${f.faltan.length}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  {cargandoFicha && <p className="lev-aviso">Abriendo la ficha…</p>}
-                  {avisoFicha && <p className="lev-aviso">{avisoFicha}</p>}
-                  {fichaId !== null && (
-                    <small className="lev-elegir-nota">
-                      Formulario rellenado con lo que ya había. Lo marcado en amarillo es lo que
-                      todavía falta rellenar.
-                    </small>
-                  )}
-                </div>
-              )}
+              {/* Sin desplegable: las dos listas de abajo son EL punto de
+                  entrada —cada fila abre el mismo formulario—; llamar
+                  desde un <select> duplicaba el gesto. */}
+
 
               {(reporte.fila.con_revision > 0 || reporte.fila.con_publicadas > 0
                 || reporte.fila.con_pospuestos > 0) && (
@@ -1202,6 +1178,16 @@ export default function Levantamiento() {
 
               {(reporte.detalle || filas.length > 0) && (
                 <div className="lev-detalle">
+                  {/* El aviso de apertura de una ficha (cargando o error):
+                      sigue siendo necesario aunque el desplegable no esté. */}
+                  {cargandoFicha && <p className="lev-aviso">Abriendo la ficha…</p>}
+                  {avisoFicha && <p className="lev-aviso">{avisoFicha}</p>}
+                  {fichaId !== null && (
+                    <small className="lev-ficha-abierta-nota">
+                      Formulario rellenado con lo que ya había. Lo marcado en amarillo es lo que
+                      todavía falta rellenar.
+                    </small>
+                  )}
                   {reporte.detalle && (
                     <>
                       <h3>Por campo faltante</h3>
@@ -1234,36 +1220,66 @@ export default function Levantamiento() {
                       baja a lo que si le toca. «Retomar» la devuelve. */}
                   {(reporte.detalle?.pospuestos || []).length > 0 && (
                     <>
-                      <h3>Pospuestos</h3>
-                      <p className="lev-pospuestos-nota">
-                        Los que decidiste no completar ahora: no cuentan como pendientes.
-                      </p>
-                      <ul className="lev-fichas lev-fichas--pospuestos">
-                        {(reporte.detalle.pospuestos || []).map((f) => (
-                          <li key={f.id} className="lev-ficha lev-ficha--pospuesto">
-                            <span className="lev-ficha-nombre">{f.nombre}</span>
-                            <span className="lev-ficha-estado pospuesto">pospuesta</span>
-                            <span className="lev-ficha-falta">
-                              {f.faltan.length === 0
-                                ? '✓ Lista para enviar'
-                                : `Falta: ${f.faltan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
-                            </span>
-                            <button
-                              type="button"
-                              className="lev-ficha-posponer lev-ficha-retomar"
-                              title="Volver a la lista de trabajo"
-                              onClick={() => posponer(f.id, false)}
-                            >
-                              Retomar
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                      <button
+                        type="button"
+                        className="lev-grupo-toggle"
+                        aria-expanded={mostrarPospuestos}
+                        onClick={() => setMostrarPospuestos((v) => !v)}
+                      >
+                        <span className="lev-grupo-caret" aria-hidden="true">
+                          {mostrarPospuestos ? '▾' : '▸'}
+                        </span>
+                        Pospuestos
+                        <span className="lev-grupo-n">
+                          {(reporte.detalle?.pospuestos || []).length}
+                        </span>
+                      </button>
+                      {mostrarPospuestos && (
+                        <>
+                          <p className="lev-pospuestos-nota">
+                            Los que decidiste no completar ahora: no cuentan como pendientes.
+                          </p>
+                          <ul className="lev-fichas lev-fichas--pospuestos">
+                            {(reporte.detalle.pospuestos || []).map((f) => (
+                              <li key={f.id} className="lev-ficha lev-ficha--pospuesto">
+                                <span className="lev-ficha-nombre">{f.nombre}</span>
+                                <span className="lev-ficha-estado pospuesto">pospuesta</span>
+                                <span className="lev-ficha-falta">
+                                  {f.faltan.length === 0
+                                    ? '✓ Lista para enviar'
+                                    : `Falta: ${f.faltan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="lev-ficha-posponer lev-ficha-retomar"
+                                  title="Volver a la lista de trabajo"
+                                  onClick={() => posponer(f.id, false)}
+                                >
+                                  Retomar
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
                     </>
                   )}
 
-                  <h3>En revisión</h3>
+                  <button
+                    type="button"
+                    className="lev-grupo-toggle"
+                    aria-expanded={mostrarRevision}
+                    onClick={() => setMostrarRevision((v) => !v)}
+                  >
+                    <span className="lev-grupo-caret" aria-hidden="true">
+                      {mostrarRevision ? '▾' : '▸'}
+                    </span>
+                    En revisión
+                    <span className="lev-grupo-n">{filas.length}</span>
+                  </button>
 
+                  {mostrarRevision && (
+                    <>
                   {/* La confirmacion visual: barra + fila que cambia de
                       color sin moverse de sitio. El avance cuenta las
                       DOS listas: lo resuelto de todo lo que habia. */}
@@ -1279,7 +1295,13 @@ export default function Levantamiento() {
                   <ul className="lev-fichas">
                     {filas.map((f) => (
                       <li key={f.id} className={`lev-ficha ${claseFila(f)}`}>
-                        <span className="lev-ficha-nombre">{f.nombre}</span>
+                        <button
+                          type="button"
+                          className="lev-ficha-abrir"
+                          onClick={() => abrirFichaPorId(String(f.id))}
+                        >
+                          <span className="lev-ficha-nombre">{f.nombre}</span>
+                        </button>
                         <span className={`lev-ficha-estado ${f.hecha ? 'hecha' : f.estado}`}>
                           {f.hecha ? 'completada' : f.estado === 'publicado' ? 'publicada' : 'sin publicar'}
                         </span>
@@ -1288,22 +1310,32 @@ export default function Levantamiento() {
                             ? (f.hecha ? '✓ Sin nada pendiente' : '✓ Lista para enviar')
                             : `Falta: ${f.restan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
                         </span>
-                        {/* El boton de posponer en CADA ficha de la
-                            lista, al final. El colaborador puede decidir
-                            que no quiere o no puede completarla por
-                            cualquier razon; el gesto es reversible y no
-                            toca la ficha ni su publicacion. */}
-                        <button
-                          type="button"
-                          className="lev-ficha-posponer"
-                          title="No completar ahora: a la lista de pospuestos"
-                          onClick={() => posponer(f.id, true)}
-                        >
-                          Posponer
-                        </button>
+                        {/* Revisar y Posponer, juntos: la acción principal
+                            (abrir su formulario) y la de apartarla por
+                            ahora —el gesto es reversible—. */}
+                        <div className="lev-ficha-acciones">
+                          <button
+                            type="button"
+                            className="lev-ficha-revisar"
+                            title="Abrir el formulario de esta ficha"
+                            onClick={() => abrirFichaPorId(String(f.id))}
+                          >
+                            Revisar
+                          </button>
+                          <button
+                            type="button"
+                            className="lev-ficha-posponer"
+                            title="No completar ahora: a la lista de pospuestos"
+                            onClick={() => posponer(f.id, true)}
+                          >
+                            Posponer
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </ul>
+                    </>
+                  )}
 
                   {/* La segunda lista, en la MISMA tarjeta: publicadas
                       que ya tienen todo lo obligatorio y aun les falta
