@@ -181,7 +181,21 @@ class Business(models.Model):
                   'lo unico obligatorio del anuncio.',
     )
 
-    # === PROCEDENCIA (R5, DISENO.md seccion 10) ===
+    # === HORARIO NO DISPONIBLE ===
+    # El colaborador del levantamiento no pudo averiguar las horas de la
+    # ficha (nadie atiende, etc). La ficha puede publicarse con ese vacio
+    # y, en la ficha publica, el Horario se muestra como "No disponible".
+    # El reporte de faltantes NO cambia: sigue contando horario como
+    # pendiente — es un dato que sigue faltando.
+    horario_sin_dato = models.BooleanField(
+        default=False,
+        verbose_name='Horario no disponible',
+        help_text='El dato no se pudo averiguar en campo; la ficha '
+                  'puede publicarse y el Horario se muestra como '
+                  '"No disponible".',
+    )
+
+    # === PROCEDENCIAS (R5, DISENO.md seccion 10) ===
     # Lo que viene del servicio entra marcado: el usuario ve la calidad de
     # la ficha sin que se pierda el control. Es el UNICO campo nuevo que
     # pide R5 — lo pendiente es calculado, no se guarda.

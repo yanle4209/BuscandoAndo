@@ -234,6 +234,10 @@ def _a_datos(cuerpo):
         # Mal formado: no es un pendiente de rellenar despues, es un
         # cuerpo que no dice nada que se pueda guardar (§11.5).
         motivos.append('"estado" no es un estado valido.')
+    # El colaborador no pudo averiguar las horas: el vacio queda
+    # MARCADO, que es distinto de no dicho. Se acepta booleano JSON o
+    # 'true'/'1' del multipart.
+    horario_no_disponible = _booleano(cuerpo.get('horario_no_disponible'))
 
     datos = {
         'nombre': texto('nombre', 200),
@@ -251,6 +255,7 @@ def _a_datos(cuerpo):
         'categoria': texto('categoria', 100),
         'descripcion': texto('descripcion', 300),
         'horario': _horario(cuerpo.get('horario')),
+        'horario_no_disponible': horario_no_disponible,
         'cerrado': _booleano(cuerpo.get('cerrado')),
         'estado': estado,
     }

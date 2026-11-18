@@ -6054,3 +6054,87 @@ class VideoAnuncioTests(TestCase):
         nombres = [b['name'] for b in data.get('results', data)]
 
         self.assertNotIn('Promo Global', nombres)
+
+
+class HorarioNoDisponibleTests(TestCase):
+    """El colaborador marca «horario no disponible» en el levantamiento.
+
+    Lo que se postula del diseño: el vacío queda MARCADO (no se inventa
+    ni una hora), la ficha se puede publicar igualmente, la ficha
+    publica dice «No disponible» y el reporte sigue contando horario
+    como dato pendiente — ese pendiente es de verdad.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.en_revision = PublicationStatus.objects.create(
+            name='En Revision', slug='en-revision',
+        )
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado',
+        )
+        cls.abierto = OperationalStatus.objects.create(
+            name='Abierto', slug='abierto',
+        )
+        cls.category = Category.objects.create(
+            name='Panaderias', slug='panaderias',
+        )
+        cls.colaborador = Colaborador.objects.create(nombre='Pedro')
+
+    def cuerpo(self, **extra):
+        datos = {
+            'nombre': 'Pan del Dia',
+            'telefono': '809-555-1111',
+            'lat': 19.3970,
+            'lng': -70.5270,
+            'municipio': 'Moca',
+            'calle': 'Calle 1 #10',
+            'categoria': 'Panaderias',
+        }
+        datos.update(extra)
+        return datos
+
+    def enviar(self, **extra):
+        cuerpo = {
+            clave: valor
+            for clave, valor in self.cuerpo(**extra).items()
+            if valor is not None
+        }
+        cuerpo['imagenes'] = [_foto('foto1.jpg')]
+        return self.client.post(
+            LEVANTAMIENTO_URL,
+            cuerpo,
+            headers={'X-Colaborador-Token': self.colaborador.token},
+        )
+
+    def test_marcarlo_guarda_el_vacio_marcado_sin_horas(self):
+        respuesta = self.enviar(horario_no_disponible='true')
+
+        self.assertIn(respuesta.status_code, (200, 201), respuesta.content)
+        negocio = Business.objects.get(name='Pan del Dia')
+        self.assertFalse(negocio.hours.exists())
+        self.assertTrue(negocio.horario_sin_dato)
+
+    def test_no_marcarlo_no_inventa_ni_bloquea(self):
+        respuesta = self.enviar()
+
+        self.assertIn(respuesta.status_code, (200, 201), respuesta.content)
+        negocio = Business.objects.get(name='Pan del Dia')
+        self.assertFalse(negocio.horario_sin_dato)
+
+    def test_marcarlo_sin_horas_sigue_faltando_el_dato(self):
+        from businesses.pendientes import faltantes_de
+        respuesta = self.enviar(horario_no_disponible='true')
+
+        self.assertIn(respuesta.status_code, (200, 201), respuesta.content)
+        negocio = Business.objects.get(name='Pan del Dia')
+        self.assertIn('horario', faltantes_de(negocio))
+
+    def test_la_api_lo_expone_en_el_detalle(self):
+        respuesta = self.enviar(horario_no_disponible='true')
+
+        self.assertIn(respuesta.status_code, (200, 201), respuesta.content)
+        negocio = Business.objects.get(name='Pan del Dia')
+        detalle = self.client.get('/api/businesses/%s/' % negocio.slug).json()
+
+        self.assertTrue(detalle.get('horario_sin_dato'))

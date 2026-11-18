@@ -59,6 +59,7 @@ def crear(datos, *, categoria, en_revision, procedencia='importado'):
         publication_status=en_revision,
         operational_status=operativo,
         procedencia=procedencia,
+        horario_sin_dato=bool(datos.get('horario_no_disponible')),
     )
     BusinessLocation.objects.create(
         business=negocio,

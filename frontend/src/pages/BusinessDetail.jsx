@@ -232,7 +232,8 @@ export default function BusinessDetail() {
           )}
         </section>
 
-        {/* Horarios */}
+        {/* Horarios: sin filas reales, si el colaborador marco el dato
+            como no disponible, se dice explicitamente — nunca en blanco. */}
         {hours.length > 0 && (
           <section className="detail-section">
             <h2>Horarios</h2>
@@ -250,6 +251,17 @@ export default function BusinessDetail() {
                   )}
                 </div>
               ))}
+            </div>
+          </section>
+        )}
+        {hours.length === 0 && biz.horario_sin_dato && (
+          <section className="detail-section">
+            <h2>Horarios</h2>
+            <div className="detail-hours">
+              <div className="detail-hours-row">
+                <span className="detail-hours-day">Horario</span>
+                <span className="detail-hours-closed">No disponible</span>
+              </div>
             </div>
           </section>
         )}

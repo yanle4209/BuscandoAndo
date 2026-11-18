@@ -323,6 +323,7 @@ class BusinessDetailSerializer(serializers.ModelSerializer):
             'effective_status', 'effective_status_name',
             'is_featured', 'featured_tier',
             'procedencia',
+            'horario_sin_dato',
             'latitude', 'longitude',
             'location', 'contact', 'hours', 'images',
             'created_at', 'updated_at',

@@ -288,6 +288,16 @@ def enriquecer(negocio, datos, *, categoria=None):
         poner_horario(negocio, datos['horario'])
         tocado.append('horario')
 
+    # Horario marcado como no disponible: queda el vacio MARCADO, que es
+    # distinto de "no se dijo nada". Sigue contando como faltante en el
+    # reporte (no cambia la regla del dato), pero la ficha se puede
+    # publicar y la ficha publica muestra "No disponible".
+    if datos.get('horario_no_disponible') is not None \
+            and negocio.horario_sin_dato != bool(datos['horario_no_disponible']):
+        negocio.horario_sin_dato = bool(datos['horario_no_disponible'])
+        negocio.save(update_fields=['horario_sin_dato'])
+        tocado.append('horario_no_disponible')
+
     # Lo que va en el propio negocio y todavia no tiene. Se guarda en una
     # sola llamada porque son campos de la misma fila. Van DOS listas:
     # `cambios` en el vocabulario del reporte (es lo que se devuelve como
