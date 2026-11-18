@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
+from django.views.generic import RedirectView
 
 # Admin personalizado (solo textos)
 import config.admin  # noqa
@@ -26,6 +27,10 @@ urlpatterns = [
     # antes de admin.site.urls, igual que las importaciones.
     path('admin/seo/', admin.site.admin_view(admin_seo), name='admin_seo'),
     path('admin/', admin.site.urls),
+    # /admin sin barra: la regla comodin de la SPA lo respondía con 404
+    # (nunca llegaba al admin). Se redirige para que los marcadores
+    # sin barra final no mueran.
+    path('admin', RedirectView.as_view(url='/admin/', permanent=False)),
     path('api/', include('businesses.urls')),
     path('api/', include('categories.urls')),
 

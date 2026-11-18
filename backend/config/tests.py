@@ -148,6 +148,17 @@ class HealthCheckTests(TestCase):
         self.assertNotEqual(data['now'], '')
 
 
+class AdminSinBarraFinalTests(SimpleTestCase):
+    """``/admin`` sin barra final no debe caer en la regla comodin de la
+    SPA y responder 404: se redirige a ``/admin/``."""
+
+    def test_redirige_a_la_version_con_barra(self):
+        response = self.client.get('/admin')
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response['Location'].endswith('/admin/'))
+
+
 class ServeReactSeguridadTests(SimpleTestCase):
 
     @classmethod
