@@ -16,11 +16,15 @@ import './Home.css';
 // filtra por distancia y no debe depender de un default.
 const RADIO_KM = 5;
 
-// Debe coincidir con SearchPagination.page_size del backend. Si no, el
-// total de páginas sale inflado y "Siguiente" deja llegar a una página
-// vacía que solo muestra el overlay. (El recorte de la página que se
-// queda sin resultados —porque la cuenta bajó— vive en fetchBusinesses.)
-const POR_PAGINA = 12;
+// El backend tiene page_size por parámetro (SearchPagination, sin
+// tope), así que el frontend manda page_size explícito (ver fetchBusinesses)
+// y este número es la ventana exacta de cada página:
+// 5 columnas × 3 filas = 15. Antes valía 12 y con una celda destacado/
+// video/anuncio (2×2, 4 huecos) las 12 tarjetas no llenaban las filas y
+// quedaba UNA sola tarjeta suelta en la última fila. Con 15, las filas
+// salen completas siempre y, si hay celda, queda una fila con 4
+// (intencionada, no suelta).
+const POR_PAGINA = 15;
 // R1.a disparo 3: refrescar cuando el usuario se aleja >= 500 m del ultimo
 // punto consultado.
 const UMBRAL_MOV_KM = 0.5;
@@ -43,8 +47,8 @@ const UMBRAL_FASE_KM = 30;
 // nadie que no llegamos cuando llegamos a todo el pais.
 const PADRON_COMPLETO = 150;
 
-// Grid: 3 cols x 4 rows = 12 cards per page; la paginacion aparece
-// cuando la pagina se llena (POR_PAGINA = 12).
+// Grid: 3 rows x 5 columns = 15 cards per page; la paginacion aparece
+// cuando la pagina se llena (POR_PAGINA = 15).
 
 const FILTROS_VACIOS = { text: '', category: '' };
 
@@ -497,6 +501,7 @@ export default function Home() {
     try {
       const params = {
         page: pageNum, lat: punto.lat, lng: punto.lng, radius: RADIO_KM,
+        page_size: POR_PAGINA,
       };
       if (estado.filters.text) params.text = estado.filters.text;
       if (estado.filters.category) params.category = estado.filters.category;
@@ -879,8 +884,8 @@ export default function Home() {
               <h2>{loading ? 'Buscando...' : `${totalResults} resultado${totalResults !== 1 ? 's' : ''}`}</h2>
             </div>
             <div className="right-results-scroll">
-              {/* Esqueleto mientras responde la API: 12 huecos (POR_PAGINA),
-                  la misma pagina 3x4 que despues, para que el cambio a los
+              {/* Esqueleto mientras responde la API: 15 huecos (POR_PAGINA),
+                  la misma pagina 3x5 que despues, para que el cambio a los
                   resultados reales no mueva ni un pixel el layout. */}
               <div className="right-results-list" aria-busy={loading ? 'true' : 'false'}>
                 {loading ? (

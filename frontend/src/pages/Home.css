@@ -153,7 +153,9 @@
   padding: 0;
   display: grid;
   /* 5 columnas SIEMPRE (peticion del usuario:4 seguian quedando anchas):
-    12 por pagina. En movil (<=768px) manda su propio media query (1fr). */
+    15 por pagina (POR_PAGINA del Home): con una celda destacado/video/
+    anuncio de 2x2 (4 huecos) 15+4 = 19 casillas = 3 filas completas y
+    una de 4, intencionada; sin celda, 15 = 3 filas completas. */
   grid-template-columns: repeat(5, minmax(0, 1fr));
   /* Suelo de fila = alto real de UNA tarjeta normal (min-height 340 +
      bordes/contenido). Sin él, las filas que solo contienen destacados
@@ -269,7 +271,7 @@
 }
 
 /* ===== ESQUELETO DE CARGA =====
-   12 huecos (POR_PAGINA) con la forma de una tarjeta: portada fija
+   15 huecos (POR_PAGINA) con la forma de una tarjeta: portada fija
    arriba, titulo, lineas de texto y la banda del pie pegada abajo.
    Se pinta mientras la API responde, para que el paso de "Buscando..."
    a los resultados reales no mueva el layout ni deje un hueco blanco.
