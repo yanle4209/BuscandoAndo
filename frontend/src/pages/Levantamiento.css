@@ -172,6 +172,18 @@
 .lev-field input,
 .lev-field select,
 .lev-field textarea,
+.lev-horario-fila input,
+.lev-horario-fila select {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 15px;
+  padding: 11px 12px;
+}
+
 /* Selector «no disponible»: mismo aspecto que un campo de formulario,
    y una nota aclaratoria cuando aplica. */
 .lev-horario-sin-dato {
@@ -209,18 +221,6 @@
   border-radius: 6px;
   padding: 8px 10px;
   margin-bottom: 8px;
-}
-
-.lev-horario-fila input,
-.lev-horario-fila select {
-  width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  color: var(--ink);
-  font-family: var(--font);
-  font-size: 15px;
-  padding: 11px 12px;
 }
 
 .lev-field input:focus,
