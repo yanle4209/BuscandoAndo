@@ -1126,94 +1126,6 @@ export default function Levantamiento() {
                 </div>
               )}
 
-              {/* Sin nada pendiente el reporte NO desaparece: se
-                  explica. Con categoria, el vacio es de la categoria;
-                  sin ella, el del municipio — contando los pospuestos,
-                  que no son «todo completo» sino «nada de lo mio». */}
-              {!categoria && reporte.fila.total > 0
-                && reporte.fila.con_revision === 0
-                && reporte.fila.con_publicadas === 0 && (
-                <p className="lev-vacio">
-                  {reporte.fila.con_pospuestos > 0
-                    ? `✓ No queda nada en tu lista de trabajo: ${reporte.fila.con_pospuestos} pospuesta${reporte.fila.con_pospuestos !== 1 ? 's' : ''} siguen aparte.`
-                    : '✓ Todo completo en tu municipio: no hay ninguna ficha esperando publicarse ni publicadas con faltantes.'}
-                </p>
-              )}
-
-              {categoria && reporte.detalle
-                && reporte.detalle.fichas.length === 0
-                && (reporte.detalle.publicadas || []).length === 0 && (
-                <p className="lev-vacio">
-                  ✓ No queda nada pendiente en esta categoría
-                  {(reporte.detalle.pospuestos || []).length > 0
-                    ? `: las ${reporte.detalle.pospuestos.length} que quedan están pospuestas.`
-                    : '.'}
-                </p>
-              )}
-
-              {/* Sin desplegable: las dos listas de abajo son EL punto de
-                  entrada —cada fila abre el mismo formulario—; llamar
-                  desde un <select> duplicaba el gesto. */}
-
-
-              {(reporte.fila.con_revision > 0 || reporte.fila.con_publicadas > 0
-                || reporte.fila.con_pospuestos > 0) && (
-                <button
-                  type="button"
-                  className="lev-btn-ghost"
-                  onClick={verReporte}
-                  // Sin esta senal, el clic se pierde: la lista vieja se
-                  // conserva mientras llega la nueva (para que no
-                  // parpadee) y si no cambia nada parece que el boton
-                  // no hizo nada.
-                  disabled={reporte.cargando}
-                >
-                  {reporte.cargando
-                    ? 'Actualizando…'
-                    : reporte.detalle
-                      ? 'Actualizar'
-                      : `Ver las ${reporte.fila.con_revision + reporte.fila.con_publicadas} con algo faltando`}
-                </button>
-              )}
-
-              {(reporte.detalle || filas.length > 0) && (
-                <div className="lev-detalle">
-                  {/* El aviso de apertura de una ficha (cargando o error):
-                      sigue siendo necesario aunque el desplegable no esté. */}
-                  {cargandoFicha && <p className="lev-aviso">Abriendo la ficha…</p>}
-                  {avisoFicha && <p className="lev-aviso">{avisoFicha}</p>}
-                  {fichaId !== null && (
-                    <small className="lev-ficha-abierta-nota">
-                      Formulario rellenado con lo que ya había. Lo marcado en amarillo es lo que
-                      todavía falta rellenar.
-                    </small>
-                  )}
-                  {reporte.detalle && (
-                    <>
-                      <h3>Por campo faltante</h3>
-                      {/* El conteo baja SOLO cuando la ficha abierta
-                          completa ese campo: el chip se tacha y pasa a
-                          verde antes de enviar. */}
-                      <ul className="lev-por-campo">
-                        {porCampoVivo.map((f) => (
-                          <li
-                            key={f.campo}
-                            className={[
-                              f.en_obligatorio ? 'es-obligatorio' : '',
-                              f.cantidad === 0 ? 'es-hecho' : '',
-                            ].filter(Boolean).join(' ')}
-                          >
-                            {f.etiqueta}
-                            <span className="lev-por-campo-n">{f.cantidad}</span>
-                            {f.en_obligatorio && f.cantidad > 0 && (
-                              <span className="lev-obligatorio-marca">bloquea</span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-
                   {/* La lista de pospuestos va ARRIBA de revision: es
                       lo primero que el colaborador revisa antes de
                       empezar —lo que ya decidio no completar— y de ahi
@@ -1334,6 +1246,89 @@ export default function Levantamiento() {
                       </li>
                     ))}
                   </ul>
+                    </>
+                  )}
+
+              {/* Sin nada pendiente el reporte NO desaparece: se
+                  explica. Con categoria, el vacio es de la categoria;
+                  sin ella, el del municipio — contando los pospuestos,
+                  que no son «todo completo» sino «nada de lo mio». */}
+              {!categoria && reporte.fila.total > 0
+                && reporte.fila.con_revision === 0
+                && reporte.fila.con_publicadas === 0 && (
+                <p className="lev-vacio">
+                  {reporte.fila.con_pospuestos > 0
+                    ? `✓ No queda nada en tu lista de trabajo: ${reporte.fila.con_pospuestos} pospuesta${reporte.fila.con_pospuestos !== 1 ? 's' : ''} siguen aparte.`
+                    : '✓ Todo completo en tu municipio: no hay ninguna ficha esperando publicarse ni publicadas con faltantes.'}
+                </p>
+              )}
+
+              {categoria && reporte.detalle
+                && reporte.detalle.fichas.length === 0
+                && (reporte.detalle.publicadas || []).length === 0 && (
+                <p className="lev-vacio">
+                  ✓ No queda nada pendiente en esta categoría
+                  {(reporte.detalle.pospuestos || []).length > 0
+                    ? `: las ${reporte.detalle.pospuestos.length} que quedan están pospuestas.`
+                    : '.'}
+                </p>
+              )}
+
+              {(reporte.fila.con_revision > 0 || reporte.fila.con_publicadas > 0
+                || reporte.fila.con_pospuestos > 0) && (
+                <button
+                  type="button"
+                  className="lev-btn-ghost"
+                  onClick={verReporte}
+                  // Sin esta senal, el clic se pierde: la lista vieja se
+                  // conserva mientras llega la nueva (para que no
+                  // parpadee) y si no cambia nada parece que el boton
+                  // no hizo nada.
+                  disabled={reporte.cargando}
+                >
+                  {reporte.cargando
+                    ? 'Actualizando…'
+                    : reporte.detalle
+                      ? 'Actualizar'
+                      : `Ver las ${reporte.fila.con_revision + reporte.fila.con_publicadas} con algo faltando`}
+                </button>
+              )}
+
+              {(reporte.detalle || filas.length > 0) && (
+                <div className="lev-detalle">
+                  {/* El aviso de apertura de una ficha (cargando o error):
+                      sigue siendo necesario aunque el desplegable no esté. */}
+                  {cargandoFicha && <p className="lev-aviso">Abriendo la ficha…</p>}
+                  {avisoFicha && <p className="lev-aviso">{avisoFicha}</p>}
+                  {fichaId !== null && (
+                    <small className="lev-ficha-abierta-nota">
+                      Formulario rellenado con lo que ya había. Lo marcado en amarillo es lo que
+                      todavía falta rellenar.
+                    </small>
+                  )}
+                  {reporte.detalle && (
+                    <>
+                      <h3>Por campo faltante</h3>
+                      {/* El conteo baja SOLO cuando la ficha abierta
+                          completa ese campo: el chip se tacha y pasa a
+                          verde antes de enviar. */}
+                      <ul className="lev-por-campo">
+                        {porCampoVivo.map((f) => (
+                          <li
+                            key={f.campo}
+                            className={[
+                              f.en_obligatorio ? 'es-obligatorio' : '',
+                              f.cantidad === 0 ? 'es-hecho' : '',
+                            ].filter(Boolean).join(' ')}
+                          >
+                            {f.etiqueta}
+                            <span className="lev-por-campo-n">{f.cantidad}</span>
+                            {f.en_obligatorio && f.cantidad > 0 && (
+                              <span className="lev-obligatorio-marca">bloquea</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
                     </>
                   )}
 
