@@ -4,7 +4,7 @@
 
     Android 9+ (API 28+) bloquea por defecto el tráfico http:// claro.
     En release NO hace falta: la app solo habla con
-    https://buscandoando.onrender.com.
+    https://buscandoando.app.
 
     En debug sí, para poder probar contra un backend local:
 

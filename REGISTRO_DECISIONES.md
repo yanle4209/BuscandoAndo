@@ -7,6 +7,58 @@
 
 ---
 
+## Dominio propio `buscandoando.app` + corte limpio de onrender.com (D-2026-11-17/01)
+
+- **Decisión del dueño**: comprar el dominio (Namecheap, con DNS en
+  Namecheap) y ponerlo en el proyecto en Render. El certificado SSL
+  comprado en Namecheap **no se usará**: Render instala TLS gratis
+  (Let's Encrypt) en cuanto los DNS apuntan — el panel no tiene dónde
+  cargar certificados. Ese certificado se queda sin uso (guardarlo o
+  pedir reembolso es decisión del dueño).
+- **Dominios**: `buscandoando.app` como principal; `www.buscandoando.app`
+  redirige al apex (decisión: www→apex, ambos registrados en Render).
+- **Corte limpio pedido por el dueño**: el dominio
+  `buscandoando.onrender.com` **deja de estar permitido** — ya no
+  entra en `ALLOWED_HOSTS` (ni en el repo ni, cuando el dueño lo
+  traslade, en el panel). El canonical, `og:url`, `<loc>` del sitemap,
+  `robots.txt` (build y fila del panel) y el enlace del levantamiento
+  apuntan ya al dominio nuevo; `despierto.yml` (cron de Uptime de
+  GitHub Actions) despierta con `buscandoando.app`.
+- **Canonical en todo**: nada del frontend está escrito a mano con el
+  dominio (busca `onrender` en `src/` = 0); todo pasa por `SITIO_URL`
+  (default en `settings.py` = `https://buscandoando.app`), así que
+  canonical/sitemap/metas cambian solos con la variable.
+- **Robots.txt vivo**: la fila editable del panel (`SeoRobots` pk=1,
+  sembrada por `seo/0002_siembra.py`) anunciaba el sitemap viejo y
+  manda sobre el fichero del build. La migración
+  **`seo/0004_robots_dominio_propio.py`** la corrige en el deploy
+  (sustituye el dominio viejo, no toca nada más; idempotente).
+- **Pendiente del dueño** (panel/DNS, no del repo):
+  1. Namecheap (panel → Advanced DNS): alta los registros que pida
+     Render para `buscandoando.app` (apex — Namecheap admite ALIAS
+     hacia `buscandoando.onrender.com` si ofrece esa opción; si no,
+     los registros EXACTOS que muestre el panel de Render) y CNAME
+     `www` → `buscandoando.onrender.com`.
+  2. Render → buscandoando → Settings → **Custom Domains**: añadir
+     `buscandoando.app` (principal) y `www.buscandoando.app`
+     (**redirect** a la principal). Esperar al visto verde de TLS.
+  3. Settings → Environment: `ALLOWED_HOSTS` =
+     `buscandoando.app,www.buscandoando.app,localhost,127.0.0.1`;
+     `SITIO_URL` = `https://buscandoando.app` (explícita; el default
+     del código ya vale); `CORS_ALLOWED_ORIGINS` =
+     `https://buscandoando.app,https://www.buscandoando.app`.
+  4. Empujar el commit de este cambio; el build corre `migrate`
+     (aplica `seo/0004`).
+- **Después**: verificar `/api/health/` en `buscandoando.app` (commit =
+  el de este cambio), `robots.txt`, `sitemap.xml`, portada y que
+  `buscandoando.onrender.com` ya rechaza (400/403/404, no sirve).
+- **Cómo deshacerlo**: restaurar `SITIO_URL`/`ALLOWED_HOSTS`/`CORS`
+  anteriores en el panel (`buscandoando.onrender.com`) y revertir el
+  commit; `seo/0004` da marcha atrás en `migrate seo 0003` (restaura
+  el robots viejo).
+
+---
+
 ## Bugs menores del frontend — CERRADOS (D-2026-10-29/11)
 
 - **Decisión**: el dueño pidió atacarlos. Commit `02ebfd6` (6 ficheros,

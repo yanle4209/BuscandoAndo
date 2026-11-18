@@ -15,7 +15,8 @@ contra producción y revisión de código y del repositorio:
 * **Repositorio e historial de git**: ficheros trackeados y todo el historial
   (búsqueda por contenido, `-S`) de la contraseña del keystore, la del admin,
   el token de colaborador y la contraseña de la BD local.
-* **Producción en vivo** (`buscandoando.onrender.com`): cabeceras HTTP,
+* **Producción en vivo** (`buscandoando.app`, dominio propio desde el
+  17/nov/2026; antes `buscandoando.onrender.com`): cabeceras HTTP,
   cookies, CORS, redirección http→https, fuga de ficheros sensibles,
   traversal de directorios y respuesta a Hosts ajenos.
 
@@ -183,8 +184,10 @@ contra `/admin/login/` podía probar sin límite.
 Matiz descubierto al intentar la recomendación original: **el Cloudflare
 que se ve delante del sitio (`Server: cloudflare`) es el de Render, no una
 cuenta propia** — `buscandoando.onrender.com` vive en el dominio de Render
-y no admite reglas nuestras desde ningún panel. Poner un rate limiting de
-Cloudflare exigiría comprar un dominio propio (camino opcional, abajo), así
+y no admite reglas nuestras desde ningún panel, y el dominio propio que lo
+sustituye (`buscandoando.app`, 17/nov/2026) todavía no lleva Cloudflare
+encima. Poner un rate limiting de
+Cloudflare exigiría ese dominio propio con nuestra cuenta delante, así
 que el freno se metió en la aplicación:
 
 **`config.middleware.ThrottleLoginAdmin`** — sin dependencias nuevas ni
@@ -263,7 +266,9 @@ que protege de verdad es la copia sin conexión, que ya existe.
 Corregidos el 16/nov/2026:
 
 * **`.onrender.com` como comodín en `ALLOWED_HOSTS`** (render.yaml) —
-  corregido: ahora `buscandoando.onrender.com,localhost,127.0.0.1`
+  corregido: ahora `buscandoando.app,www.buscandoando.app,localhost,
+  127.0.0.1`. https://www redirige al apex en el panel de Render y el
+  dominio de onrender se cortó limpio el 17/nov/2026 (ya no entra).
   (localhost/127.0.0.1 se quedan: solo son alcanzables desde dentro del
   propio contenedor —health check, runserver— y no abren nada al
   exterior). *Ojo:* el valor vivo del servicio está en el panel de

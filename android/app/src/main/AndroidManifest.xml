@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Necesario para hablar con https://buscandoando.onrender.com
+    <!-- Necesario para hablar con https://buscandoando.app
          y para descargar las fotos de Cloudinary. -->
     <uses-permission android:name="android.permission.INTERNET" />
 

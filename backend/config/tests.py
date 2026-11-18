@@ -736,8 +736,10 @@ class AllowedHostsProduccionTests(SimpleTestCase):
     ``.onrender.com``, que casa con CUALQUIER subdominio de onrender y
     no solo con el del sitio. No explota nada grave — no hay flujos de
     correo ni de contrasena que usen el Host — pero es un comodin que
-    sobra. Este test mira el valor declarado en render.yaml, que es la
-    referencia del servicio (el valor vivo esta en el panel de Render).
+    sobra. Con el dominio propio (17/nov/2026) el corte es limpio: el
+    host de onrender ya ni entra. Este test mira el valor declarado en
+    render.yaml, que es la referencia del servicio (el valor vivo esta
+    en el panel de Render).
     """
 
     def test_el_host_es_el_del_sitio_y_no_un_comodin(self):
@@ -752,6 +754,8 @@ class AllowedHostsProduccionTests(SimpleTestCase):
             bloque, 'No se encuentra ALLOWED_HOSTS en render.yaml')
 
         entradas = [v.strip() for v in bloque.group(1).split(',')]
-        self.assertIn('buscandoando.onrender.com', entradas)
-        # El comodin: una entrada que empieza por punto.
+        self.assertIn('buscandoando.app', entradas)
+        self.assertIn('www.buscandoando.app', entradas)
+        # El dominio viejo fuera (corte limpio) y nada de comodines.
+        self.assertNotIn('buscandoando.onrender.com', entradas)
         self.assertNotIn('.onrender.com', entradas)

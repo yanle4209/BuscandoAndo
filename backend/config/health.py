@@ -31,7 +31,7 @@ Decisiones de diseno (y por que)
    Render inyecta en cada despliegue (build y runtime). Un ``curl``
    basta para saber QUE codigo esta en produccion:
 
-       curl -s https://buscandoando.onrender.com/api/health/
+       curl -s https://buscandoando.app/api/health/
 
    -> {"status":"ok","commit":"8b3e896...", ...}
 """

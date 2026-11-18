@@ -276,8 +276,8 @@ FASE1_MUNICIPIOS = tuple(
 # --- SEO (auditoria C) ---
 # URL publica y canónica del sitio: canonical, og:url y <loc> del
 # sitemap. Se le del entorno para poder apuntar a otro dominio sin
-# tocar codigo.
-SITIO_URL = env('SITIO_URL', 'https://buscandoando.onrender.com').rstrip('/')
+# tocar codigo. Dominio propio desde el 17/nov/2026: buscandoando.app.
+SITIO_URL = env('SITIO_URL', 'https://buscandoando.app').rstrip('/')
 
 # --- Production Security ---
 if not DEBUG:

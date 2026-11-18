@@ -762,7 +762,7 @@ class HomeViewModel : ViewModel() {
  * Antes la UI enseñaba `e.message` CRUDO, o sea el visitante veia cosas
  * como:
  *
- *     Unable to resolve host "buscandoando.onrender.com": No address
+ *     Unable to resolve host "buscandoando.app": No address
  *     associated with hostname
  *     java.net.SocketTimeoutException: timeout
  *     HTTP 404 Response.error()

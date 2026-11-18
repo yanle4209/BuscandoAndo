@@ -4803,7 +4803,7 @@ class EnlaceLevantamientoTests(TestCase):
     esta entregando). Sin JS el enlace sigue siendo un <a> clicable.
     """
 
-    ENLACE = 'https://buscandoando.onrender.com/levantamiento'
+    ENLACE = 'https://buscandoando.app/levantamiento'
 
     @classmethod
     def setUpTestData(cls):

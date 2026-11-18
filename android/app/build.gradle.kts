@@ -54,7 +54,7 @@ android {
         //  providers.gradleProperty() en vez de findProperty() para
         //  que Gradle lo registre en la "configuration cache".
         val apiBaseUrl = providers.gradleProperty("apiBaseUrl").orNull
-            ?: "https://buscandoando.onrender.com/api/"
+            ?: "https://buscandoando.app/api/"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 

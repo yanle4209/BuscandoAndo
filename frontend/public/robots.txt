@@ -7,4 +7,4 @@ Allow: /
 Disallow: /admin/
 Disallow: /api/
 
-Sitemap: https://buscandoando.onrender.com/sitemap.xml
+Sitemap: https://buscandoando.app/sitemap.xml

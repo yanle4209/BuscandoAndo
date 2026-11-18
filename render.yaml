@@ -39,23 +39,31 @@ services:
       - key: USE_POSTGRES
         value: "true"
       # Sin el comodín: .onrender.com aceptaba CUALQUIER subdominio de
-      # onrender.com (hallazgo de AUDITORIA_SEGURIDAD §8). El host es el
-      # del sitio; localhost/127.0.0.1 se quedan porque solo son
-      # alcanzables desde dentro del propio contenedor (health check,
-      # runserver) y no abren nada al exterior.
+      # onrender.com (hallazgo de AUDITORIA_SEGURIDAD §8), y el dominio
+      # propio (buscandoando.app, 17/nov/2026) corta el viejo del todo:
+      # onrender.com ya no entra. Apex + www (www redirige al apex en el
+      # panel de Render; ambos están aquí por si el redirect se rinde).
+      # localhost/127.0.0.1 se quedan porque solo son alcanzables desde
+      # dentro del propio contenedor (health check, runserver) y no
+      # abren nada al exterior.
       # OJO: este archivo no gobierna el servicio ya creado (ver NOTA
       # arriba): el valor de verdad esta en Settings -> Environment del
-      # panel de Render, y hay que cambiarlo alli tambien.
+      # panel de Render, y hay que cambiarlo allí tambien.
       - key: ALLOWED_HOSTS
-        value: "buscandoando.onrender.com,localhost,127.0.0.1"
+        value: "buscandoando.app,www.buscandoando.app,localhost,127.0.0.1"
       - key: CORS_ALLOWED_ORIGINS
-        value: "https://buscandoando.onrender.com"
+        value: "https://buscandoando.app,https://www.buscandoando.app"
+      # URL canonica: canonical, og:url, sitemap <loc> y robots del panel.
+      # Sin esta variable el codigo usa el default de settings.py
+      # (buscandoando.app), pero explicita es mas clara.
+      - key: SITIO_URL
+        value: "https://buscandoando.app"
       - key: DJANGO_SUPERUSER_USERNAME
         value: "admin"
       - key: DJANGO_SUPERUSER_PASSWORD
         generateValue: true
       - key: DJANGO_SUPERUSER_EMAIL
-        value: "admin@buscandoando.com"
+        value: "admin@buscandoando.app"
     # Health check: /api/health/ consulta la base en CADA llamada
     # (para que no se suspenda sola: el primer toque tras la pausa
     # paga ~0,8 s de despertar) pero responde 200 aunque la BD este
