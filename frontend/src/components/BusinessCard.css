@@ -100,13 +100,17 @@
   min-width: 0;
 }
 
-/* Nombre: UNA linea con puntos si no cabe. Título debajo de la foto. */
+/* Nombre: hasta DOS lineas (rompiendo palabra si no queda otra) y un
+   cuerpo menor. Antes era una unica linea con puntos suspensivos y
+   dejaba fuera nombres largos ("Centro Educativo Dr. ..."). */
 .biz-card__name {
   min-width: 0;
-  white-space: nowrap;
+  overflow-wrap: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 800;
   line-height: 1.25;
   color: var(--brown);
@@ -387,7 +391,7 @@
   }
 
   .biz-card__name {
-    font-size: 17px;
+    font-size: 15px;
   }
 
   .biz-card__desc {
