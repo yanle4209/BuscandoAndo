@@ -31,6 +31,10 @@ node_modules/
 frontend/dist/
 frontend/.vite/
 
+# tooling local de agentes (ECC): se usa vía paquete npm o instalación
+# global, no se vendoriza en el repo (ver README raíz)
+.opencode/
+
 # IDE
 .vscode/
 .idea/
