@@ -57,11 +57,15 @@ def is_featured_active(biz):
 class FeaturedPagination(PageNumberPagination):
     page_size = 20
     page_size_query_param = 'page_size'
+    max_page_size = 50
 
 
 class SearchPagination(PageNumberPagination):
     page_size = 12
     page_size_query_param = 'page_size'
+    # El parámetro existe para el frontend (que por ahora pide 15);
+    # sin tope, un tercero podía pedir 100000 y llevarse la API entera.
+    max_page_size = 50
 
 
 def parse_radio(valor):
@@ -891,6 +895,10 @@ def _para_formulario(biz):
         'correo': (contact.email or '') if contact else '',
         'web': (contact.website or '') if contact else '',
         'horario': horario,
+        # Lo que el formulario necesita del estado YA guardado: si la
+        # ficha estaba marcada como «sin dato», al abrirla y reenviar
+        # no se debe borrar sin que nadie la tocara.
+        'horario_sin_dato': biz.horario_sin_dato,
         # Cuantas fotos tiene YA: con ese numero el formulario calcula
         # cuanto le queda de las 5 que caben, sin tener que mandarlas.
         'imagenes': biz.images.count(),

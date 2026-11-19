@@ -6079,7 +6079,7 @@ class HorarioNoDisponibleTests(TestCase):
         cls.category = Category.objects.create(
             name='Panaderias', slug='panaderias',
         )
-        cls.colaborador = Colaborador.objects.create(nombre='Pedro')
+        cls.colaborador = Colaborador.objects.create(nombre='Pedro', municipio='Moca')
 
     def cuerpo(self, **extra):
         datos = {
@@ -6138,3 +6138,42 @@ class HorarioNoDisponibleTests(TestCase):
         detalle = self.client.get('/api/businesses/%s/' % negocio.slug).json()
 
         self.assertTrue(detalle.get('horario_sin_dato'))
+
+    def test_el_detalle_trae_la_marca_para_no_borrarla(self):
+        """El formulario no sabe ver la marca sin este dato — la marcó y
+        no se enteró, y al reenviar sin tocar el horario la borraba. Este
+        payload es lo que abre la puerta a conservarla."""
+        respuesta = self.enviar(horario_no_disponible='true')
+        self.assertIn(respuesta.status_code, (200, 201), respuesta.content)
+        negocio = Business.objects.get(name='Pan del Dia')
+        self.assertTrue(negocio.horario_sin_dato)
+
+        detalle = self.client.get(
+            '/api/pendientes/', {'ficha': negocio.pk},
+            HTTP_X_COLABORADOR_TOKEN=self.colaborador.token,
+        )
+
+        self.assertEqual(detalle.status_code, 200, detalle.content)
+        self.assertTrue(detalle.json()['horario_sin_dato'])
+
+    def test_reenviar_el_formulario_guarda_la_marca(self):
+        """Simulación mínima del frontend con el fix: la ficha abre
+        marcada (porque el detalle la trae), y enviar con la marca sigue
+        marcada — aunque usuario no toque nada del horario."""
+        respuesta = self.enviar(horario_no_disponible='true')
+        self.assertIn(respuesta.status_code, (200, 201), respuesta.content)
+        negocio = Business.objects.get(name='Pan del Dia')
+        detalle = self.client.get(
+            '/api/pendientes/', {'ficha': negocio.pk},
+            HTTP_X_COLABORADOR_TOKEN=self.colaborador.token,
+        ).json()
+        # El formulario ahora abre con «no disponible» marcado…
+        self.assertTrue(detalle['horario_sin_dato'])
+
+        # y al reenviar (sin tocar nada), la marca sobrevive.
+        respuesta = self.enviar(
+            horario_no_disponible='true', ficha=negocio.pk, nombre=negocio.name,
+        )
+        self.assertIn(respuesta.status_code, (200, 201), respuesta.content)
+        negocio.refresh_from_db()
+        self.assertTrue(negocio.horario_sin_dato)

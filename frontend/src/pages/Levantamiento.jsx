@@ -130,9 +130,12 @@ const a24 = (h12, min, ampm) => {
 function SelectorTiempo({ valor, onCambio, etiqueta }) {
   const partes = aHora12(valor);
   const elegir = (campo, v) => {
-    const base = partes || { h12: '9', min: '00', ampm: 'AM' };
-    const siguiente = { ...base, [campo]: v };
-    onCambio(a24(siguiente.h12, siguiente.min, siguiente.ampm));
+    const base = partes || { h12: '', min: '', ampm: '' };
+    const s = { ...base, [campo]: v };
+    // Nunca se inventa una hora: la franja solo queda escrita cuando
+    // los tres segmentos están presentes; si falta alguno, queda en
+    // blanco (el envío ya descarta las franjas incompletas).
+    onCambio(s.h12 && s.min && s.ampm ? a24(s.h12, s.min, s.ampm) : '');
   };
   return (
     <div className="lev-tiempo" role="group" aria-label={etiqueta}>
@@ -506,6 +509,10 @@ export default function Levantamiento() {
       // Los siete dias en pantalla, con los que la ficha ya trae
       // puestos en su sitio.
       setFranjas(diasBase(data.horario || []));
+      // El estado «no disponible» tambien: si la ficha estaba marcada,
+      // al abrir y reenviar debe conservarlo —o el reenvio lo borra
+      // sin que nadie lo tocara.
+      setHorarioNoDisponible(Boolean(data.horario_sin_dato));
       setFaltanFicha(Array.isArray(data.faltan) ? data.faltan : []);
       // El municipio sale solo: es el del reporte, el que trae el token.
       // No hay desplegable que rellenar.
@@ -1207,13 +1214,7 @@ export default function Levantamiento() {
                   <ul className="lev-fichas">
                     {filas.map((f) => (
                       <li key={f.id} className={`lev-ficha ${claseFila(f)}`}>
-                        <button
-                          type="button"
-                          className="lev-ficha-abrir"
-                          onClick={() => abrirFichaPorId(String(f.id))}
-                        >
-                          <span className="lev-ficha-nombre">{f.nombre}</span>
-                        </button>
+                        <span className="lev-ficha-nombre">{f.nombre}</span>
                         <span className={`lev-ficha-estado ${f.hecha ? 'hecha' : f.estado}`}>
                           {f.hecha ? 'completada' : f.estado === 'publicado' ? 'publicada' : 'sin publicar'}
                         </span>
@@ -1731,6 +1732,7 @@ const COMPLETADOS = {
   sector: 'sector',
   referencias: 'referencias',
   horario: 'horario',
+  horario_no_disponible: 'horario no disponible',
   nombre: 'nombre',
   descripcion: 'descripción',
   categoria: 'categoría',
