@@ -268,8 +268,12 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
         return self._paginator
 
     def get_queryset(self):
+        # Un negocio POSPUESTO deja de servirse en la web (decision de
+        # producto): su fila por-dueno lo oculta en la API, el sitemap
+        # y las metas hasta que se lo retome. El estado NO cambia.
         qs = Business.objects.filter(
-            publication_status__slug='publicado'
+            publication_status__slug='publicado',
+            pospuestos__isnull=True,
         ).select_related(
             'category', 'publication_status', 'operational_status'
         ).prefetch_related('location', 'contact', 'hours', 'images')
@@ -415,6 +419,7 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
                     SlugAntiguo.objects
                     .filter(slug=origen,
                             business__publication_status__slug='publicado')
+                    .filter(business__pospuestos__isnull=True)
                     .filter(geografia.q_fase_o_anuncio_global('business__'))
                     .values_list('business__slug', flat=True)
                     .first()
@@ -441,6 +446,7 @@ class BusinessViewSet(viewsets.ReadOnlyModelViewSet):
         now = timezone.now()
         qs = Business.objects.filter(
             publication_status__slug='publicado',
+            pospuestos__isnull=True,
             is_featured=True,
         ).filter(
             Q(featured_permanent=True) |
@@ -576,6 +582,7 @@ def video_anuncios(request):
 
     qs = Business.objects.filter(
         publication_status__slug='publicado',
+        pospuestos__isnull=True,
         is_ad=True,
     ).exclude(
         ad_video=''
@@ -1308,9 +1315,12 @@ def pospuesto(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    # ``location`` decide el permiso; ``publication_status``/contact/
+    # hours/images alimentan el ``con_trabajo`` del guard de abajo:
+    # todo en una sola consulta.
     biz = Business.objects.filter(id=int(ficha)).select_related(
-        'location',
-    ).first()
+        'location', 'publication_status', 'contact',
+    ).prefetch_related('hours', 'images').first()
     if biz is None:
         return Response(
             {'detail': 'No existe esa ficha.'},
@@ -1332,6 +1342,11 @@ def pospuesto(request):
     )
     querido = bool(request.data.get('pospuesto'))
     if querido:
+        # Una ficha SIN trabajo (publicada completa) no tiene nada que
+        # posponer: la fila solo la ocultaria del frontend sin boton de
+        # retomar. Se contesta False y no se guarda nada (idempotente).
+        if not con_trabajo(biz):
+            return Response({'ficha': biz.id, 'pospuesto': False})
         Pospuesto.objects.get_or_create(negocio=biz, **dueno)
     else:
         Pospuesto.objects.filter(negocio=biz, **dueno).delete()

@@ -63,7 +63,8 @@ def _metas_ficha(slug):
 
     ficha = (
         Business.objects
-        .filter(slug=slug, publication_status__slug='publicado')
+        .filter(slug=slug, publication_status__slug='publicado',
+                pospuestos__isnull=True)
         .filter(geografia.q_fase_o_anuncio_global())
         .select_related('category', 'location')
         .prefetch_related('images')
@@ -143,6 +144,7 @@ def _destino_slug_anterior(rel):
         SlugAntiguo.objects
         .filter(slug=match.group('slug'),
                 business__publication_status__slug='publicado')
+        .filter(business__pospuestos__isnull=True)
         .filter(geografia.q_fase_o_anuncio_global('business__'))
         .values_list('business__slug', flat=True)
         .first()
@@ -352,7 +354,8 @@ def sitemap_xml(request):
     fichas = (
         Business.objects
         .filter(geografia.q_fase_o_anuncio_global(),
-                publication_status__slug='publicado')
+                publication_status__slug='publicado',
+                pospuestos__isnull=True)
         .order_by('-created_at')
         .values_list('slug', 'created_at')
     )
@@ -433,9 +436,12 @@ def admin_seo(request):
 
     # La ficha de ejemplo es la mas reciente PUBLICADA y en fase: es
     # tal cual como la ve un buscador que entra por el sitemap.
+    # (Un pospuesto tampoco: si esta en el sitemap, el buscador lo
+    # veria aunque la API ya no lo sirva.)
     de_fase = (
         Business.objects
-        .filter(geografia.q_fase(), publication_status__slug='publicado')
+        .filter(geografia.q_fase(), publication_status__slug='publicado',
+                pospuestos__isnull=True)
         .order_by('-created_at')
     )
     slug_ejemplo = de_fase.values_list('slug', flat=True).first()

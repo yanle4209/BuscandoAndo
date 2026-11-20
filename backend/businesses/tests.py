@@ -2266,6 +2266,86 @@ class FiltroYPospuestosTests(TestCase):
         self.assertEqual(datos['pospuestos'], [])
         self.assertEqual(self.fila()['con_pospuestos'], 0)
 
+    def test_una_pospuesta_desaparece_del_frontend(self):
+        """Posponer ya no es solo un asunto del reporte: mientras la
+        fila exista, la ficha no se sirve en la web (listado ni ficha)
+        hasta que se la retome."""
+        url = f'{BUSINESSES_URL}{self.resto_a.slug}/'
+        antes = self.client.get(url)
+        self.assertEqual(antes.status_code, 200)
+        lista = self.client.get(BUSINESSES_URL).json()
+        filas = lista.get('results', lista)
+        self.assertIn('Panaderia Sol', [b['name'] for b in filas])
+
+        self.loguear_admin()
+        self.posponer(self.resto_a.id)
+
+        oculta = self.client.get(url)
+        self.assertEqual(oculta.status_code, 404)
+        lista = self.client.get(BUSINESSES_URL).json()
+        filas = lista.get('results', lista)
+        self.assertNotIn('Panaderia Sol', [b['name'] for b in filas])
+
+        self.posponer(self.resto_a.id, pospuesto=False)
+        vuelve = self.client.get(url)
+        self.assertEqual(vuelve.status_code, 200)
+
+    def test_el_sitemap_no_anuncia_pospuestas(self):
+        """El buscador no debe enterarse por el sitemap de una ficha
+        que la API ya no sirve."""
+        sitemap = self.client.get('/sitemap.xml').content.decode()
+        self.assertIn(self.resto_a.slug, sitemap)
+
+        self.loguear_admin()
+        self.posponer(self.resto_a.id)
+
+        sitemap = self.client.get('/sitemap.xml').content.decode()
+        self.assertNotIn(self.resto_a.slug, sitemap)
+
+    def test_posponer_una_completa_no_la_esconde(self):
+        """Una publicada COMPLETA no tiene trabajo pendiente: no se
+        pospone (200 con pospuesto=False, sin fila) y sigue visible."""
+        self.loguear_admin()
+        respuesta = self.posponer(self.completa.id)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertFalse(respuesta.json()['pospuesto'])
+        self.assertFalse(
+            Pospuesto.objects.filter(negocio=self.completa).exists()
+        )
+        visible = self.client.get(f'{BUSINESSES_URL}{self.completa.slug}/')
+        self.assertEqual(visible.status_code, 200)
+
+    def test_una_pospuesta_completada_se_retoma_sola(self):
+        """Si despues de posponerla la ficha se completa, la fila se
+        retira sola: no puede quedar oculta en el frontend SIN boton
+        de retomar."""
+        self.loguear_admin()
+        self.posponer(self.resto_a.id)
+        self.assertTrue(
+            Pospuesto.objects.filter(negocio=self.resto_a).exists()
+        )
+
+        # Completar lo que le faltaba: opcionales del contacto y horario.
+        contacto = self.resto_a.contact
+        contacto.whatsapp = '+18095551234'
+        contacto.email = 'hola@example.com'
+        contacto.website = 'https://example.com'
+        contacto.save()
+        BusinessHours.objects.create(
+            business=self.resto_a, day='Lunes',
+            open_time='08:00', close_time='17:00',
+        )
+        # El admin guarda la ficha tras los inlines: ese save retira
+        # la fila (ya no hay nada que retomar).
+        self.resto_a.save()
+
+        self.assertFalse(
+            Pospuesto.objects.filter(negocio=self.resto_a).exists()
+        )
+        visible = self.client.get(f'{BUSINESSES_URL}{self.resto_a.slug}/')
+        self.assertEqual(visible.status_code, 200)
+
     def test_pospuestos_y_filtro_se_aplican_a_la_misma_vez(self):
         """Las pospuestas de la categoria elegida salen en SU lista;
         en las demas, no."""

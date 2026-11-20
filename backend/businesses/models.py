@@ -378,6 +378,17 @@ class Business(models.Model):
         # real y una peticion jamas redirige a si misma.
         SlugAntiguo.objects.filter(slug=self.slug).delete()
 
+        # Un POSPUESTO solo tiene sentido mientras la ficha le deba algo
+        # al reporte (``con_trabajo``). Si acaba de completarse —o de
+        # publicarse completa—, seguir con la fila la ocultaria del
+        # frontend SIN boton de retomar, asi que se retira en cuanto deja
+        # de haber motivo. Solo se mira si hay fila: una consulta mas en
+        # el camino normal de guardado (``bulk_create`` no pasa por aqui).
+        if Pospuesto.objects.filter(negocio=self).exists():
+            from .pendientes import con_trabajo
+            if not con_trabajo(self):
+                Pospuesto.objects.filter(negocio=self).delete()
+
     @property
     def is_featured_active(self):
         """Check if the featured status is still active (not expired)."""
@@ -731,6 +742,12 @@ class Pospuesto(models.Model):
     reporte diga lo que esta dispuesto a hacer — hay negocios que no
     desea completar o que no se pueden completar, y estorbarle en la
     lista no ayuda.
+
+    Mientras exista la fila, la ficha TAMBIEN deja de servirse en el
+    frontend (API publica, sitemap y metas): posponer quita del
+    escaparate. Y si la ficha acaba de completarse, ``Business.save()``
+    retira la sola la fila — no hay nada que retomar y no puede quedar
+    oculta sin boton.
 
     Es por DUENO: cada colaborador (o el admin) tiene las suyas, porque
     lo que uno pospone no le estorba al otro. No se guarda el municipio
