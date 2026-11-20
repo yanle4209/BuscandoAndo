@@ -128,10 +128,22 @@ const a24 = (h12, min, ampm) => {
 };
 
 function SelectorTiempo({ valor, onCambio, etiqueta }) {
-  const partes = aHora12(valor);
+  // La seleccion PARCIAL vive aqui, en memoria: los tres segmentos se
+  // eligen de uno en uno y el valor propiamente dicho ("HH:MM") solo
+  // se escribe cuando los tres están. Sin este estado interno, el
+  // primer clic se descartaba —el valor seguía vacío y el select
+  // controlado volvía a "--"— y no había forma de completar una
+  // franja nueva desde cero.
+  const [partes, setPartes] = useState(() => aHora12(valor));
+  useEffect(() => {
+    // Si el valor cambió por fuera (carga de la ficha o copiar
+    // horario), la franja en pantalla es la que manda el padre.
+    setPartes(aHora12(valor));
+  }, [valor]);
   const elegir = (campo, v) => {
     const base = partes || { h12: '', min: '', ampm: '' };
     const s = { ...base, [campo]: v };
+    setPartes(s);
     // Nunca se inventa una hora: la franja solo queda escrita cuando
     // los tres segmentos están presentes; si falta alguno, queda en
     // blanco (el envío ya descarta las franjas incompletas).
