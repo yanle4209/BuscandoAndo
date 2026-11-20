@@ -204,7 +204,7 @@ def duplicado(indice, nombre, lat=None, lng=None):
     return None
 
 
-def enriquecer(negocio, datos, *, categoria=None):
+def enriquecer(negocio, datos, *, categoria=None, editar_estado=False):
     """Rellena en la ficha existente lo que le falta. **Nunca sobrescribe.**
 
     Es la otra mitad de §10-d: si la fuente trae el telefono y nosotros no
@@ -323,12 +323,19 @@ def enriquecer(negocio, datos, *, categoria=None):
             negocio.category = categoria
             cambios.append('categoria')
             campos.append('category')
-    if negocio.operational_status_id is None and datos.get('estado'):
+    # Estado operativo: en modo edición (el formulario del levantamiento,
+    # con ``editar_estado``) el estado ELEGIDO manda aunque la ficha ya
+    # tuviera otro — el selector tiene que poder corregirlo. Sin ese modo
+    # (el alta masiva y el cruce por duplicados) solo se llena el vacío,
+    # para no pisar lo que ya decidió un humano.
+    if datos.get('estado'):
         from operational_status.models import OperationalStatus
         operativo = OperationalStatus.objects.filter(
             slug=datos['estado'],
         ).first()
-        if operativo is not None:
+        if operativo is not None and (
+                editar_estado or negocio.operational_status_id is None
+        ) and negocio.operational_status_id != operativo.id:
             negocio.operational_status = operativo
             cambios.append('estado')
             campos.append('operational_status')

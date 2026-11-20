@@ -528,7 +528,8 @@ def levantamiento(request):
 
     # ------------------ 2. completar la ficha elegida -----------------
     if ficha is not None:
-        completado = validacion.enriquecer(ficha, datos, categoria=categoria)
+        completado = validacion.enriquecer(
+            ficha, datos, categoria=categoria, editar_estado=True)
         _guardar_imagenes(ficha, archivos)
         # Releer: `enriquecer` dejo en la instancia la cache de "no tiene
         # contacto" de antes de crearlo, y con ella `cumple_obligatorios`

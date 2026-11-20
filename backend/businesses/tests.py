@@ -3654,6 +3654,30 @@ class CompletarFichaTests(TestCase):
             response.json()['motivos'],
         )
 
+    def test_cambiar_el_estado_de_una_ficha_que_ya_tiene(self):
+        """El selector de estado EDITA: la ficha ya venía «Abierto» y
+        quien completa la cambia a «Abierto 24 horas» — antes el cambio
+        se descartaba porque solo se rellenaba el vacío."""
+        ficha = self.hacer_ficha()  # con_estado=True → 'abierto'
+
+        response = self.completar(ficha, estado='abierto-24')
+
+        self.assertEqual(response.status_code, 200, response.content)
+        ficha.refresh_from_db()
+        self.assertEqual(ficha.operational_status.slug, 'abierto-24')
+
+    def test_completar_sin_estado_conserva_el_que_hay(self):
+        """Sin 'estado' en el envío no se toca nada: los caminos sin
+        edición (alta masiva, cruce por duplicados) no pisan el estado
+        que ya puso un humano."""
+        ficha = self.hacer_ficha()
+
+        response = self.completar(ficha)
+
+        self.assertEqual(response.status_code, 200, response.content)
+        ficha.refresh_from_db()
+        self.assertEqual(ficha.operational_status.slug, 'abierto')
+
     def test_el_envio_queda_registrado_con_la_ficha(self):
         ficha = self.hacer_ficha()
 
