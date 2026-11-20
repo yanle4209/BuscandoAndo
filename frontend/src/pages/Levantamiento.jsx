@@ -751,7 +751,11 @@ export default function Levantamiento() {
           .map((f) => ({ dia: f.day, desde: f.desde, hasta: f.hasta })),
       // El flag cruza al servidor tal cual: el vacio queda marcado y
       // la ficha publica dira "No disponible".
-      horario_no_disponible: horarioNoDisponible ? 'true' : 'false',
+      horario_no_disponible: estado === 'abierto-24'
+        ? 'false'
+        : horarioNoDisponible
+          ? 'true'
+          : 'false',
       // Con id el backend va en modo completar: se escribe en ESA ficha
       // (y solo si es del municipio del token).
       ...(fichaId ? { ficha: fichaId } : {}),
@@ -889,7 +893,9 @@ export default function Levantamiento() {
       imagen: !faltaFoto,
       punto: punto[0] !== null && punto[1] !== null,
       categoria: datos.categoria !== '',
-      horario: franjas.some((f) => f.day && f.desde && f.hasta),
+      // Con «Abierto 24 horas» el horario queda anulado: se da por
+      // lleno aunque no haya franjas.
+      horario: estado === 'abierto-24' || franjas.some((f) => f.day && f.desde && f.hasta),
       whatsapp: datos.whatsapp.trim() !== '',
       correo: datos.correo.trim() !== '',
       web: datos.web.trim() !== '',
@@ -1538,6 +1544,7 @@ export default function Levantamiento() {
             <select id="lev-estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
               <option value="">Sin decidir</option>
               <option value="abierto">Abierto</option>
+              <option value="abierto-24">Abierto 24 horas</option>
               <option value="cerrado">Cerrado</option>
               <option value="por-horario">Según horario</option>
               <option value="cerrado-permanente">Cerrado permanentemente</option>
@@ -1548,22 +1555,29 @@ export default function Levantamiento() {
             <div className="lev-horario-head">
               <h3>Horario {marca('horario')}</h3>
               <button type="button" className="lev-btn-ghost" onClick={agregarFranja}
-                      disabled={horarioNoDisponible}>
+                      disabled={horarioNoDisponible || estado === 'abierto-24'}>
                 + Añadir otra franja
               </button>
             </div>
             {/* El colaborador no pudo averiguar las horas: el vacio
                 queda marcado como "no disponible" en vez de aparentar
                 un dato sin rellenar. Nunca se inventa una hora. */}
-            <label className="lev-horario-sin-dato">
-              <span>Disponibilidad del horario</span>
-              <select value={horarioNoDisponible ? 'no' : 'si'}
-                      onChange={(e) => setHorarioNoDisponible(e.target.value === 'no')}>
-                <option value="si">Sé el horario</option>
-                <option value="no">No disponible (no se pudo averiguar)</option>
-              </select>
-            </label>
-            {horarioNoDisponible ? (
+            {estado !== 'abierto-24' && (
+              <label className="lev-horario-sin-dato">
+                <span>Disponibilidad del horario</span>
+                <select value={horarioNoDisponible ? 'no' : 'si'}
+                        onChange={(e) => setHorarioNoDisponible(e.target.value === 'no')}>
+                  <option value="si">Sé el horario</option>
+                  <option value="no">No disponible (no se pudo averiguar)</option>
+                </select>
+              </label>
+            )}
+            {estado === 'abierto-24' ? (
+              <p className="lev-horario-sin-dato--nota">
+                Abierto las 24 horas: el horario queda anulado y no se
+                pide. La ficha pública lo mostrará como «Abierto 24 horas».
+              </p>
+            ) : horarioNoDisponible ? (
               <p className="lev-horario-sin-dato--nota">
                 Se guarda como «No disponible»: la ficha puede publicarse
                 y el horario aparecerá marcado en la ficha pública.

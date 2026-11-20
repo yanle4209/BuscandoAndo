@@ -47,6 +47,19 @@ def _limpio(valor):
     return bool(valor and str(valor).strip())
 
 
+def _abierto_24_horas(biz):
+    """¿La ficha declara «Abierto 24 horas»?
+
+    Ese estado ANULA el requerimiento de horario: no hay franjas que
+    pedir ni horas que inventar, y el chip de la ficha lo dice solo.
+    Sin ``select_related('operational_status')`` cuesta una consulta
+    por ficha; los recorridos grandes (reporte, listado) ya lo traen.
+    """
+    if biz.operational_status_id is None:
+        return False
+    return biz.operational_status.slug == 'abierto-24'
+
+
 def faltantes_de(biz):
     """Las claves de ``CAMPOS`` que ``biz`` todavia no tiene.
 
@@ -56,7 +69,8 @@ def faltantes_de(biz):
 
     Espera ``location`` y ``contact`` ya traidos (``select_related``) y
     ``hours`` e ``images`` precargados (``prefetch_related``); si no lo
-    estan, cada ficha cuesta una consulta.
+    estan, cada ficha cuesta una consulta. ``operational_status``
+    tambien conviene traerlo select_related (lo mira el24 horas).
     """
     faltan = []
 
@@ -100,8 +114,9 @@ def faltantes_de(biz):
     if biz.operational_status_id is None:
         faltan.append('estado')
 
-    # Un dia cerrado no es horario: hace falta al menos una franja abierta.
-    if not any(
+    # Un dia cerrado no es horario: hace falta al menos una franja
+    # abierta. Salvo «Abierto 24 horas»: ahi el horario queda anulado.
+    if not _abierto_24_horas(biz) and not any(
         h.open_time and h.close_time and not h.is_closed
         for h in biz.hours.all()
     ):

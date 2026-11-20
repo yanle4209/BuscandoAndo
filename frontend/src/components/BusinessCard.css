@@ -306,6 +306,7 @@
 /* Pastillas de color: verde (abierto), rojizo (cerrado), anaranjado
    (por horario). Relleno solido con texto blanco (contraste AA). */
 .biz-card__status--abierto { background: #15803d; border-color: #15803d; color: #ffffff; }
+.biz-card__status--abierto-24 { background: #15803d; border-color: #15803d; color: #ffffff; }
 .biz-card__status--cerrado { background: #dc2626; border-color: #dc2626; color: #ffffff; }
 .biz-card__status--por-horario { background: #c2410c; border-color: #c2410c; color: #ffffff; }
 .biz-card__status--default { background: #ffffff; border-color: rgba(31, 26, 26, 0.25); color: #544f47; }

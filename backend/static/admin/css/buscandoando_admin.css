@@ -2306,7 +2306,8 @@ a.ba-levantamiento__enlace:focus {
    en la BD; aqui se traduce a algo legible sobre blanco. Un slug nuevo
    cae en el neutro base (.ba-badge), que tambien se lee. */
 .ba-badge--publicado,
-.ba-badge--abierto {
+.ba-badge--abierto,
+.ba-badge--abierto-24 {
     color: #1a512d;
     border-color: #c2dc9f;
     background: #f2f8e9;

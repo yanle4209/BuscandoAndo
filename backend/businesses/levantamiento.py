@@ -78,7 +78,9 @@ LIMITE_ENVIOS_POR_MINUTO = 30
 # Los estados operativos que el formulario puede declarar. Lista, no
 # consulta: se comprueba en la puerta, y resolverla es un `filter()`
 # mas que no hace falta pagar en cada envio.
-ESTADOS_VALIDOS = ('abierto', 'cerrado', 'por-horario', 'cerrado-permanente')
+ESTADOS_VALIDOS = (
+    'abierto', 'abierto-24', 'cerrado', 'por-horario', 'cerrado-permanente',
+)
 
 # Copia exacta de la cabecera, para que quien la recibe pueda compartirla
 # sin tener que adivinar si esta en minusculas o con coma.

@@ -110,6 +110,7 @@
 }
 
 .detail-status--abierto,
+.detail-status--abierto-24,
 .detail-status--abierto---horario {
   background: rgba(135, 179, 50, 0.18);
   color: #1a512d;

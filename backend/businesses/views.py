@@ -1072,7 +1072,12 @@ def pendientes(request):
 
     negocios = (
         Business.objects
-        .select_related('location', 'contact', 'category', 'publication_status')
+        .select_related(
+            'location', 'contact', 'category', 'publication_status',
+            # `operational_status` porque `faltantes_de` lo mira para el
+            # «Abierto 24 horas» que anula el horario.
+            'operational_status',
+        )
         # `images` porque la foto es obligatoria y `faltantes_de` la
         # mira: sin precargar, una consulta por ficha.
         .prefetch_related('hours', 'images')
@@ -1316,10 +1321,10 @@ def pospuesto(request):
         )
 
     # ``location`` decide el permiso; ``publication_status``/contact/
-    # hours/images alimentan el ``con_trabajo`` del guard de abajo:
-    # todo en una sola consulta.
+    # hours/images/operational_status alimentan el ``con_trabajo`` del
+    # guard de abajo: todo en una sola consulta.
     biz = Business.objects.filter(id=int(ficha)).select_related(
-        'location', 'publication_status', 'contact',
+        'location', 'publication_status', 'contact', 'operational_status',
     ).prefetch_related('hours', 'images').first()
     if biz is None:
         return Response(

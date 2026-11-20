@@ -46,8 +46,9 @@ from business_locations.models import BusinessLocation
 from business_contacts.models import BusinessContact
 from business_hours.models import BusinessHours
 from . import geografia, osm, portar, validacion
-from .levantamiento import LIMITE_ENVIOS_POR_MINUTO, _ip
+from .levantamiento import ESTADOS_VALIDOS, LIMITE_ENVIOS_POR_MINUTO, _ip
 from .models import Anuncio, Business, Correction, Cobro, Colaborador, Envio, Pospuesto, SlugAntiguo
+from .pendientes import faltantes_de
 from .serializers import compute_operational_status
 from uso.models import UsoDiario
 
@@ -6257,3 +6258,88 @@ class HorarioNoDisponibleTests(TestCase):
         self.assertIn(respuesta.status_code, (200, 201), respuesta.content)
         negocio.refresh_from_db()
         self.assertTrue(negocio.horario_sin_dato)
+
+
+class Abierto24HorasTests(TestCase):
+    """«Abierto 24 horas»: estado nuevo que anula el requerimiento de horario.
+
+    Elegirlo en el selector del levantamiento (o en el formulario de
+    creación/edición del admin) deja el horario de lado: faltantes_de
+    ya no pide franjas y la API deja de calcular el estado con el
+    reloj — el declarado manda, para que el chip de la ficha nunca se
+    contradiga con lo que se ve en el frontend.
+    """
+
+    @property
+    def hoy(self):
+        """Día de HOY según la zona del proyecto (America/Santo_Domingo)."""
+        return ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes',
+                'Sábado', 'Domingo'][timezone.localdate().weekday()]
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.publicado = PublicationStatus.objects.create(
+            name='Publicado', slug='publicado')
+        cls.categoria = Category.objects.create(
+            name='Restaurantes', slug='restaurantes')
+        cls.abierto_24, _ = OperationalStatus.objects.get_or_create(
+            slug='abierto-24',
+            defaults={'name': 'Abierto 24 horas', 'color': '#16a34a'},
+        )
+
+    def negocio(self, estado=None, con_horario=False):
+        """Un negocio publicado en Moca (fase), con horas de hoy opcional."""
+        biz = Business.objects.create(
+            name='Algo Que Abre Todo El Dia',
+            description='Descripcion de Algo Que Abre Todo El Dia',
+            short_description='Algo Que Abre Todo El Dia',
+            category=self.categoria,
+            publication_status=self.publicado,
+            operational_status=estado,
+        )
+        BusinessLocation.objects.create(
+            business=biz, municipality='Moca', province='Espaillat',
+            latitude=MOCA_LAT, longitude=MOCA_LNG,
+        )
+        if con_horario:
+            desde = timezone.localtime(
+                timezone.now() - datetime.timedelta(hours=1)).time()
+            hasta = timezone.localtime(
+                timezone.now() + datetime.timedelta(hours=1)).time()
+            BusinessHours.objects.create(
+                business=biz, day=self.hoy,
+                open_time=desde, close_time=hasta,
+            )
+        return biz
+
+    def test_el_horario_deja_de_ser_requerido(self):
+        """Con «Abierto 24 horas» el horario no falta; sin ese estado,
+        una ficha sin franjas sigue pidiendo horario."""
+        sin_estado = Business.objects.create(
+            name='Sin Decidir', publication_status=self.publicado)
+        con_24 = Business.objects.create(
+            name='Todo El Dia', publication_status=self.publicado,
+            operational_status=self.abierto_24)
+
+        self.assertIn('horario', faltantes_de(sin_estado))
+        self.assertNotIn('horario', faltantes_de(con_24))
+
+    def test_el_reloj_no_sobreescribe_lo_declarado(self):
+        """Horas que cubren la hora de AHORA: igual manda lo declarado
+        (el early return), y la ficha y el listado lo dicen igual."""
+        biz = self.negocio(estado=self.abierto_24, con_horario=True)
+
+        self.assertEqual(compute_operational_status(biz), 'abierto-24')
+
+        ficha = self.client.get(f'{BUSINESSES_URL}{biz.slug}/').json()
+        lista = self.client.get(BUSINESSES_URL).json()['results']
+
+        self.assertEqual(ficha['effective_status'], 'abierto-24')
+        self.assertEqual(ficha['effective_status_name'], 'Abierto 24 horas')
+        self.assertEqual(lista[0]['effective_status'], 'abierto-24')
+        self.assertEqual(
+            lista[0]['effective_status_name'], 'Abierto 24 horas')
+
+    def test_es_un_estado_valido_para_el_levantamiento(self):
+        """El endpoint de completar/levantar acepta el nuevo slug."""
+        self.assertIn('abierto-24', ESTADOS_VALIDOS)

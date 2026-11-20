@@ -68,6 +68,7 @@ class Command(BaseCommand):
             (2, 'cerrado', 'Cerrado', '#ef4444'),
             (3, 'por-horario', 'Por horario', '#f59e0b'),
             (4, 'cerrado-permanente', 'Cerrado Permanente', '#6b7280'),
+            (5, 'abierto-24', 'Abierto 24 horas', '#16a34a'),
         ]:
             OperationalStatus.objects.create(id=sid, slug=slug, name=name, color=color)
             self.stdout.write(f'  Created: {name} (id={sid})')

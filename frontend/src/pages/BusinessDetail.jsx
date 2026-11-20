@@ -232,9 +232,21 @@ export default function BusinessDetail() {
           )}
         </section>
 
+        {/* Abierto 24 horas: sin filas por día, el dato lo dice todo. */}
+        {slugDeEstado(biz) === 'abierto-24' && (
+          <section className="detail-section">
+            <h2>Horarios</h2>
+            <div className="detail-hours">
+              <div className="detail-hours-row">
+                <span className="detail-hours-day">Todos los días</span>
+                <span className="detail-hours-time">Abierto las 24 horas</span>
+              </div>
+            </div>
+          </section>
+        )}
         {/* Horarios: sin filas reales, si el colaborador marco el dato
             como no disponible, se dice explicitamente — nunca en blanco. */}
-        {hours.length > 0 && (
+        {slugDeEstado(biz) !== 'abierto-24' && hours.length > 0 && (
           <section className="detail-section">
             <h2>Horarios</h2>
             <div className="detail-hours">
@@ -254,7 +266,7 @@ export default function BusinessDetail() {
             </div>
           </section>
         )}
-        {hours.length === 0 && biz.horario_sin_dato && (
+        {slugDeEstado(biz) !== 'abierto-24' && hours.length === 0 && biz.horario_sin_dato && (
           <section className="detail-section">
             <h2>Horarios</h2>
             <div className="detail-hours">

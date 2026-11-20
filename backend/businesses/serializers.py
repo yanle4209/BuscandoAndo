@@ -9,6 +9,7 @@ from django.utils import timezone
 
 STATUS_NAMES = {
     'abierto': 'Abierto',
+    'abierto-24': 'Abierto 24 horas',
     'cerrado': 'Cerrado',
     'por-horario': 'Por horario',
     # Sin esta entrada, una ficha marcada "Cerrado Permanente" en el admin
@@ -22,8 +23,14 @@ STATUS_NAMES = {
 def compute_operational_status(business):
     """
     Calcula el estado operativo real basado en horarios y feriados.
-    Retorna: 'abierto', 'cerrado', 'por-horario'
+    Retorna: 'abierto', 'abierto-24', 'cerrado', 'por-horario'
     """
+    # «Abierto 24 horas»: el declarado manda y anula cualquier franja —
+    # el chip nunca puede contradecir las 24 horas (aunque la ficha
+    # arrastre horarios viejos de antes del cambio).
+    if business.operational_status_id and business.operational_status.slug == 'abierto-24':
+        return 'abierto-24'
+
     # Reloj del PROYECTO (America/Santo_Domingo), no el del host: en
     # Render el servidor vive en UTC, asi que date.today()/datetime.now()
     # desfasaban el estado 4-5 horas y entre medianoche y las 4 a.m. hasta
