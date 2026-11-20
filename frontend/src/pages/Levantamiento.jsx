@@ -147,7 +147,7 @@ function SelectorTiempo({ valor, onCambio, etiqueta }) {
     // haya elegido el usuario, que no se pisa). Así elegir "8" se lee
     // como "8:00 AM" de inmediato en vez de dejar la franja a medias.
     const s = campo === 'h12'
-      ? { ...base, h12: v, min: base.min || '00', ampm: base.ampm || 'AM' }
+      ? { ...base, h12: v, min: base.min || '00', ampm: base.ampm || 'PM' }
       : { ...base, [campo]: v };
     setPartes(s);
     // Nunca se inventa una hora: la franja solo queda escrita cuando
