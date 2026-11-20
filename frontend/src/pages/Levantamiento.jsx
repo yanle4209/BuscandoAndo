@@ -142,7 +142,13 @@ function SelectorTiempo({ valor, onCambio, etiqueta }) {
   }, [valor]);
   const elegir = (campo, v) => {
     const base = partes || { h12: '', min: '', ampm: '' };
-    const s = { ...base, [campo]: v };
+    // Elegir la hora basta para entender la franja: si faltan, el
+    // minuto se completa en "00" y el meridiano en AM (o en el que ya
+    // haya elegido el usuario, que no se pisa). Así elegir "8" se lee
+    // como "8:00 AM" de inmediato en vez de dejar la franja a medias.
+    const s = campo === 'h12'
+      ? { ...base, h12: v, min: base.min || '00', ampm: base.ampm || 'AM' }
+      : { ...base, [campo]: v };
     setPartes(s);
     // Nunca se inventa una hora: la franja solo queda escrita cuando
     // los tres segmentos están presentes; si falta alguno, queda en
