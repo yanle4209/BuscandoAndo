@@ -1174,9 +1174,10 @@
 }
 
 /* ===== Encabezados plegables de las listas =====
-   Las dos listas (En revisión y Pospuestos) colapsan/expanden con
-   aria-expanded; así el colaborador puede apañar lo que necesita
-   rápido. El conteo viaja en la derecha, visible aún cerradas. */
+   Las tres listas (En revisión, Pospuestos y Publicadas con
+   faltantes) colapsan/expanden con aria-expanded; así el colaborador
+   puede apañar lo que necesita rápido. El conteo viaja en la derecha,
+   visible aún cerradas. */
 .lev-grupo-toggle {
   display: flex;
   align-items: center;

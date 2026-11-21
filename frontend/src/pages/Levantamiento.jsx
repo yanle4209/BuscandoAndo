@@ -219,6 +219,8 @@ export default function Levantamiento() {
   // Listas plegables: por defecto abiertas como hasta ahora.
   const [mostrarRevision, setMostrarRevision] = useState(true);
   const [mostrarPospuestos, setMostrarPospuestos] = useState(true);
+  // «Publicadas con faltantes» arranca colapsada: es la lista menos urgente.
+  const [mostrarPublicadas, setMostrarPublicadas] = useState(false);
 
   // ------------------------------ las fotos ---------------------------
   // Las fotos nuevas que estan por mandar, con su URL de preview para
@@ -1361,32 +1363,47 @@ export default function Levantamiento() {
                       que ya tienen todo lo obligatorio y aun les falta
                       algo de lo demas. Son clicables —abren el mismo
                       formulario— porque rellenarlas tarde tambien es el
-                      trabajo. */}
+                      trabajo. Colapsada por defecto: es lo menos urgente. */}
                   {filasPublicadas.length > 0 && (
                     <>
-                      <h3>Publicadas con faltantes</h3>
-                      <p className="lev-publicadas-nota">
-                        Ya tienen todo lo obligatorio; les queda rellenar lo demás cuando se pueda.
-                      </p>
-                      <ul className="lev-fichas lev-fichas--publicadas">
-                        {filasPublicadas.map((f) => (
-                          <li key={f.id} className={`lev-ficha ${claseFila(f)}`}>
-                            <button
-                              type="button"
-                              className="lev-ficha-abrir"
-                              onClick={() => abrirFichaPorId(String(f.id))}
-                            >
-                              <span className="lev-ficha-nombre">{f.nombre}</span>
-                            </button>
-                            <span className="lev-ficha-estado publicado">publicada</span>
-                            <span className="lev-ficha-falta">
-                              {f.restan.length === 0
-                                ? '✓ Completa'
-                                : `Falta: ${f.restan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
+                      <button
+                        type="button"
+                        className="lev-grupo-toggle"
+                        aria-expanded={mostrarPublicadas}
+                        onClick={() => setMostrarPublicadas((v) => !v)}
+                      >
+                        <span className="lev-grupo-caret" aria-hidden="true">
+                          {mostrarPublicadas ? '▾' : '▸'}
+                        </span>
+                        Publicadas con faltantes
+                        <span className="lev-grupo-n">{filasPublicadas.length}</span>
+                      </button>
+                      {mostrarPublicadas && (
+                        <>
+                          <p className="lev-publicadas-nota">
+                            Ya tienen todo lo obligatorio; les queda rellenar lo demás cuando se pueda.
+                          </p>
+                          <ul className="lev-fichas lev-fichas--publicadas">
+                            {filasPublicadas.map((f) => (
+                              <li key={f.id} className={`lev-ficha ${claseFila(f)}`}>
+                                <button
+                                  type="button"
+                                  className="lev-ficha-abrir"
+                                  onClick={() => abrirFichaPorId(String(f.id))}
+                                >
+                                  <span className="lev-ficha-nombre">{f.nombre}</span>
+                                </button>
+                                <span className="lev-ficha-estado publicado">publicada</span>
+                                <span className="lev-ficha-falta">
+                                  {f.restan.length === 0
+                                    ? '✓ Completa'
+                                    : `Falta: ${f.restan.map((c) => ETIQUETAS[c] || c).join(', ')}`}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
                     </>
                   )}
 
