@@ -1,0 +1,45 @@
+# Contexto de build para Docker / Coolify.
+#
+# Todo lo que se excluye aqui NO viaja a la imagen. Dos objetivos:
+# construir rapido (sin .venv ni node_modules) y no filtrar secretos
+# ni datos locales.
+
+# --- Control de versiones y ruido ---
+.git
+.gitignore
+.opencode
+.vscode
+.idea
+*.log
+
+# --- Secretos: jamas dentro de una imagen ---
+.env
+.env.*
+**/.env
+**/.env.*
+env.production
+
+# --- Python ---
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+backend/.venv
+venv
+
+# --- Datos locales (no se hornean en la imagen) ---
+backend/db.sqlite3
+backend/media
+backend/staticfiles
+backend/public
+backend/scripts_antiguos
+
+# --- Frontend: se recompila dentro de la imagen ---
+frontend/node_modules
+frontend/dist
+frontend/.vite
+
+# --- App Android: no participa del sitio web ---
+android
+
+# --- Documentacion (no afecta al runtime) ---
+*.md

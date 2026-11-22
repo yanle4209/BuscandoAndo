@@ -1,0 +1,120 @@
+# BuscandoAndo — despliegue con Docker Compose / Coolify
+#
+# Uso local:
+#   cp .env.coolify.example .env
+#   docker compose up -d --build
+#
+# En Coolify: se detecta como recurso "Docker Compose". El dominio se
+# configura en la pestana Domains y el proxy entra por el puerto 8000.
+#
+# Para usar una base externa (Neon, el Postgres de Coolify, etc.):
+#   1. define DATABASE_URL en el entorno,
+#   2. borra el servicio "db", su volumen y el bloque depends_on.
+# Con DATABASE_URL definida, el valor de abajo no se usa.
+
+name: buscandoando
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    environment:
+      # --- Django ---
+      # Sin SECRET_KEY no arranca a proposito: una clave por defecto en
+      # produccion firma sesiones con un secreto publico.
+      SECRET_KEY: "${SECRET_KEY:?Define SECRET_KEY en el entorno (.env o panel de Coolify)}"
+      DEBUG: "${DEBUG:-False}"
+      ALLOWED_HOSTS: "${ALLOWED_HOSTS:-localhost,127.0.0.1}"
+      CSRF_TRUSTED_ORIGINS: "${CSRF_TRUSTED_ORIGINS:-}"
+      CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS:-http://localhost:5173}"
+      SITIO_URL: "${SITIO_URL:-http://localhost:8000}"
+
+      # --- Base de datos ---
+      # Se usan los campos DB_* y no una URL compuesta: la interpolacion
+      # anidada de compose es fragil y las passwords con caracteres
+      # raros rompen la URL. Con DATABASE_URL definida, Django la usa y
+      # estos cuatro se ignoran (rama de settings.py).
+      USE_POSTGRES: "True"
+      DATABASE_URL: "${DATABASE_URL:-}"
+      DB_NAME: "${POSTGRES_DB:-buscandoando}"
+      DB_USER: "${POSTGRES_USER:-buscandoando}"
+      DB_PASSWORD: "${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}"
+      DB_HOST: "${DB_HOST:-db}"
+      DB_PORT: "${DB_PORT:-5432}"
+
+      # --- Proceso ---
+      PORT: "8000"
+      WEB_CONCURRENCY: "${WEB_CONCURRENCY:-2}"
+      WEB_THREADS: "${WEB_THREADS:-4}"
+      GUNICORN_TIMEOUT: "${GUNICORN_TIMEOUT:-120}"
+      ESPERAR_BD: "${ESPERAR_BD:-1}"
+      CARGAR_FICHAS: "${CARGAR_FICHAS:-0}"
+
+      # --- Fase geografica (DISENO.md §13) ---
+      # Vacio = todo el pais. Por defecto se mantiene la beta de Moca.
+      FASE1_PROVINCIAS: "${FASE1_PROVINCIAS:-Espaillat}"
+      FASE1_MUNICIPIOS: "${FASE1_MUNICIPIOS:-Moca}"
+
+      # --- Admin inicial ---
+      DJANGO_SUPERUSER_USERNAME: "${DJANGO_SUPERUSER_USERNAME:-admin}"
+      DJANGO_SUPERUSER_PASSWORD: "${DJANGO_SUPERUSER_PASSWORD:-}"
+      DJANGO_SUPERUSER_EMAIL: "${DJANGO_SUPERUSER_EMAIL:-admin@example.com}"
+
+      # --- Imagenes (opcional) ---
+      # Con estas tres vacias el media va al volumen local; con valores,
+      # Cloudinary. Ver la seccion "Medios" de COOLIFY.md.
+      CLOUDINARY_CLOUD_NAME: "${CLOUDINARY_CLOUD_NAME:-}"
+      CLOUDINARY_API_KEY: "${CLOUDINARY_API_KEY:-}"
+      CLOUDINARY_API_SECRET: "${CLOUDINARY_API_SECRET:-}"
+
+    # Coolify detecta este puerto para el proxy. No se publica al host
+    # (sin "ports") para no chocar con nada que ya escuche en el 8000.
+    expose:
+      - "8000"
+
+    volumes:
+      # Fotos subidas cuando NO hay Cloudinary. Si hay credenciales, el
+      # volumen queda sin uso pero no molesta.
+      - media_data:/app/backend/media
+
+    healthcheck:
+      # /api/health/ responde 200 aunque la BD falle (decision de
+      # config/health.py): aqui mide "el proceso atiende", que es lo que
+      # el proxy necesita saber para enrutar.
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/api/health/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-buscandoando}"
+      POSTGRES_USER: "${POSTGRES_USER:-buscandoando}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}"
+      # El dump de Neon viene en UTF8; dejarlo explicito evita sorpresas
+      # al restaurar acentos y enes.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    # Sin "ports": solo la red interna del compose llega a Postgres.
+
+volumes:
+  pg_data:
+  media_data:

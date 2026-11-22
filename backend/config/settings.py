@@ -243,6 +243,20 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
+# --- CSRF ---
+# Django compara el header Origin de cada POST contra el host de la
+# peticion. Detras del proxy de Coolify (Traefik) el host llega bien y
+# esto no hace falta; pero cuando el panel se sirve por un dominio que
+# el contenedor desconoce (o se prueba por IP antes de apuntar el DNS),
+# el login del admin falla con "CSRF verification failed". Declarar el
+# origen aqui es la valvula de escape sin tocar codigo. Vacio = sin
+# origenes extra, que es el comportamiento de siempre.
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip().rstrip('/')
+    for origin in env_csv('CSRF_TRUSTED_ORIGINS', '')
+    if origin.strip()
+]
+
 # --- Fase geografica ---
 # Provincias y municipios donde BuscandoAndo esta publicado HOY
 # (DISENO.md FASE1). La restriccion es de VISTAS: listado, destacados,

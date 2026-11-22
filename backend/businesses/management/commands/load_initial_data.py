@@ -34,7 +34,12 @@ class Command(BaseCommand):
     def _clear_and_load(self):
         self.stdout.write("=== Clearing existing data ===")
         with connection.cursor() as cursor:
-            cursor.execute("SET CONSTRAINTS ALL DEFERRED")
+            # SET CONSTRAINTS existe solo en PostgreSQL. En SQLite
+            # (pruebas y arranque sin Postgres) el comando se caia con
+            # "near SET: syntax error" antes de cargar nada.
+            es_postgres = connection.vendor == 'postgresql'
+            if es_postgres:
+                cursor.execute("SET CONSTRAINTS ALL DEFERRED")
             for table in [
                 'business_images_businessimage',
                 'business_hours_businesshours',
@@ -47,7 +52,8 @@ class Command(BaseCommand):
             ]:
                 cursor.execute(f"DELETE FROM {table}")
                 self.stdout.write(f"  Cleared {table}")
-            cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+            if es_postgres:
+                cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
 
         # Recreate publication statuses
         self.stdout.write("\n=== Creating publication statuses ===")
@@ -118,15 +124,18 @@ class Command(BaseCommand):
 
         # Reset sequences
         self.stdout.write("\n=== Resetting sequences ===")
-        with connection.cursor() as cursor:
-            for table, column in [
-                ('publication_status_publicationstatus', 'id'),
-                ('operational_status_operationalstatus', 'id'),
-                ('categories_category', 'id'),
-            ]:
-                seq = f"{table}_{column}_seq"
-                cursor.execute(f"SELECT setval('{seq}', (SELECT COALESCE(MAX({column}), 1) FROM {table}))")
-                self.stdout.write(f"  Reset {seq}")
+        # setval() y las secuencias son de PostgreSQL. En SQLite los ids
+        # autoincrementales ya se recalculan solos tras el DELETE.
+        if connection.vendor == 'postgresql':
+            with connection.cursor() as cursor:
+                for table, column in [
+                    ('publication_status_publicationstatus', 'id'),
+                    ('operational_status_operationalstatus', 'id'),
+                    ('categories_category', 'id'),
+                ]:
+                    seq = f"{table}_{column}_seq"
+                    cursor.execute(f"SELECT setval('{seq}', (SELECT COALESCE(MAX({column}), 1) FROM {table}))")
+                    self.stdout.write(f"  Reset {seq}")
 
         # Load businesses from fixture
         self.stdout.write("\n=== Loading businesses from fixture ===")
